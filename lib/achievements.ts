@@ -23,15 +23,28 @@ const checkWorkoutCountAchievements = async (userId: string, totalWorkouts: numb
   const unlockedAchievements: Achievement[] = [];
   
   try {
+    // Get user's already unlocked achievement IDs
+    const { data: userAchievements, error: userAchievementsError } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId);
+
+    if (userAchievementsError) throw userAchievementsError;
+
+    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+
     // Get workout count achievements that user hasn't unlocked yet
-    const { data: achievements, error } = await supabase
+    let query = supabase
       .from('achievements')
       .select('*')
       .eq('category', 'workout')
-      .eq('is_active', true)
-      .not('id', 'in', `(
-        SELECT achievement_id FROM user_achievements WHERE user_id = '${userId}'
-      )`);
+      .eq('is_active', true);
+
+    if (unlockedIds.length > 0) {
+      query = query.not('id', 'in', `(${unlockedIds.join(',')})`);
+    }
+
+    const { data: achievements, error } = await query;
 
     if (error) throw error;
 
@@ -53,14 +66,27 @@ const checkStreakAchievements = async (userId: string, currentStreak: number): P
   const unlockedAchievements: Achievement[] = [];
   
   try {
-    const { data: achievements, error } = await supabase
+    // Get user's already unlocked achievement IDs
+    const { data: userAchievements, error: userAchievementsError } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId);
+
+    if (userAchievementsError) throw userAchievementsError;
+
+    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+
+    let query = supabase
       .from('achievements')
       .select('*')
       .eq('category', 'consistency')
-      .eq('is_active', true)
-      .not('id', 'in', `(
-        SELECT achievement_id FROM user_achievements WHERE user_id = '${userId}'
-      )`);
+      .eq('is_active', true);
+
+    if (unlockedIds.length > 0) {
+      query = query.not('id', 'in', `(${unlockedIds.join(',')})`);
+    }
+
+    const { data: achievements, error } = await query;
 
     if (error) throw error;
 
@@ -97,14 +123,27 @@ const checkWeeklyWorkoutAchievements = async (userId: string): Promise<Achieveme
 
     const weeklyWorkoutCount = weeklyWorkouts?.length || 0;
 
-    const { data: achievements, error } = await supabase
+    // Get user's already unlocked achievement IDs
+    const { data: userAchievements, error: userAchievementsError } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId);
+
+    if (userAchievementsError) throw userAchievementsError;
+
+    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+
+    let query = supabase
       .from('achievements')
       .select('*')
       .eq('category', 'consistency')
-      .eq('is_active', true)
-      .not('id', 'in', `(
-        SELECT achievement_id FROM user_achievements WHERE user_id = '${userId}'
-      )`);
+      .eq('is_active', true);
+
+    if (unlockedIds.length > 0) {
+      query = query.not('id', 'in', `(${unlockedIds.join(',')})`);
+    }
+
+    const { data: achievements, error } = await query;
 
     if (error) throw error;
 
@@ -136,14 +175,27 @@ const checkPersonalRecordAchievements = async (userId: string): Promise<Achievem
 
     const totalPRs = personalRecords?.length || 0;
 
-    const { data: achievements, error } = await supabase
+    // Get user's already unlocked achievement IDs
+    const { data: userAchievements, error: userAchievementsError } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId);
+
+    if (userAchievementsError) throw userAchievementsError;
+
+    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+
+    let query = supabase
       .from('achievements')
       .select('*')
       .eq('category', 'strength')
-      .eq('is_active', true)
-      .not('id', 'in', `(
-        SELECT achievement_id FROM user_achievements WHERE user_id = '${userId}'
-      )`);
+      .eq('is_active', true);
+
+    if (unlockedIds.length > 0) {
+      query = query.not('id', 'in', `(${unlockedIds.join(',')})`);
+    }
+
+    const { data: achievements, error } = await query;
 
     if (error) throw error;
 
@@ -180,14 +232,27 @@ const checkCardioAchievements = async (userId: string): Promise<Achievement[]> =
 
     const cardioCount = cardioWorkouts?.length || 0;
 
-    const { data: achievements, error } = await supabase
+    // Get user's already unlocked achievement IDs
+    const { data: userAchievements, error: userAchievementsError } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId);
+
+    if (userAchievementsError) throw userAchievementsError;
+
+    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+
+    let query = supabase
       .from('achievements')
       .select('*')
       .eq('category', 'workout')
-      .eq('is_active', true)
-      .not('id', 'in', `(
-        SELECT achievement_id FROM user_achievements WHERE user_id = '${userId}'
-      )`);
+      .eq('is_active', true);
+
+    if (unlockedIds.length > 0) {
+      query = query.not('id', 'in', `(${unlockedIds.join(',')})`);
+    }
+
+    const { data: achievements, error } = await query;
 
     if (error) throw error;
 
@@ -224,14 +289,27 @@ const checkMonthlyWorkoutAchievements = async (userId: string): Promise<Achievem
 
     const monthlyWorkoutCount = monthlyWorkouts?.length || 0;
 
-    const { data: achievements, error } = await supabase
+    // Get user's already unlocked achievement IDs
+    const { data: userAchievements, error: userAchievementsError } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId);
+
+    if (userAchievementsError) throw userAchievementsError;
+
+    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+
+    let query = supabase
       .from('achievements')
       .select('*')
       .eq('category', 'consistency')
-      .eq('is_active', true)
-      .not('id', 'in', `(
-        SELECT achievement_id FROM user_achievements WHERE user_id = '${userId}'
-      )`);
+      .eq('is_active', true);
+
+    if (unlockedIds.length > 0) {
+      query = query.not('id', 'in', `(${unlockedIds.join(',')})`);
+    }
+
+    const { data: achievements, error } = await query;
 
     if (error) throw error;
 
