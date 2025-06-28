@@ -153,41 +153,50 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
     const goalMultiplier = goals.find(g => g.value === formData.goal)?.multiplier || 1.0;
     const adjustedCalories = tdee * goalMultiplier;
 
-    // Calculate macros based on Leangains protocol
-    let proteinPerKgLBM: number;
+    // Calculate macros based on Leangains protocol with PERCENTAGE-BASED approach
+    let proteinPercentage: number;
     let carbPercentage: number;
     let fatPercentage: number;
 
     if (formData.goal === 'cutting') {
-      proteinPerKgLBM = 3.1; // High protein for cutting
       if (formData.isTrainingDay) {
+        // Training day cutting: 30% protein, 35% carbs, 35% fat
+        proteinPercentage = 0.30;
         carbPercentage = 0.35;
-        fatPercentage = 0.25;
+        fatPercentage = 0.35;
       } else {
-        carbPercentage = 0.20;
+        // Rest day cutting: 35% protein, 25% carbs, 40% fat
+        proteinPercentage = 0.35;
+        carbPercentage = 0.25;
         fatPercentage = 0.40;
       }
     } else if (formData.goal === 'bulking') {
-      proteinPerKgLBM = 2.2; // Moderate protein for bulking
       if (formData.isTrainingDay) {
+        // Training day bulking: 25% protein, 45% carbs, 30% fat
+        proteinPercentage = 0.25;
         carbPercentage = 0.45;
-        fatPercentage = 0.25;
+        fatPercentage = 0.30;
       } else {
+        // Rest day bulking: 30% protein, 35% carbs, 35% fat
+        proteinPercentage = 0.30;
         carbPercentage = 0.35;
         fatPercentage = 0.35;
       }
     } else {
-      proteinPerKgLBM = 2.6; // Maintenance
-      carbPercentage = 0.40;
-      fatPercentage = 0.30;
+      // Maintenance: 30% protein, 35% carbs, 35% fat
+      proteinPercentage = 0.30;
+      carbPercentage = 0.35;
+      fatPercentage = 0.35;
     }
 
-    const protein = proteinPerKgLBM * lbm;
-    const proteinCalories = protein * 4;
-    const remainingCalories = adjustedCalories - proteinCalories;
-    
-    const carbs = (remainingCalories * carbPercentage) / 4;
-    const fat = (remainingCalories * fatPercentage) / 9;
+    // Calculate macros in grams based on percentages
+    const proteinCalories = adjustedCalories * proteinPercentage;
+    const carbCalories = adjustedCalories * carbPercentage;
+    const fatCalories = adjustedCalories * fatPercentage;
+
+    const protein = proteinCalories / 4; // 4 calories per gram of protein
+    const carbs = carbCalories / 4; // 4 calories per gram of carbs
+    const fat = fatCalories / 9; // 9 calories per gram of fat
 
     return {
       bmr: Math.round(bmr),
