@@ -13,11 +13,14 @@ export function useAchievements(userId: string | null) {
   const [achievementProgress, setAchievementProgress] = useState<AchievementProgress[]>([]);
   const [newAchievements, setNewAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (userId) {
       loadUserAchievements();
       loadAchievementProgress();
+    } else {
+      setLoading(false);
     }
   }, [userId]);
 
@@ -25,10 +28,12 @@ export function useAchievements(userId: string | null) {
     if (!userId) return;
     
     try {
+      setError(null);
       const achievements = await getUserAchievements(userId);
       setUserAchievements(achievements);
     } catch (error) {
       console.error('Error loading user achievements:', error);
+      setError('Failed to load achievements');
     }
   };
 
@@ -36,10 +41,12 @@ export function useAchievements(userId: string | null) {
     if (!userId) return;
     
     try {
+      setError(null);
       const progress = await getUserAchievementProgress(userId);
       setAchievementProgress(progress);
     } catch (error) {
       console.error('Error loading achievement progress:', error);
+      setError('Failed to load achievement progress');
     } finally {
       setLoading(false);
     }
@@ -79,16 +86,51 @@ export function useAchievements(userId: string | null) {
     return achievementProgress.length;
   };
 
+  const getAchievementsByCategory = (category: string) => {
+    if (category === 'all') {
+      return achievementProgress;
+    }
+    return achievementProgress.filter(progress => {
+      const achievement = userAchievements.find(ua => ua.achievement_id === progress.achievement_id)?.achievement;
+      return achievement?.category === category;
+    });
+  };
+
+  const getCompletionPercentage = () => {
+    const total = getTotalAchievements();
+    const unlocked = getUnlockedCount();
+    return total > 0 ? Math.round((unlocked / total) * 100) : 0;
+  };
+
+  const getNextAchievement = () => {
+    const inProgress = achievementProgress
+      .filter(p => !p.unlocked && p.percentage > 0)
+      .sort((a, b) => b.percentage - a.percentage);
+    
+    return inProgress[0] || null;
+  };
+
+  const getRecentAchievements = (limit: number = 5) => {
+    return userAchievements
+      .sort((a, b) => new Date(b.unlocked_at).getTime() - new Date(a.unlocked_at).getTime())
+      .slice(0, limit);
+  };
+
   return {
     userAchievements,
     achievementProgress,
     newAchievements,
     loading,
+    error,
     checkForNewAchievements,
     clearNewAchievements,
     getTotalPoints,
     getUnlockedCount,
     getTotalAchievements,
+    getAchievementsByCategory,
+    getCompletionPercentage,
+    getNextAchievement,
+    getRecentAchievements,
     refreshAchievements: loadUserAchievements,
     refreshProgress: loadAchievementProgress,
   };

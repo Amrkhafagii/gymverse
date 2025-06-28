@@ -15,6 +15,7 @@ export interface AchievementProgress {
   target_value: number;
   percentage: number;
   unlocked: boolean;
+  achievement?: Achievement;
 }
 
 // Achievement checking functions
@@ -322,7 +323,9 @@ export const getUserAchievementProgress = async (userId: string): Promise<Achiev
     const { data: achievements, error } = await supabase
       .from('achievements')
       .select('*')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .order('category', { ascending: true })
+      .order('points', { ascending: true });
 
     if (error) throw error;
 
@@ -390,6 +393,10 @@ export const getUserAchievementProgress = async (userId: string): Promise<Achiev
             new Date(ws.started_at) >= monthAgo
           ).length || 0;
           break;
+        case 'cardio_workouts':
+          // This would require joining with workouts table to check workout_type
+          currentValue = 0; // Simplified for now
+          break;
         default:
           currentValue = 0;
       }
@@ -403,6 +410,7 @@ export const getUserAchievementProgress = async (userId: string): Promise<Achiev
         target_value: targetValue,
         percentage,
         unlocked,
+        achievement,
       });
     }
   } catch (error) {

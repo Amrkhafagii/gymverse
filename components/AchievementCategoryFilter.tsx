@@ -20,6 +20,7 @@ export default function AchievementCategoryFilter({
 }: AchievementCategoryFilterProps) {
   return (
     <View style={styles.categoriesContainer}>
+      <Text style={styles.filterTitle}>Categories</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {categories.map((category) => (
           <TouchableOpacity
@@ -31,7 +32,7 @@ export default function AchievementCategoryFilter({
             onPress={() => onCategorySelect(category.id)}
           >
             <category.icon 
-              size={20} 
+              size={18} 
               color={selectedCategory === category.id ? '#fff' : '#999'} 
             />
             <Text
@@ -51,15 +52,20 @@ export default function AchievementCategoryFilter({
 
 const styles = StyleSheet.create({
   categoriesContainer: {
-    marginTop: 20,
-    marginBottom: 20,
+    marginBottom: 30,
+  },
+  filterTitle: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 12,
   },
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1a1a1a',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
     marginRight: 12,
     borderWidth: 1,
