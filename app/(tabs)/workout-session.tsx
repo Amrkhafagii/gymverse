@@ -14,22 +14,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { 
-  Play, 
-  Pause, 
-  Square, 
-  Plus, 
-  Minus, 
-  Clock, 
-  Target, 
-  CheckCircle, 
-  X, 
-  Timer,
-  SkipForward,
-  RotateCcw,
-  Trophy,
-  Star
-} from 'lucide-react-native';
+import { Play, Pause, Square, Plus, Minus, Clock, Target, CircleCheck as CheckCircle, X, Timer, SkipForward, RotateCcw, Trophy, Star } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAchievements } from '@/hooks/useAchievements';
 import { usePersonalRecords } from '@/hooks/usePersonalRecords';
