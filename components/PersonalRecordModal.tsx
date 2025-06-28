@@ -112,11 +112,13 @@ export default function PersonalRecordModal({ visible, record, onClose }: Person
                 <View style={styles.improvementContainer}>
                   <TrendingUp size={20} color="#fff" />
                   <Text style={styles.improvementText}>
-                    +{formatPersonalRecordValue(
+                    <Text>+</Text>
+                    {formatPersonalRecordValue(
                       record.improvement || 0, 
                       record.record_type, 
                       record.unit
-                    )} improvement
+                    )}
+                    <Text> improvement</Text>
                   </Text>
                 </View>
               )}
