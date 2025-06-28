@@ -167,6 +167,13 @@ export default function WorkoutSessionScreen() {
     updateSessionStats();
   }, [sets, exercises]);
 
+  // NEW: Effect to create session exercise when session and exercise data are ready
+  useEffect(() => {
+    if (sessionId && exercises.length > 0 && currentExerciseIndex < exercises.length && !sessionExerciseId) {
+      createSessionExercise();
+    }
+  }, [sessionId, exercises, currentExerciseIndex, sessionExerciseId]);
+
   const loadWorkoutData = async () => {
     if (!workoutId) return;
 
@@ -259,8 +266,8 @@ export default function WorkoutSessionScreen() {
       setSessionStartTime(startTime);
       setIsSessionActive(true);
 
-      // Create session exercise entry
-      await createSessionExercise();
+      // NOTE: Removed direct call to createSessionExercise() here
+      // It will be handled by the useEffect hook above
 
       // Animate start
       Animated.sequence([
@@ -282,7 +289,7 @@ export default function WorkoutSessionScreen() {
   };
 
   const createSessionExercise = async () => {
-    if (!sessionId || exercises.length === 0) return;
+    if (!sessionId || exercises.length === 0 || currentExerciseIndex >= exercises.length) return;
 
     try {
       const { data, error } = await supabase
@@ -389,8 +396,9 @@ export default function WorkoutSessionScreen() {
     if (currentExerciseIndex < exercises.length - 1) {
       const nextIndex = currentExerciseIndex + 1;
       setCurrentExerciseIndex(nextIndex);
+      setSessionExerciseId(null); // Reset session exercise ID
       initializeSetsForExercise(exercises[nextIndex]);
-      await createSessionExercise();
+      // The useEffect hook will handle creating the new session exercise
     } else {
       // Workout complete
       await finishWorkout();
