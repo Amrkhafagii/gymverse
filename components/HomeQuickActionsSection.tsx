@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { Play, Plus, TrendingUp, Users } from 'lucide-react-native';
 
 interface QuickAction {
@@ -14,12 +15,40 @@ interface HomeQuickActionsSectionProps {
 }
 
 export default function HomeQuickActionsSection({ quickActions }: HomeQuickActionsSectionProps) {
+  const handleQuickAction = (actionLabel: string) => {
+    switch (actionLabel) {
+      case 'Start Workout':
+        // Navigate to workouts tab to select a workout
+        router.push('/(tabs)/workouts');
+        break;
+      case 'Log Exercise':
+        // Navigate to create workout screen for quick exercise logging
+        router.push('/(tabs)/create-workout');
+        break;
+      case 'View Progress':
+        // Navigate to progress tab
+        router.push('/(tabs)/progress');
+        break;
+      case 'Find Friends':
+        // Navigate to social tab
+        router.push('/(tabs)/social');
+        break;
+      default:
+        console.log('Unknown action:', actionLabel);
+    }
+  };
+
   return (
     <View style={styles.quickActionsContainer}>
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.quickActionsGrid}>
         {quickActions.map((action, index) => (
-          <TouchableOpacity key={index} style={styles.quickActionCard}>
+          <TouchableOpacity 
+            key={index} 
+            style={styles.quickActionCard}
+            onPress={() => handleQuickAction(action.label)}
+            activeOpacity={0.8}
+          >
             <LinearGradient
               colors={[action.color, `${action.color}CC`]}
               style={styles.quickActionGradient}>

@@ -1,9 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { Play } from 'lucide-react-native';
 
 export default function HomeTodaysWorkoutSection() {
+  const handleStartWorkout = () => {
+    // Navigate to the specific workout detail page
+    // For now, we'll navigate to workouts tab since we don't have a specific workout ID
+    // In a real app, you'd have a "today's workout" ID to navigate to
+    router.push('/(tabs)/workouts');
+  };
+
   return (
     <View style={styles.todayWorkoutContainer}>
       <Text style={styles.sectionTitle}>Today's Workout</Text>
@@ -21,7 +29,11 @@ export default function HomeTodaysWorkoutSection() {
           <Text style={styles.exerciseText}>• Tricep Dips</Text>
           <Text style={styles.exerciseText}>• Push-ups</Text>
         </View>
-        <TouchableOpacity style={styles.startWorkoutButton}>
+        <TouchableOpacity 
+          style={styles.startWorkoutButton}
+          onPress={handleStartWorkout}
+          activeOpacity={0.8}
+        >
           <LinearGradient
             colors={['#FF6B35', '#FF8C42']}
             style={styles.startWorkoutGradient}>
