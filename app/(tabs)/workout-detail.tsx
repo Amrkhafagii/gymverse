@@ -107,7 +107,7 @@ export default function WorkoutDetailScreen() {
       pathname: '/(tabs)/workout-session',
       params: {
         workoutId: workoutId,
-        workoutName: workout?.name || 'Workout',
+        workoutName: workout.name || 'Workout',
       },
     });
   };
@@ -178,6 +178,7 @@ export default function WorkoutDetailScreen() {
     );
   }
 
+  // Main content - only render when workout is not null
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
@@ -185,26 +186,26 @@ export default function WorkoutDetailScreen() {
           <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
         
-        <Text style={styles.workoutTitle}>{workout?.name || 'Workout'}</Text>
-        {workout?.description && (
+        <Text style={styles.workoutTitle}>{workout.name}</Text>
+        {workout.description && (
           <Text style={styles.workoutDescription}>{workout.description}</Text>
         )}
         
         <View style={styles.workoutMeta}>
           <View style={styles.metaItem}>
             <Clock size={16} color="#FF6B35" />
-            <Text style={styles.metaText}>{workout?.estimated_duration_minutes || 0} min</Text>
+            <Text style={styles.metaText}>{workout.estimated_duration_minutes || 0} min</Text>
           </View>
           <View style={styles.metaItem}>
-            <Target size={16} color={getDifficultyColor(workout?.difficulty_level || 'beginner')} />
-            <Text style={[styles.metaText, { color: getDifficultyColor(workout?.difficulty_level || 'beginner') }]}>
-              {workout?.difficulty_level || 'beginner'}
+            <Target size={16} color={getDifficultyColor(workout.difficulty_level || 'beginner')} />
+            <Text style={[styles.metaText, { color: getDifficultyColor(workout.difficulty_level || 'beginner') }]}>
+              {workout.difficulty_level || 'beginner'}
             </Text>
           </View>
           <View style={styles.metaItem}>
-            <TrendingUp size={16} color={getWorkoutTypeColor(workout?.workout_type || 'strength')} />
-            <Text style={[styles.metaText, { color: getWorkoutTypeColor(workout?.workout_type || 'strength') }]}>
-              {workout?.workout_type || 'strength'}
+            <TrendingUp size={16} color={getWorkoutTypeColor(workout.workout_type || 'strength')} />
+            <Text style={[styles.metaText, { color: getWorkoutTypeColor(workout.workout_type || 'strength') }]}>
+              {workout.workout_type || 'strength'}
             </Text>
           </View>
         </View>
