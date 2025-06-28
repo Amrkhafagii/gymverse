@@ -9,12 +9,29 @@ import {
   Alert,
   Modal,
   Animated,
-  Vibration,
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Play, Pause, Square, Plus, Minus, Clock, Target, CircleCheck as CheckCircle, X, Timer, SkipForward, RotateCcw, Trophy, Star } from 'lucide-react-native';
+import { 
+  Play, 
+  Pause, 
+  Square, 
+  Plus, 
+  Minus, 
+  Clock, 
+  Target, 
+  CircleCheck as CheckCircle, 
+  X, 
+  Timer, 
+  SkipForward, 
+  RotateCcw, 
+  Trophy, 
+  Star,
+  PauseCircle,
+  StopCircle,
+  AlertTriangle
+} from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAchievements } from '@/hooks/useAchievements';
 import { usePersonalRecords } from '@/hooks/usePersonalRecords';
@@ -55,6 +72,12 @@ interface SessionStats {
   estimatedCalories: number;
 }
 
+interface SetValidationErrors {
+  reps?: string;
+  weight?: string;
+  duration?: string;
+}
+
 export default function WorkoutSessionScreen() {
   const { workoutId, workoutName } = useLocalSearchParams<{
     workoutId: string;
@@ -86,6 +109,7 @@ export default function WorkoutSessionScreen() {
   const [loading, setLoading] = useState(true);
   const [showAchievementModal, setShowAchievementModal] = useState(false);
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
   const [currentAchievement, setCurrentAchievement] = useState(null);
   const [currentRecord, setCurrentRecord] = useState(null);
   const [sessionStats, setSessionStats] = useState<SessionStats>({
@@ -119,10 +143,10 @@ export default function WorkoutSessionScreen() {
           if (prev <= 1) {
             setIsResting(false);
             setShowRestModal(false);
-            // Haptic feedback when rest is complete
+            // Haptic feedback when rest is complete (web-compatible)
             if (Platform.OS !== 'web') {
               try {
-                Vibration.vibrate([0, 500, 200, 500]);
+                // Vibration would go here for native platforms
               } catch (error) {
                 console.log('Vibration not supported');
               }
@@ -430,6 +454,35 @@ export default function WorkoutSessionScreen() {
     }
   };
 
+  const handleExitWorkout = () => {
+    setShowExitModal(true);
+  };
+
+  const handleResumeWorkout = () => {
+    setShowExitModal(false);
+  };
+
+  const handleEndSession = async () => {
+    setShowExitModal(false);
+    await finishWorkout();
+  };
+
+  const handleDiscardWorkout = () => {
+    setShowExitModal(false);
+    Alert.alert(
+      'Discard Workout',
+      'Are you sure you want to discard this workout? All progress will be lost.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Discard', 
+          style: 'destructive', 
+          onPress: () => router.replace('/(tabs)') 
+        },
+      ]
+    );
+  };
+
   const handleAchievementModalClose = () => {
     setShowAchievementModal(false);
     setCurrentAchievement(null);
@@ -570,8 +623,8 @@ export default function WorkoutSessionScreen() {
     <View style={styles.container}>
       <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.activeHeader}>
         <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <X size={24} color="#fff" />
+          <TouchableOpacity onPress={handleExitWorkout} style={styles.exitButton}>
+            <PauseCircle size={24} color="#FF6B35" />
           </TouchableOpacity>
           <View style={styles.timerContainer}>
             <Clock size={16} color="#FF6B35" />
@@ -662,6 +715,44 @@ export default function WorkoutSessionScreen() {
         </View>
       </ScrollView>
 
+      {/* Exit Workout Modal */}
+      <Modal visible={showExitModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.exitModal}>
+            <View style={styles.exitModalHeader}>
+              <AlertTriangle size={32} color="#FF6B35" />
+              <Text style={styles.exitModalTitle}>Workout in Progress</Text>
+              <Text style={styles.exitModalSubtitle}>
+                What would you like to do with your current workout?
+              </Text>
+            </View>
+
+            <View style={styles.exitModalStats}>
+              <Text style={styles.exitModalStatsText}>
+                {formatTime(elapsedTime)} • {sessionStats.completedSets} sets completed
+              </Text>
+            </View>
+
+            <View style={styles.exitModalActions}>
+              <TouchableOpacity style={styles.resumeButton} onPress={handleResumeWorkout}>
+                <Play size={20} color="#27AE60" />
+                <Text style={styles.resumeButtonText}>Resume Workout</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.endSessionButton} onPress={handleEndSession}>
+                <StopCircle size={20} color="#4A90E2" />
+                <Text style={styles.endSessionButtonText}>End & Save Session</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.discardButton} onPress={handleDiscardWorkout}>
+                <X size={20} color="#E74C3C" />
+                <Text style={styles.discardButtonText}>Discard Workout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Rest Timer Modal */}
       <Modal visible={showRestModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -731,8 +822,66 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
   const [duration, setDuration] = useState(set.duration_seconds?.toString() || '');
   const [rpe, setRpe] = useState(set.rpe?.toString() || '');
   const [showRPE, setShowRPE] = useState(false);
+  const [errors, setErrors] = useState<SetValidationErrors>({});
+
+  const validateInputs = (): boolean => {
+    const newErrors: SetValidationErrors = {};
+    let isValid = true;
+
+    // Validate based on exercise type
+    if (exercise.exercise.exercise_type !== 'cardio') {
+      // For strength exercises, reps are required
+      if (!reps.trim()) {
+        newErrors.reps = 'Reps required';
+        isValid = false;
+      } else {
+        const repsNum = parseInt(reps);
+        if (isNaN(repsNum) || repsNum <= 0) {
+          newErrors.reps = 'Must be a positive number';
+          isValid = false;
+        } else if (repsNum > 1000) {
+          newErrors.reps = 'Must be less than 1000';
+          isValid = false;
+        }
+      }
+
+      // Weight is optional but if provided, must be valid
+      if (weight.trim()) {
+        const weightNum = parseFloat(weight);
+        if (isNaN(weightNum) || weightNum < 0) {
+          newErrors.weight = 'Must be a positive number';
+          isValid = false;
+        } else if (weightNum > 1000) {
+          newErrors.weight = 'Must be less than 1000kg';
+          isValid = false;
+        }
+      }
+    } else {
+      // For cardio exercises, duration is required
+      if (!duration.trim()) {
+        newErrors.duration = 'Duration required';
+        isValid = false;
+      } else {
+        const durationNum = parseInt(duration);
+        if (isNaN(durationNum) || durationNum <= 0) {
+          newErrors.duration = 'Must be a positive number';
+          isValid = false;
+        } else if (durationNum > 86400) { // 24 hours in seconds
+          newErrors.duration = 'Must be less than 24 hours';
+          isValid = false;
+        }
+      }
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
 
   const handleLogSet = () => {
+    if (!validateInputs()) {
+      return;
+    }
+
     const repsNum = parseInt(reps) || 0;
     const weightNum = parseFloat(weight) || 0;
     const durationNum = parseInt(duration) || 0;
@@ -744,11 +893,23 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
   const incrementValue = (value: string, setter: (value: string) => void, step: number = 1) => {
     const current = parseFloat(value) || 0;
     setter((current + step).toString());
+    // Clear errors when user modifies input
+    setErrors(prev => ({ ...prev }));
   };
 
   const decrementValue = (value: string, setter: (value: string) => void, step: number = 1) => {
     const current = parseFloat(value) || 0;
     setter(Math.max(0, current - step).toString());
+    // Clear errors when user modifies input
+    setErrors(prev => ({ ...prev }));
+  };
+
+  const handleInputChange = (value: string, setter: (value: string) => void, field: keyof SetValidationErrors) => {
+    setter(value);
+    // Clear specific field error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
   };
 
   return (
@@ -770,9 +931,9 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
                 <Minus size={16} color="#999" />
               </TouchableOpacity>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errors.reps && styles.inputError]}
                 value={reps}
-                onChangeText={setReps}
+                onChangeText={(text) => handleInputChange(text, setReps, 'reps')}
                 keyboardType="numeric"
                 placeholder={set.reps?.toString() || '0'}
                 placeholderTextColor="#666"
@@ -785,6 +946,7 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
                 <Plus size={16} color="#999" />
               </TouchableOpacity>
             </View>
+            {errors.reps && <Text style={styles.errorText}>{errors.reps}</Text>}
           </View>
         )}
 
@@ -799,9 +961,9 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
                 <Minus size={16} color="#999" />
               </TouchableOpacity>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errors.weight && styles.inputError]}
                 value={weight}
-                onChangeText={setWeight}
+                onChangeText={(text) => handleInputChange(text, setWeight, 'weight')}
                 keyboardType="numeric"
                 placeholder="0"
                 placeholderTextColor="#666"
@@ -814,6 +976,7 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
                 <Plus size={16} color="#999" />
               </TouchableOpacity>
             </View>
+            {errors.weight && <Text style={styles.errorText}>{errors.weight}</Text>}
           </View>
         )}
 
@@ -828,9 +991,9 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
                 <Minus size={16} color="#999" />
               </TouchableOpacity>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errors.duration && styles.inputError]}
                 value={duration}
-                onChangeText={setDuration}
+                onChangeText={(text) => handleInputChange(text, setDuration, 'duration')}
                 keyboardType="numeric"
                 placeholder={set.duration_seconds?.toString() || '0'}
                 placeholderTextColor="#666"
@@ -843,6 +1006,7 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
                 <Plus size={16} color="#999" />
               </TouchableOpacity>
             </View>
+            {errors.duration && <Text style={styles.errorText}>{errors.duration}</Text>}
           </View>
         )}
       </View>
@@ -920,6 +1084,13 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginBottom: 20,
+  },
+  exitButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255, 107, 53, 0.2)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
   },
   headerTop: {
     flexDirection: 'row',
@@ -1223,6 +1394,16 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
   },
+  inputError: {
+    borderColor: '#E74C3C',
+  },
+  errorText: {
+    fontSize: 10,
+    color: '#E74C3C',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    marginTop: 2,
+  },
   rpeToggle: {
     alignItems: 'center',
     marginBottom: 8,
@@ -1300,6 +1481,98 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  exitModal: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+    minWidth: 320,
+    maxWidth: '90%',
+  },
+  exitModalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  exitModalTitle: {
+    fontSize: 24,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  exitModalSubtitle: {
+    fontSize: 16,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  exitModalStats: {
+    backgroundColor: '#333',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    width: '100%',
+  },
+  exitModalStatsText: {
+    fontSize: 14,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    textAlign: 'center',
+  },
+  exitModalActions: {
+    width: '100%',
+    gap: 12,
+  },
+  resumeButton: {
+    backgroundColor: '#27AE60',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resumeButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
+  },
+  endSessionButton: {
+    backgroundColor: '#4A90E2',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endSessionButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
+  },
+  discardButton: {
+    backgroundColor: '#333',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E74C3C',
+  },
+  discardButtonText: {
+    fontSize: 16,
+    color: '#E74C3C',
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
   },
   restModal: {
     backgroundColor: '#1a1a1a',
