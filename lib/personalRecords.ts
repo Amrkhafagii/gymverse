@@ -43,8 +43,20 @@ export const checkForPersonalRecords = async (
 
     if (setsError) throw setsError;
 
+    // Filter out sets with null session_exercise or exercise data
+    const validSets = (sessionSets || []).filter(set => 
+      set.session_exercise && 
+      set.session_exercise.exercise && 
+      set.session_exercise.exercise.name
+    );
+
+    if (validSets.length === 0) {
+      console.log('No valid exercise sets found for session:', sessionId);
+      return newRecords;
+    }
+
     // Group sets by exercise
-    const exerciseGroups = groupSetsByExercise(sessionSets || []);
+    const exerciseGroups = groupSetsByExercise(validSets);
 
     // Check each exercise for potential records
     for (const [exerciseId, sets] of exerciseGroups) {
@@ -108,6 +120,12 @@ const groupSetsByExercise = (sets: any[]): Map<string, any[]> => {
   const groups = new Map<string, any[]>();
   
   sets.forEach(set => {
+    // Add defensive null check for session_exercise
+    if (!set.session_exercise || !set.session_exercise.exercise_id) {
+      console.warn('Skipping set with invalid session_exercise data:', set);
+      return;
+    }
+
     const exerciseId = set.session_exercise.exercise_id.toString();
     if (!groups.has(exerciseId)) {
       groups.set(exerciseId, []);
