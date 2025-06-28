@@ -1,24 +1,28 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, Dumbbell } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { router } from 'expo-router';
+import WorkoutCategoryCard from './WorkoutCategoryCard';
 
 interface WorkoutCategory {
   name: string;
   exercises: number;
   duration: string;
   color: string;
+  type: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
 }
 
 interface WorkoutQuickStartSectionProps {
   workoutCategories: WorkoutCategory[];
   onCategoryPress: (category: WorkoutCategory) => void;
+  selectedCategory?: string;
 }
 
 export default function WorkoutQuickStartSection({ 
   workoutCategories, 
-  onCategoryPress 
+  onCategoryPress,
+  selectedCategory = 'all'
 }: WorkoutQuickStartSectionProps) {
   const handleCreateWorkout = () => {
     router.push('/(tabs)/create-workout');
@@ -33,24 +37,23 @@ export default function WorkoutQuickStartSection({
           <Text style={styles.createButtonText}>Create</Text>
         </TouchableOpacity>
       </View>
+      
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
-        {workoutCategories.map((category, index) => (
-          <TouchableOpacity 
-            key={index} 
-            style={styles.categoryCard}
-            onPress={() => onCategoryPress(category)}
-          >
-            <LinearGradient
-              colors={[category.color, `${category.color}CC`]}
-              style={styles.categoryGradient}
-            >
-              <Dumbbell size={32} color="#fff" />
-              <Text style={styles.categoryName}>{category.name}</Text>
-              <Text style={styles.categoryInfo}>{category.exercises} exercises</Text>
-              <Text style={styles.categoryDuration}>{category.duration}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
+        <View style={styles.categoriesContainer}>
+          {workoutCategories.map((category, index) => (
+            <WorkoutCategoryCard
+              key={category.type}
+              name={category.name}
+              exercises={category.exercises}
+              duration={category.duration}
+              color={category.color}
+              type={category.type}
+              difficulty={category.difficulty}
+              onPress={() => onCategoryPress(category)}
+              isSelected={selectedCategory === category.type}
+            />
+          ))}
+        </View>
       </ScrollView>
     </View>
   );
@@ -91,36 +94,9 @@ const styles = StyleSheet.create({
   categoriesScroll: {
     marginLeft: -20,
   },
-  categoryCard: {
-    marginLeft: 20,
-    marginRight: 4,
-  },
-  categoryGradient: {
-    width: 120,
-    height: 140,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryName: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginTop: 8,
-  },
-  categoryInfo: {
-    fontSize: 12,
-    color: '#fff',
-    fontFamily: 'Inter-Regular',
-    marginTop: 4,
-    opacity: 0.8,
-  },
-  categoryDuration: {
-    fontSize: 12,
-    color: '#fff',
-    fontFamily: 'Inter-Medium',
-    marginTop: 2,
-    opacity: 0.9,
+  categoriesContainer: {
+    flexDirection: 'row',
+    paddingLeft: 20,
+    paddingRight: 4,
   },
 });

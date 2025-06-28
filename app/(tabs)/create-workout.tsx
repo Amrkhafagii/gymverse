@@ -13,11 +13,12 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Save, Plus, X, Trash2, GripVertical } from 'lucide-react-native';
+import { ArrowLeft, Save, Plus, X, Trash2, GripVertical, Clock, Target } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, Exercise, createWorkout, createWorkoutExercise } from '@/lib/supabase';
 import ExerciseSelector from '@/components/ExerciseSelector';
 import WorkoutExerciseCard from '@/components/WorkoutExerciseCard';
+import SegmentedControl from '@/components/SegmentedControl';
 
 interface WorkoutExercise {
   exercise: Exercise;
@@ -51,12 +52,20 @@ export default function CreateWorkoutScreen() {
       setError('Workout name is required');
       return false;
     }
+    if (name.trim().length > 100) {
+      setError('Workout name must be less than 100 characters');
+      return false;
+    }
+    if (description.length > 500) {
+      setError('Description must be less than 500 characters');
+      return false;
+    }
     if (exercises.length === 0) {
       setError('At least one exercise is required');
       return false;
     }
-    if (estimatedDuration && isNaN(Number(estimatedDuration))) {
-      setError('Estimated duration must be a valid number');
+    if (estimatedDuration && (isNaN(Number(estimatedDuration)) || Number(estimatedDuration) <= 0)) {
+      setError('Estimated duration must be a valid positive number');
       return false;
     }
     return true;
@@ -79,6 +88,7 @@ export default function CreateWorkoutScreen() {
 
     setExercises([...exercises, newWorkoutExercise]);
     setShowExerciseSelector(false);
+    setError(null); // Clear any existing errors
   };
 
   const handleUpdateExercise = (index: number, updates: Partial<WorkoutExercise>) => {
@@ -132,7 +142,10 @@ export default function CreateWorkoutScreen() {
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user) {
+      setError('You must be logged in to create a workout');
+      return;
+    }
 
     setError(null);
     
@@ -210,6 +223,8 @@ export default function CreateWorkoutScreen() {
     }
   };
 
+  const hasUnsavedChanges = name.trim() || description.trim() || exercises.length > 0;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -229,6 +244,9 @@ export default function CreateWorkoutScreen() {
             <Save size={24} color={loading ? "#666" : "#FF6B35"} />
           </TouchableOpacity>
         </View>
+        {hasUnsavedChanges && (
+          <Text style={styles.unsavedIndicator}>You have unsaved changes</Text>
+        )}
       </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -254,7 +272,9 @@ export default function CreateWorkoutScreen() {
               placeholder="Enter workout name"
               placeholderTextColor="#999"
               autoCapitalize="words"
+              maxLength={100}
             />
+            <Text style={styles.characterCount}>{name.length}/100</Text>
           </View>
 
           <View style={styles.inputContainer}>
@@ -268,12 +288,17 @@ export default function CreateWorkoutScreen() {
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              maxLength={500}
             />
+            <Text style={styles.characterCount}>{description.length}/500</Text>
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Text style={styles.inputLabel}>Duration (min)</Text>
+              <View style={styles.labelWithIcon}>
+                <Clock size={16} color="#4A90E2" />
+                <Text style={styles.inputLabel}>Duration (min)</Text>
+              </View>
               <TextInput
                 style={styles.input}
                 value={estimatedDuration}
@@ -285,18 +310,32 @@ export default function CreateWorkoutScreen() {
             </View>
 
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Text style={styles.inputLabel}>Difficulty</Text>
-              <TouchableOpacity style={styles.picker}>
-                <Text style={styles.pickerText}>{difficultyLevel}</Text>
-              </TouchableOpacity>
+              <View style={styles.labelWithIcon}>
+                <Target size={16} color="#27AE60" />
+                <Text style={styles.inputLabel}>Difficulty</Text>
+              </View>
+              <SegmentedControl
+                options={['beginner', 'intermediate', 'advanced'] as const}
+                selectedValue={difficultyLevel}
+                onValueChange={setDifficultyLevel}
+              />
             </View>
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Workout Type</Text>
-            <TouchableOpacity style={styles.picker}>
-              <Text style={styles.pickerText}>{workoutType}</Text>
-            </TouchableOpacity>
+            <SegmentedControl
+              options={['strength', 'cardio', 'hiit', 'flexibility', 'mixed'] as const}
+              selectedValue={workoutType}
+              onValueChange={setWorkoutType}
+              labels={{
+                strength: 'Strength',
+                cardio: 'Cardio',
+                hiit: 'HIIT',
+                flexibility: 'Flexibility',
+                mixed: 'Mixed'
+              }}
+            />
           </View>
         </View>
 
@@ -321,17 +360,40 @@ export default function CreateWorkoutScreen() {
               </Text>
             </View>
           ) : (
-            exercises.map((exercise, index) => (
-              <WorkoutExerciseCard
-                key={`${exercise.exercise.id}-${index}`}
-                exercise={exercise}
-                index={index}
-                onUpdate={(updates) => handleUpdateExercise(index, updates)}
-                onRemove={() => handleRemoveExercise(index)}
-                onMoveUp={index > 0 ? () => handleMoveExercise(index, index - 1) : undefined}
-                onMoveDown={index < exercises.length - 1 ? () => handleMoveExercise(index, index + 1) : undefined}
-              />
-            ))
+            <View>
+              {/* Workout Summary */}
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle}>Workout Summary</Text>
+                <View style={styles.summaryStats}>
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryValue}>{exercises.length}</Text>
+                    <Text style={styles.summaryLabel}>Exercises</Text>
+                  </View>
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryValue}>
+                      {exercises.reduce((total, ex) => total + ex.target_sets, 0)}
+                    </Text>
+                    <Text style={styles.summaryLabel}>Total Sets</Text>
+                  </View>
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryValue}>{calculateEstimatedDuration()}</Text>
+                    <Text style={styles.summaryLabel}>Est. Minutes</Text>
+                  </View>
+                </View>
+              </View>
+
+              {exercises.map((exercise, index) => (
+                <WorkoutExerciseCard
+                  key={`${exercise.exercise.id}-${index}`}
+                  exercise={exercise}
+                  index={index}
+                  onUpdate={(updates) => handleUpdateExercise(index, updates)}
+                  onRemove={() => handleRemoveExercise(index)}
+                  onMoveUp={index > 0 ? () => handleMoveExercise(index, index - 1) : undefined}
+                  onMoveDown={index < exercises.length - 1 ? () => handleMoveExercise(index, index + 1) : undefined}
+                />
+              ))}
+            </View>
           )}
         </View>
 
@@ -426,6 +488,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
   },
+  unsavedIndicator: {
+    fontSize: 12,
+    color: '#FF6B35',
+    fontFamily: 'Inter-Medium',
+    textAlign: 'center',
+    marginTop: 8,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -466,11 +535,17 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginBottom: 20,
   },
+  labelWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   inputLabel: {
     fontSize: 14,
     color: '#ccc',
     fontFamily: 'Inter-Medium',
     marginBottom: 8,
+    marginLeft: 6,
   },
   input: {
     backgroundColor: '#1a1a1a',
@@ -486,25 +561,19 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
   },
+  characterCount: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'right',
+    marginTop: 4,
+  },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   halfWidth: {
     width: '48%',
-  },
-  picker: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  pickerText: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-Regular',
-    textTransform: 'capitalize',
   },
   addButton: {
     flexDirection: 'row',
@@ -541,6 +610,38 @@ const styles = StyleSheet.create({
     color: '#999',
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
+  },
+  summaryCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  summaryTitle: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 12,
+  },
+  summaryStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryValue: {
+    fontSize: 20,
+    color: '#FF6B35',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
   },
   switchContainer: {
     flexDirection: 'row',
