@@ -1,9 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 
 interface Preference {
   label: string;
   value: string;
+  action?: () => void;
+  icon?: React.ComponentType<any>;
+  color?: string;
 }
 
 interface ProfilePreferencesSectionProps {
@@ -18,16 +22,38 @@ export default function ProfilePreferencesSection({
   return (
     <View style={styles.preferencesContainer}>
       <Text style={styles.sectionTitle}>Preferences</Text>
-      {preferences.map((preference, index) => (
-        <TouchableOpacity 
-          key={index} 
-          style={styles.preferenceItem}
-          onPress={() => onPreferencePress(index)}
-        >
-          <Text style={styles.preferenceLabel}>{preference.label}</Text>
-          <Text style={styles.preferenceValue}>{preference.value}</Text>
-        </TouchableOpacity>
-      ))}
+      {preferences.map((preference, index) => {
+        const IconComponent = preference.icon;
+        
+        return (
+          <TouchableOpacity 
+            key={index} 
+            style={[
+              styles.preferenceItem,
+              preference.action && styles.preferenceItemAction
+            ]}
+            onPress={() => onPreferencePress(index)}
+          >
+            <View style={styles.preferenceContent}>
+              {IconComponent && (
+                <View style={[
+                  styles.preferenceIcon,
+                  { backgroundColor: `${preference.color || '#666'}20` }
+                ]}>
+                  <IconComponent size={20} color={preference.color || '#666'} />
+                </View>
+              )}
+              <View style={styles.preferenceText}>
+                <Text style={styles.preferenceLabel}>{preference.label}</Text>
+                <Text style={styles.preferenceValue}>{preference.value}</Text>
+              </View>
+            </View>
+            {preference.action && (
+              <ChevronRight size={20} color="#666" />
+            )}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -54,10 +80,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  preferenceItemAction: {
+    borderColor: '#FF6B35',
+    backgroundColor: '#FF6B3510',
+  },
+  preferenceContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  preferenceIcon: {
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  preferenceText: {
+    flex: 1,
+  },
   preferenceLabel: {
     fontSize: 16,
     color: '#fff',
     fontFamily: 'Inter-Medium',
+    marginBottom: 2,
   },
   preferenceValue: {
     fontSize: 14,

@@ -1,6 +1,7 @@
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Target, Zap, Users, Trophy, Medal, Calendar } from 'lucide-react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Target, Zap, Users, Trophy, Medal, Calendar, Calculator } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProfileHeader from '@/components/ProfileHeader';
 import ProfileStatsGrid from '@/components/ProfileStatsGrid';
@@ -9,9 +10,11 @@ import ProfileRecentWorkoutsSection from '@/components/ProfileRecentWorkoutsSect
 import ProfilePersonalRecordsSection from '@/components/ProfilePersonalRecordsSection';
 import ProfilePreferencesSection from '@/components/ProfilePreferencesSection';
 import ProfileLogoutButton from '@/components/ProfileLogoutButton';
+import TDEECalculator from '@/components/TDEECalculator';
 
 export default function ProfileScreen() {
   const { user, profile, signOut } = useAuth();
+  const [showTDEECalculator, setShowTDEECalculator] = useState(false);
 
   const stats = [
     { label: 'Workouts', value: '127', icon: Target },
@@ -54,6 +57,13 @@ export default function ProfileScreen() {
       value: profile?.is_public ? 'Public Profile' : 'Private Profile' 
     },
     { label: 'Notifications', value: 'Enabled' },
+    { 
+      label: 'TDEE Calculator', 
+      value: 'Calculate daily calories',
+      action: () => setShowTDEECalculator(true),
+      icon: Calculator,
+      color: '#FF6B35'
+    },
   ];
 
   const handleSettingsPress = () => {
@@ -73,7 +83,12 @@ export default function ProfileScreen() {
   };
 
   const handlePreferencePress = (index: number) => {
-    console.log('Preference pressed:', index);
+    const preference = preferences[index];
+    if (preference.action) {
+      preference.action();
+    } else {
+      console.log('Preference pressed:', index);
+    }
   };
 
   const handleLogoutPress = async () => {
@@ -92,35 +107,42 @@ export default function ProfileScreen() {
   const displayAvatar = profile?.avatar_url || 'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2';
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <ProfileHeader
-        userName={displayName}
-        userHandle={displayHandle}
-        userBio={displayBio}
-        profileImageUrl={displayAvatar}
-        onSettingsPress={handleSettingsPress}
-        onEditProfilePress={handleEditProfilePress}
-        onShareProfilePress={handleShareProfilePress}
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ProfileHeader
+          userName={displayName}
+          userHandle={displayHandle}
+          userBio={displayBio}
+          profileImageUrl={displayAvatar}
+          onSettingsPress={handleSettingsPress}
+          onEditProfilePress={handleEditProfilePress}
+          onShareProfilePress={handleShareProfilePress}
+        />
+
+        <ProfileStatsGrid stats={stats} />
+
+        <ProfileAchievementsSection achievements={achievements} />
+
+        <ProfileRecentWorkoutsSection 
+          recentWorkouts={recentWorkouts}
+          onSeeAllPress={handleSeeAllWorkoutsPress}
+        />
+
+        <ProfilePersonalRecordsSection personalRecords={personalRecords} />
+
+        <ProfilePreferencesSection 
+          preferences={preferences}
+          onPreferencePress={handlePreferencePress}
+        />
+
+        <ProfileLogoutButton onLogoutPress={handleLogoutPress} />
+      </ScrollView>
+
+      <TDEECalculator
+        visible={showTDEECalculator}
+        onClose={() => setShowTDEECalculator(false)}
       />
-
-      <ProfileStatsGrid stats={stats} />
-
-      <ProfileAchievementsSection achievements={achievements} />
-
-      <ProfileRecentWorkoutsSection 
-        recentWorkouts={recentWorkouts}
-        onSeeAllPress={handleSeeAllWorkoutsPress}
-      />
-
-      <ProfilePersonalRecordsSection personalRecords={personalRecords} />
-
-      <ProfilePreferencesSection 
-        preferences={preferences}
-        onPreferencePress={handlePreferencePress}
-      />
-
-      <ProfileLogoutButton onLogoutPress={handleLogoutPress} />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -128,5 +150,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0a0a0a',
+  },
+  scrollView: {
+    flex: 1,
   },
 });
