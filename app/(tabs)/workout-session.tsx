@@ -303,7 +303,10 @@ export default function WorkoutSessionScreen() {
   };
 
   const logSet = async (setIndex: number, reps: number, weight: number, duration?: number, rpe?: number) => {
-    if (!sessionExerciseId) return;
+    if (!sessionExerciseId) {
+      Alert.alert('Error', 'Session not properly initialized. Please restart the workout.');
+      return;
+    }
 
     try {
       const setData = {
@@ -354,7 +357,7 @@ export default function WorkoutSessionScreen() {
       }
     } catch (error) {
       console.error('Error logging set:', error);
-      Alert.alert('Error', 'Failed to log set');
+      Alert.alert('Error', 'Failed to log set. Please try again.');
     }
   };
 
