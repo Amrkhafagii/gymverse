@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
+  TouchableOpacity,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  TextInput,
   Alert,
   Modal,
   Animated,
@@ -577,7 +577,9 @@ export default function WorkoutSessionScreen() {
                   <Text style={styles.exerciseNumberText}>{index + 1}</Text>
                 </View>
                 <View style={styles.exercisePreviewInfo}>
-                  <Text style={styles.exercisePreviewName}>{exercise.exercise.name}</Text>
+                  <Text style={styles.exercisePreviewName}>
+                    {exercise.exercise?.name || 'Unknown Exercise'}
+                  </Text>
                   <Text style={styles.exercisePreviewDetails}>
                     {exercise.target_sets} sets
                     {exercise.target_reps && ` • ${exercise.target_reps.join('-')} reps`}
@@ -617,7 +619,9 @@ export default function WorkoutSessionScreen() {
           </View>
         </View>
         
-        <Text style={styles.exerciseTitle}>{currentExercise.exercise.name}</Text>
+        <Text style={styles.exerciseTitle}>
+          {currentExercise.exercise?.name || 'Unknown Exercise'}
+        </Text>
         <Text style={styles.exerciseProgress}>
           Exercise {currentExerciseIndex + 1} of {exercises.length}
         </Text>
@@ -655,9 +659,9 @@ export default function WorkoutSessionScreen() {
 
         <View style={styles.exerciseCard}>
           <Text style={styles.exerciseDescription}>
-            {currentExercise.exercise.description}
+            {currentExercise.exercise?.description}
           </Text>
-          {currentExercise.exercise.instructions && (
+          {currentExercise.exercise?.instructions && (
             <Text style={styles.exerciseInstructions}>
               {currentExercise.exercise.instructions}
             </Text>
@@ -814,7 +818,7 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
     let isValid = true;
 
     // Validate based on exercise type
-    if (exercise.exercise.exercise_type !== 'cardio') {
+    if (exercise.exercise?.exercise_type !== 'cardio') {
       // For strength exercises, reps are required
       if (!reps.trim()) {
         newErrors.reps = 'Reps required';
