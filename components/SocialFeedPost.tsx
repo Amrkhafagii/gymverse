@@ -7,7 +7,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { Heart, MessageCircle, Share, MoveHorizontal as MoreHorizontal, Trophy, Zap, Calendar } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Trophy, Zap, Calendar, Clock, Target } from 'lucide-react-native';
 import { SocialFeedPost } from '@/lib/socialFeed';
 
 interface SocialFeedPostProps {
@@ -32,11 +32,11 @@ export default function SocialFeedPostComponent({
   const handleMorePress = () => {
     if (post.user_id === currentUserId && onDelete) {
       Alert.alert(
-        'Delete Post',
-        'Are you sure you want to delete this post?',
+        'Post Options',
+        'What would you like to do?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => onDelete(post.id) },
+          { text: 'Delete Post', style: 'destructive', onPress: () => onDelete(post.id) },
         ]
       );
     }
@@ -59,6 +59,32 @@ export default function SocialFeedPostComponent({
     return postDate.toLocaleDateString();
   };
 
+  const getPostTypeIcon = () => {
+    switch (post.post_type) {
+      case 'workout':
+        return <Trophy size={16} color="#FF6B35" />;
+      case 'achievement':
+        return <Trophy size={16} color="#FFD700" />;
+      case 'progress':
+        return <Zap size={16} color="#27AE60" />;
+      default:
+        return <MessageCircle size={16} color="#4A90E2" />;
+    }
+  };
+
+  const getPostTypeLabel = () => {
+    switch (post.post_type) {
+      case 'workout':
+        return 'Workout';
+      case 'achievement':
+        return 'Achievement';
+      case 'progress':
+        return 'Progress';
+      default:
+        return 'Post';
+    }
+  };
+
   return (
     <View style={styles.postCard}>
       {/* Post Header */}
@@ -70,9 +96,15 @@ export default function SocialFeedPostComponent({
           style={styles.userAvatar} 
         />
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>
-            {post.profile.full_name || post.profile.username}
-          </Text>
+          <View style={styles.userNameRow}>
+            <Text style={styles.userName}>
+              {post.profile.full_name || post.profile.username}
+            </Text>
+            <View style={styles.postTypeBadge}>
+              {getPostTypeIcon()}
+              <Text style={styles.postTypeText}>{getPostTypeLabel()}</Text>
+            </View>
+          </View>
           <Text style={styles.userHandle}>@{post.profile.username}</Text>
         </View>
         <View style={styles.postMeta}>
@@ -92,25 +124,38 @@ export default function SocialFeedPostComponent({
       {post.post_type === 'workout' && post.workout_session && (
         <View style={styles.workoutCard}>
           <View style={styles.workoutHeader}>
-            <Text style={styles.workoutName}>{post.workout_session.name}</Text>
-            {post.workout_session.duration_minutes && (
-              <Text style={styles.workoutDuration}>
-                {post.workout_session.duration_minutes} min
-              </Text>
-            )}
+            <View style={styles.workoutIconContainer}>
+              <Trophy size={20} color="#FF6B35" />
+            </View>
+            <View style={styles.workoutInfo}>
+              <Text style={styles.workoutName}>{post.workout_session.name}</Text>
+              <View style={styles.workoutStats}>
+                {post.workout_session.duration_minutes && (
+                  <View style={styles.workoutStat}>
+                    <Clock size={14} color="#999" />
+                    <Text style={styles.workoutStatText}>
+                      {post.workout_session.duration_minutes} min
+                    </Text>
+                  </View>
+                )}
+                {post.workout_session.calories_burned && (
+                  <View style={styles.workoutStat}>
+                    <Zap size={14} color="#999" />
+                    <Text style={styles.workoutStatText}>
+                      {post.workout_session.calories_burned} cal
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
           </View>
-          {post.workout_session.calories_burned && (
-            <Text style={styles.workoutStats}>
-              {post.workout_session.calories_burned} calories burned
-            </Text>
-          )}
         </View>
       )}
 
       {post.post_type === 'achievement' && post.achievement && (
         <View style={styles.achievementCard}>
           <View style={styles.achievementIcon}>
-            <Trophy size={24} color="#FF6B35" />
+            <Trophy size={24} color="#FFD700" />
           </View>
           <View style={styles.achievementInfo}>
             <Text style={styles.achievementTitle}>{post.achievement.name}</Text>
@@ -118,15 +163,21 @@ export default function SocialFeedPostComponent({
               {post.achievement.description}
             </Text>
           </View>
+          <View style={styles.achievementBadge}>
+            <Text style={styles.achievementBadgeText}>🏆</Text>
+          </View>
         </View>
       )}
 
       {post.post_type === 'progress' && (
         <View style={styles.progressCard}>
-          <View style={styles.progressInfo}>
+          <View style={styles.progressHeader}>
+            <View style={styles.progressIcon}>
+              <Zap size={20} color="#27AE60" />
+            </View>
             <Text style={styles.progressTitle}>Progress Update</Text>
-            <Text style={styles.progressDetails}>Keep pushing forward! 💪</Text>
           </View>
+          <Text style={styles.progressDetails}>Keep pushing forward! 💪</Text>
         </View>
       )}
 
@@ -170,7 +221,8 @@ export default function SocialFeedPostComponent({
           style={styles.actionButton} 
           onPress={() => onShare(post.id)}
         >
-          <Share size={20} color="#999" />
+          <Share2 size={20} color="#999" />
+          <Text style={styles.actionText}>Share</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -188,7 +240,7 @@ const styles = StyleSheet.create({
   },
   postHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   userAvatar: {
@@ -200,10 +252,30 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   userName: {
     fontSize: 16,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
+    marginRight: 8,
+  },
+  postTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  postTypeText: {
+    fontSize: 10,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 4,
   },
   userHandle: {
     fontSize: 14,
@@ -239,24 +311,37 @@ const styles = StyleSheet.create({
   },
   workoutHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+  },
+  workoutIconContainer: {
+    backgroundColor: '#FF6B3520',
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  workoutInfo: {
+    flex: 1,
   },
   workoutName: {
     fontSize: 14,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
-  },
-  workoutDuration: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
+    marginBottom: 4,
   },
   workoutStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  workoutStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  workoutStatText: {
     fontSize: 12,
     color: '#999',
     fontFamily: 'Inter-Regular',
+    marginLeft: 4,
   },
   achievementCard: {
     backgroundColor: '#0a0a0a',
@@ -264,13 +349,13 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#FFD700',
     flexDirection: 'row',
     alignItems: 'center',
   },
   achievementIcon: {
     padding: 8,
-    backgroundColor: '#FF6B3520',
+    backgroundColor: '#FFD70020',
     borderRadius: 8,
     marginRight: 12,
   },
@@ -288,22 +373,37 @@ const styles = StyleSheet.create({
     color: '#999',
     fontFamily: 'Inter-Regular',
   },
+  achievementBadge: {
+    backgroundColor: '#FFD700',
+    borderRadius: 12,
+    padding: 4,
+  },
+  achievementBadgeText: {
+    fontSize: 16,
+  },
   progressCard: {
     backgroundColor: '#0a0a0a',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#27AE60',
   },
-  progressInfo: {
+  progressHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 4,
+  },
+  progressIcon: {
+    backgroundColor: '#27AE6020',
+    padding: 6,
+    borderRadius: 6,
+    marginRight: 8,
   },
   progressTitle: {
     fontSize: 14,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 4,
   },
   progressDetails: {
     fontSize: 12,
@@ -332,6 +432,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 24,
+    paddingVertical: 4,
   },
   actionText: {
     fontSize: 14,
