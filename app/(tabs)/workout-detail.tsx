@@ -243,8 +243,10 @@ export default function WorkoutDetailScreen() {
                     <Text style={styles.exerciseNumberText}>{index + 1}</Text>
                   </View>
                   <View style={styles.exerciseInfo}>
-                    <Text style={styles.exerciseName}>{workoutExercise.exercise.name}</Text>
-                    {workoutExercise.exercise.description && (
+                    <Text style={styles.exerciseName}>
+                      {workoutExercise.exercise?.name || 'Unknown Exercise'}
+                    </Text>
+                    {workoutExercise.exercise?.description && (
                       <Text style={styles.exerciseDescription}>
                         {workoutExercise.exercise.description}
                       </Text>
@@ -252,7 +254,7 @@ export default function WorkoutDetailScreen() {
                   </View>
                 </View>
 
-                {workoutExercise.exercise.demo_image_url && (
+                {workoutExercise.exercise?.demo_image_url && (
                   <Image
                     source={{ uri: workoutExercise.exercise.demo_image_url }}
                     style={styles.exerciseImage}
@@ -287,7 +289,7 @@ export default function WorkoutDetailScreen() {
                 </View>
 
                 <View style={styles.muscleGroups}>
-                  {workoutExercise.exercise.muscle_groups.map((muscle, muscleIndex) => (
+                  {(workoutExercise.exercise?.muscle_groups || []).map((muscle, muscleIndex) => (
                     <View key={muscleIndex} style={styles.muscleTag}>
                       <Text style={styles.muscleTagText}>{muscle}</Text>
                     </View>
