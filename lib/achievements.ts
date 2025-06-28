@@ -19,7 +19,7 @@ export interface AchievementProgress {
 }
 
 // Achievement checking functions
-export const checkWorkoutCountAchievements = async (userId: string, totalWorkouts: number): Promise<Achievement[]> => {
+const checkWorkoutCountAchievements = async (userId: string, totalWorkouts: number): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
   
   try {
@@ -49,7 +49,7 @@ export const checkWorkoutCountAchievements = async (userId: string, totalWorkout
   return unlockedAchievements;
 };
 
-export const checkStreakAchievements = async (userId: string, currentStreak: number): Promise<Achievement[]> => {
+const checkStreakAchievements = async (userId: string, currentStreak: number): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
   
   try {
@@ -78,7 +78,7 @@ export const checkStreakAchievements = async (userId: string, currentStreak: num
   return unlockedAchievements;
 };
 
-export const checkWeeklyWorkoutAchievements = async (userId: string): Promise<Achievement[]> => {
+const checkWeeklyWorkoutAchievements = async (userId: string): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
   
   try {
@@ -122,7 +122,7 @@ export const checkWeeklyWorkoutAchievements = async (userId: string): Promise<Ac
   return unlockedAchievements;
 };
 
-export const checkPersonalRecordAchievements = async (userId: string): Promise<Achievement[]> => {
+const checkPersonalRecordAchievements = async (userId: string): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
   
   try {
@@ -161,7 +161,7 @@ export const checkPersonalRecordAchievements = async (userId: string): Promise<A
   return unlockedAchievements;
 };
 
-export const checkCardioAchievements = async (userId: string): Promise<Achievement[]> => {
+const checkCardioAchievements = async (userId: string): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
   
   try {
@@ -205,7 +205,7 @@ export const checkCardioAchievements = async (userId: string): Promise<Achieveme
   return unlockedAchievements;
 };
 
-export const checkMonthlyWorkoutAchievements = async (userId: string): Promise<Achievement[]> => {
+const checkMonthlyWorkoutAchievements = async (userId: string): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
   
   try {
@@ -298,7 +298,7 @@ export const checkAllAchievements = async (userId: string): Promise<Achievement[
 };
 
 // Unlock achievement function
-export const unlockAchievement = async (userId: string, achievementId: number): Promise<void> => {
+const unlockAchievement = async (userId: string, achievementId: number): Promise<void> => {
   try {
     const { error } = await supabase
       .from('user_achievements')

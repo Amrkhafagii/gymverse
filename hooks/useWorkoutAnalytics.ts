@@ -7,7 +7,7 @@ import {
   WorkoutStreak 
 } from '@/lib/supabase';
 
-export interface WorkoutStats {
+interface WorkoutStats {
   totalWorkouts: number;
   totalDuration: number;
   totalCalories: number;
@@ -19,7 +19,7 @@ export interface WorkoutStats {
   shortestSession: number;
 }
 
-export interface ProgressData {
+interface ProgressData {
   workoutSessions: WorkoutSession[];
   streak: WorkoutStreak | null;
   stats: WorkoutStats;

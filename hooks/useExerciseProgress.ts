@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase, Exercise, PersonalRecord, getExerciseProgress } from '@/lib/supabase';
 import { getExercisePersonalRecords } from '@/lib/personalRecords';
 
-export interface ExerciseProgressData {
+interface ExerciseProgressData {
   date: string;
   value: number;
   sessionId: number;
 }
 
-export interface ExerciseStats {
+interface ExerciseStats {
   totalSessions: number;
   totalSets: number;
   averageReps: number;
@@ -17,7 +17,7 @@ export interface ExerciseStats {
   totalVolume: number;
 }
 
-export interface ExerciseProgressChartData {
+interface ExerciseProgressChartData {
   weightProgress: ExerciseProgressData[];
   repsProgress: ExerciseProgressData[];
   volumeProgress: ExerciseProgressData[];

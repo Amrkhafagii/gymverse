@@ -62,7 +62,7 @@ export interface Workout {
   updated_at: string;
 }
 
-export interface WorkoutExercise {
+interface WorkoutExercise {
   id: number;
   workout_id: number;
   exercise_id: number;
@@ -90,7 +90,7 @@ export interface WorkoutSession {
   created_at: string;
 }
 
-export interface SessionExercise {
+interface SessionExercise {
   id: number;
   session_id: number;
   exercise_id: number;
@@ -161,12 +161,12 @@ export interface WorkoutStreak {
 }
 
 // Auth helper functions
-export const getCurrentUser = async () => {
+const getCurrentUser = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 };
 
-export const signUp = async (email: string, password: string, username: string, fullName?: string) => {
+const signUp = async (email: string, password: string, username: string, fullName?: string) => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -180,7 +180,7 @@ export const signUp = async (email: string, password: string, username: string, 
   return { data, error };
 };
 
-export const signIn = async (email: string, password: string) => {
+const signIn = async (email: string, password: string) => {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -188,7 +188,7 @@ export const signIn = async (email: string, password: string) => {
   return { data, error };
 };
 
-export const signOut = async () => {
+const signOut = async () => {
   const { error } = await supabase.auth.signOut();
   return { error };
 };
@@ -235,7 +235,7 @@ export const getExercises = async (): Promise<Exercise[]> => {
   return data || [];
 };
 
-export const getExercisesByMuscleGroup = async (muscleGroup: string): Promise<Exercise[]> => {
+const getExercisesByMuscleGroup = async (muscleGroup: string): Promise<Exercise[]> => {
   const { data, error } = await supabase
     .from('exercises')
     .select('*')
@@ -292,7 +292,7 @@ export const createWorkout = async (workout: Omit<Workout, 'id' | 'created_at' |
   return { data, error };
 };
 
-export const updateWorkout = async (workoutId: number, updates: Partial<Workout>) => {
+const updateWorkout = async (workoutId: number, updates: Partial<Workout>) => {
   const { data, error } = await supabase
     .from('workouts')
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -303,7 +303,7 @@ export const updateWorkout = async (workoutId: number, updates: Partial<Workout>
   return { data, error };
 };
 
-export const deleteWorkout = async (workoutId: number, userId: string) => {
+const deleteWorkout = async (workoutId: number, userId: string) => {
   const { error } = await supabase
     .from('workouts')
     .delete()
@@ -324,7 +324,7 @@ export const createWorkoutExercise = async (workoutExercise: Omit<WorkoutExercis
   return { data, error };
 };
 
-export const updateWorkoutExercise = async (exerciseId: number, updates: Partial<WorkoutExercise>) => {
+const updateWorkoutExercise = async (exerciseId: number, updates: Partial<WorkoutExercise>) => {
   const { data, error } = await supabase
     .from('workout_exercises')
     .update(updates)
@@ -335,7 +335,7 @@ export const updateWorkoutExercise = async (exerciseId: number, updates: Partial
   return { data, error };
 };
 
-export const deleteWorkoutExercise = async (exerciseId: number) => {
+const deleteWorkoutExercise = async (exerciseId: number) => {
   const { error } = await supabase
     .from('workout_exercises')
     .delete()
@@ -344,7 +344,7 @@ export const deleteWorkoutExercise = async (exerciseId: number) => {
   return { error };
 };
 
-export const getWorkoutExercises = async (workoutId: number) => {
+const getWorkoutExercises = async (workoutId: number) => {
   const { data, error } = await supabase
     .from('workout_exercises')
     .select(`
@@ -373,7 +373,7 @@ export const createWorkoutSession = async (session: Omit<WorkoutSession, 'id' | 
   return { data, error };
 };
 
-export const getUserWorkoutSessions = async (userId: string): Promise<WorkoutSession[]> => {
+const getUserWorkoutSessions = async (userId: string): Promise<WorkoutSession[]> => {
   const { data, error } = await supabase
     .from('workout_sessions')
     .select('*')
@@ -405,7 +405,7 @@ export const completeWorkoutSession = async (sessionId: number, duration: number
 };
 
 // Session exercise functions
-export const createSessionExercise = async (sessionExercise: Omit<SessionExercise, 'id' | 'created_at'>) => {
+const createSessionExercise = async (sessionExercise: Omit<SessionExercise, 'id' | 'created_at'>) => {
   const { data, error } = await supabase
     .from('session_exercises')
     .insert(sessionExercise)
@@ -416,7 +416,7 @@ export const createSessionExercise = async (sessionExercise: Omit<SessionExercis
 };
 
 // Exercise set functions
-export const createExerciseSet = async (exerciseSet: Omit<ExerciseSet, 'id' | 'created_at'>) => {
+const createExerciseSet = async (exerciseSet: Omit<ExerciseSet, 'id' | 'created_at'>) => {
   const { data, error } = await supabase
     .from('exercise_sets')
     .insert(exerciseSet)
@@ -426,7 +426,7 @@ export const createExerciseSet = async (exerciseSet: Omit<ExerciseSet, 'id' | 'c
   return { data, error };
 };
 
-export const updateExerciseSet = async (setId: number, updates: Partial<ExerciseSet>) => {
+const updateExerciseSet = async (setId: number, updates: Partial<ExerciseSet>) => {
   const { data, error } = await supabase
     .from('exercise_sets')
     .update(updates)
@@ -456,7 +456,7 @@ export const getUserPersonalRecords = async (userId: string): Promise<PersonalRe
   return data || [];
 };
 
-export const createPersonalRecord = async (record: Omit<PersonalRecord, 'id' | 'created_at'>) => {
+const createPersonalRecord = async (record: Omit<PersonalRecord, 'id' | 'created_at'>) => {
   const { data, error } = await supabase
     .from('personal_records')
     .upsert(record, {
@@ -469,7 +469,7 @@ export const createPersonalRecord = async (record: Omit<PersonalRecord, 'id' | '
 };
 
 // Achievement functions
-export const getUserAchievements = async (userId: string) => {
+const getUserAchievements = async (userId: string) => {
   const { data, error } = await supabase
     .from('user_achievements')
     .select(`
@@ -488,7 +488,7 @@ export const getUserAchievements = async (userId: string) => {
 };
 
 // Social functions
-export const getSocialFeed = async (limit: number = 20): Promise<SocialPost[]> => {
+const getSocialFeed = async (limit: number = 20): Promise<SocialPost[]> => {
   const { data, error } = await supabase
     .from('social_posts')
     .select(`
@@ -535,7 +535,7 @@ export const getUserStreak = async (userId: string): Promise<WorkoutStreak | nul
   return data;
 };
 
-export const updateWorkoutStreak = async (userId: string) => {
+const updateWorkoutStreak = async (userId: string) => {
   const { data, error } = await supabase.rpc('update_workout_streak', {
     user_uuid: userId,
   });

@@ -35,7 +35,7 @@ export interface PostComment {
   };
 }
 
-export interface PostLike {
+interface PostLike {
   id: number;
   user_id: string;
   post_id: number;

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useWorkoutAnalytics } from './useWorkoutAnalytics';
 import { usePersonalRecords } from './usePersonalRecords';
 
-export interface HomeStats {
+interface HomeStats {
   workouts: string;
   streak: string;
   personalRecords: string;

@@ -12,7 +12,7 @@ export interface PersonalRecordData {
   session_id?: number;
 }
 
-export interface PersonalRecordUpdate {
+interface PersonalRecordUpdate {
   exercise_id: number;
   record_type: 'max_weight' | 'max_reps' | 'max_distance' | 'best_time';
   value: number;
