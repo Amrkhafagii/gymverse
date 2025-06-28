@@ -7,7 +7,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Trophy, Zap, Calendar, Clock, Target } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, MoveHorizontal as MoreHorizontal, Trophy, Zap, Calendar, Clock, Target } from 'lucide-react-native';
 import { SocialFeedPost } from '@/lib/socialFeed';
 
 interface SocialFeedPostProps {
