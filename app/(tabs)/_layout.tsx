@@ -13,7 +13,8 @@ import {
   BarChart3, 
   User,
   BookOpen,
-  Search
+  Search,
+  Calendar
 } from 'lucide-react-native';
 
 export default function TabLayout() {
@@ -60,6 +61,13 @@ export default function TabLayout() {
         options={{
           title: 'Exercises',
           tabBarIcon: ({ color }) => <Search size={28} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ color }) => <Calendar size={28} color={color} />,
         }}
       />
       <Tabs.Screen
