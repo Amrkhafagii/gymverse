@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Storage keys
-export const STORAGE_KEYS = {
+const STORAGE_KEYS = {
   PROFILE: 'profile',
   SETTINGS: 'settings',
   STREAK: 'workout_streak',
@@ -75,7 +75,7 @@ export interface Achievement {
 }
 
 // Generic storage functions
-export const storeData = async <T>(key: string, value: T): Promise<void> => {
+const storeData = async <T>(key: string, value: T): Promise<void> => {
   try {
     const jsonValue = JSON.stringify(value);
     await AsyncStorage.setItem(key, jsonValue);
@@ -85,7 +85,7 @@ export const storeData = async <T>(key: string, value: T): Promise<void> => {
   }
 };
 
-export const getData = async <T>(key: string): Promise<T | null> => {
+const getData = async <T>(key: string): Promise<T | null> => {
   try {
     const jsonValue = await AsyncStorage.getItem(key);
     return jsonValue != null ? JSON.parse(jsonValue) : null;
@@ -95,7 +95,7 @@ export const getData = async <T>(key: string): Promise<T | null> => {
   }
 };
 
-export const removeData = async (key: string): Promise<void> => {
+const removeData = async (key: string): Promise<void> => {
   try {
     await AsyncStorage.removeItem(key);
   } catch (error) {
@@ -104,7 +104,7 @@ export const removeData = async (key: string): Promise<void> => {
   }
 };
 
-export const clearAllData = async (): Promise<void> => {
+const clearAllData = async (): Promise<void> => {
   try {
     await AsyncStorage.clear();
   } catch (error) {
@@ -178,7 +178,7 @@ export const saveSettings = async (settings: AppSettings): Promise<void> => {
   await storeData(STORAGE_KEYS.SETTINGS, settings);
 };
 
-export const updateSettings = async (updates: Partial<AppSettings>): Promise<void> => {
+const updateSettings = async (updates: Partial<AppSettings>): Promise<void> => {
   const currentSettings = await getSettings();
   const updatedSettings = { ...currentSettings, ...updates };
   await saveSettings(updatedSettings);
@@ -202,7 +202,7 @@ export const getWorkoutStreak = async (): Promise<WorkoutStreak> => {
   return streak;
 };
 
-export const saveWorkoutStreak = async (streak: WorkoutStreak): Promise<void> => {
+const saveWorkoutStreak = async (streak: WorkoutStreak): Promise<void> => {
   const updatedStreak = {
     ...streak,
     updated_at: new Date().toISOString(),
@@ -264,7 +264,7 @@ export const getAchievements = async (): Promise<Achievement[]> => {
   return achievements;
 };
 
-export const saveAchievements = async (achievements: Achievement[]): Promise<void> => {
+const saveAchievements = async (achievements: Achievement[]): Promise<void> => {
   await storeData(STORAGE_KEYS.ACHIEVEMENTS, achievements);
 };
 
@@ -355,17 +355,17 @@ const initializeDefaultAchievements = async (): Promise<Achievement[]> => {
 };
 
 // Onboarding functions
-export const isOnboardingCompleted = async (): Promise<boolean> => {
+const isOnboardingCompleted = async (): Promise<boolean> => {
   const completed = await getData<boolean>(STORAGE_KEYS.ONBOARDING);
   return completed === true;
 };
 
-export const setOnboardingCompleted = async (): Promise<void> => {
+const setOnboardingCompleted = async (): Promise<void> => {
   await storeData(STORAGE_KEYS.ONBOARDING, true);
 };
 
 // Utility functions
-export const getAllStorageData = async (): Promise<Record<string, any>> => {
+const getAllStorageData = async (): Promise<Record<string, any>> => {
   try {
     const keys = await AsyncStorage.getAllKeys();
     const stores = await AsyncStorage.multiGet(keys);
@@ -388,7 +388,7 @@ export const getAllStorageData = async (): Promise<Record<string, any>> => {
   }
 };
 
-export const getStorageSize = async (): Promise<number> => {
+const getStorageSize = async (): Promise<number> => {
   try {
     const data = await getAllStorageData();
     const jsonString = JSON.stringify(data);

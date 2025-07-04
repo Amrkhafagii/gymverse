@@ -43,7 +43,7 @@ export const saveProfilePicture = async (imageUri: string): Promise<string> => {
   }
 };
 
-export const deleteProfilePicture = async (filePath: string): Promise<void> => {
+const deleteProfilePicture = async (filePath: string): Promise<void> => {
   try {
     const fileInfo = await FileSystem.getInfoAsync(filePath);
     if (fileInfo.exists) {
@@ -56,7 +56,7 @@ export const deleteProfilePicture = async (filePath: string): Promise<void> => {
 };
 
 // Progress photo functions
-export const saveProgressPhoto = async (imageUri: string, notes?: string): Promise<string> => {
+const saveProgressPhoto = async (imageUri: string, notes?: string): Promise<string> => {
   try {
     const filename = `progress_${Date.now()}.jpg`;
     const destination = `${STORAGE_DIRS.PROGRESS_PHOTOS}${filename}`;
@@ -73,7 +73,7 @@ export const saveProgressPhoto = async (imageUri: string, notes?: string): Promi
   }
 };
 
-export const getProgressPhotos = async (): Promise<string[]> => {
+const getProgressPhotos = async (): Promise<string[]> => {
   try {
     const files = await FileSystem.readDirectoryAsync(STORAGE_DIRS.PROGRESS_PHOTOS);
     return files
@@ -86,7 +86,7 @@ export const getProgressPhotos = async (): Promise<string[]> => {
   }
 };
 
-export const deleteProgressPhoto = async (filePath: string): Promise<void> => {
+const deleteProgressPhoto = async (filePath: string): Promise<void> => {
   try {
     const fileInfo = await FileSystem.getInfoAsync(filePath);
     if (fileInfo.exists) {
@@ -155,7 +155,7 @@ export const takePhotoWithCamera = async (): Promise<string | null> => {
 };
 
 // Export/Import functions
-export const exportDataToFile = async (data: any, filename: string): Promise<string> => {
+const exportDataToFile = async (data: any, filename: string): Promise<string> => {
   try {
     const filePath = `${STORAGE_DIRS.EXPORTS}${filename}`;
     const jsonString = JSON.stringify(data, null, 2);
@@ -169,7 +169,7 @@ export const exportDataToFile = async (data: any, filename: string): Promise<str
   }
 };
 
-export const importDataFromFile = async (filePath: string): Promise<any> => {
+const importDataFromFile = async (filePath: string): Promise<any> => {
   try {
     const fileContent = await FileSystem.readAsStringAsync(filePath);
     return JSON.parse(fileContent);
@@ -180,7 +180,7 @@ export const importDataFromFile = async (filePath: string): Promise<any> => {
 };
 
 // Cleanup functions
-export const cleanupOldFiles = async (maxAgeInDays: number = 30): Promise<void> => {
+const cleanupOldFiles = async (maxAgeInDays: number = 30): Promise<void> => {
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - maxAgeInDays);
@@ -208,7 +208,7 @@ export const cleanupOldFiles = async (maxAgeInDays: number = 30): Promise<void> 
   }
 };
 
-export const getStorageUsage = async (): Promise<{
+const getStorageUsage = async (): Promise<{
   totalSize: number;
   profilePictures: number;
   progressPhotos: number;
@@ -272,7 +272,7 @@ const getDirectorySize = async (dirPath: string): Promise<number> => {
 };
 
 // Utility function to format file size
-export const formatFileSize = (bytes: number): string => {
+const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
   
   const k = 1024;

@@ -150,7 +150,7 @@ export interface SocialPost {
   updated_at: string;
 }
 
-export interface WorkoutStreak {
+interface WorkoutStreak {
   id: number;
   user_id: string;
   current_streak: number;
@@ -251,7 +251,7 @@ const getExercisesByMuscleGroup = async (muscleGroup: string): Promise<Exercise[
 };
 
 // Workout functions
-export const getWorkoutTemplates = async (): Promise<Workout[]> => {
+const getWorkoutTemplates = async (): Promise<Workout[]> => {
   const { data, error } = await supabase
     .from('workouts')
     .select('*')
@@ -267,7 +267,7 @@ export const getWorkoutTemplates = async (): Promise<Workout[]> => {
   return data || [];
 };
 
-export const getUserWorkouts = async (userId: string): Promise<Workout[]> => {
+const getUserWorkouts = async (userId: string): Promise<Workout[]> => {
   const { data, error } = await supabase
     .from('workouts')
     .select('*')
@@ -438,7 +438,7 @@ const updateExerciseSet = async (setId: number, updates: Partial<ExerciseSet>) =
 };
 
 // Personal records functions
-export const getUserPersonalRecords = async (userId: string): Promise<PersonalRecord[]> => {
+const getUserPersonalRecords = async (userId: string): Promise<PersonalRecord[]> => {
   const { data, error } = await supabase
     .from('personal_records')
     .select(`
@@ -520,7 +520,7 @@ export const createSocialPost = async (post: Omit<SocialPost, 'id' | 'created_at
 };
 
 // Streak functions
-export const getUserStreak = async (userId: string): Promise<WorkoutStreak | null> => {
+const getUserStreak = async (userId: string): Promise<WorkoutStreak | null> => {
   const { data, error } = await supabase
     .from('workout_streaks')
     .select('*')
@@ -544,7 +544,7 @@ const updateWorkoutStreak = async (userId: string) => {
 };
 
 // Analytics and progress tracking
-export const getWorkoutAnalytics = async (userId: string, startDate?: string, endDate?: string) => {
+const getWorkoutAnalytics = async (userId: string, startDate?: string, endDate?: string) => {
   let query = supabase
     .from('workout_sessions')
     .select('*')

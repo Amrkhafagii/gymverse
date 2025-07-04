@@ -16,7 +16,7 @@ export const initDatabase = async (): Promise<void> => {
 };
 
 // Get database instance
-export const getDatabase = (): SQLite.SQLiteDatabase => {
+const getDatabase = (): SQLite.SQLiteDatabase => {
   if (!db) {
     throw new Error('Database not initialized. Call initDatabase() first.');
   }
@@ -298,7 +298,7 @@ export const seedDefaultExercises = async (): Promise<void> => {
 };
 
 // Database utility functions
-export const clearAllData = async (): Promise<void> => {
+const clearAllData = async (): Promise<void> => {
   const database = getDatabase();
   
   try {
@@ -321,7 +321,7 @@ export const clearAllData = async (): Promise<void> => {
   }
 };
 
-export const exportDatabaseData = async (): Promise<any> => {
+const exportDatabaseData = async (): Promise<any> => {
   const database = getDatabase();
   
   try {
