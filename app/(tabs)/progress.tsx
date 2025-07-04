@@ -1,229 +1,178 @@
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Dimensions,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TrendingUp, Dumbbell, Zap, Target, Clock, Trophy } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import { useWorkoutAnalytics } from '@/hooks/useWorkoutAnalytics';
-import { usePersonalRecords } from '@/hooks/usePersonalRecords';
-import ProgressStatsCard from '@/components/ProgressStatsCard';
-import ProgressChart from '@/components/ProgressChart';
-import StreakDisplay from '@/components/StreakDisplay';
-import PersonalRecordsSection from '@/components/PersonalRecordsSection';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+
+const { width } = Dimensions.get('window');
 
 export default function ProgressScreen() {
-  const { user } = useAuth();
-  const { 
-    workoutSessions, 
-    streak, 
-    stats, 
-    personalRecordsCount,
-    weeklyProgress, 
-    monthlyProgress, 
-    loading, 
-    error,
-    refreshAnalytics 
-  } = useWorkoutAnalytics(user?.id || null);
-  
-  const { 
-    personalRecords, 
-    loading: recordsLoading,
-    refreshRecords 
-  } = usePersonalRecords(user?.id || null);
-
-  const handleRefresh = async () => {
-    await Promise.all([
-      refreshAnalytics(),
-      refreshRecords(),
-    ]);
-  };
-
-  const getChangeText = (current: number, previous: number, unit: string = '') => {
-    const diff = current - previous;
-    const sign = diff > 0 ? '+' : '';
-    return `${sign}${diff}${unit} this week`;
-  };
-
-  const getChangeType = (current: number, previous: number): 'positive' | 'negative' | 'neutral' => {
-    if (current > previous) return 'positive';
-    if (current < previous) return 'negative';
-    return 'neutral';
-  };
-
-  // Calculate previous week stats for comparison
-  const previousWeekWorkouts = Math.max(0, stats.workoutsThisMonth - stats.workoutsThisWeek);
-  const previousWeekDuration = Math.max(0, stats.totalDuration - weeklyProgress.reduce((a, b) => a + b, 0));
-
-  const statsData = [
-    {
-      label: 'Total Workouts',
-      value: stats.totalWorkouts.toString(),
-      change: getChangeText(stats.workoutsThisWeek, previousWeekWorkouts),
-      changeType: getChangeType(stats.workoutsThisWeek, previousWeekWorkouts),
-      icon: Dumbbell,
-      color: '#FF6B35',
-    },
-    {
-      label: 'Current Streak',
-      value: `${streak?.current_streak || 0} days`,
-      change: streak?.current_streak === streak?.longest_streak && (streak?.current_streak || 0) > 0 ? 'Personal best!' : undefined,
-      changeType: 'positive' as const,
-      icon: Zap,
-      color: '#27AE60',
-    },
-    {
-      label: 'Personal Records',
-      value: personalRecordsCount.toString(),
-      change: personalRecordsCount > 0 ? `${personalRecordsCount} total` : 'None yet',
-      changeType: 'neutral' as const,
-      icon: Target,
-      color: '#4A90E2',
-    },
-    {
-      label: 'Total Time',
-      value: `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m`,
-      change: getChangeText(weeklyProgress.reduce((a, b) => a + b, 0), previousWeekDuration, ' min'),
-      changeType: getChangeType(weeklyProgress.reduce((a, b) => a + b, 0), previousWeekDuration),
-      icon: Clock,
-      color: '#9B59B6',
-    },
-  ];
-
-  if (error) {
-    return (
-      <ScrollView 
-        style={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
-        }
-      >
-        <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
-          <Text style={styles.headerTitle}>Progress</Text>
-          <Text style={styles.headerSubtitle}>Track your fitness journey</Text>
-        </LinearGradient>
-        
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      </ScrollView>
-    );
-  }
-
   return (
-    <ScrollView 
-      style={styles.container} 
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
-      }
-    >
-      <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
-        <Text style={styles.headerTitle}>Progress</Text>
-        <Text style={styles.headerSubtitle}>Track your fitness journey</Text>
-      </LinearGradient>
-
-      {/* Streak Display */}
-      <StreakDisplay streak={streak} loading={loading} />
-
-      {/* Overview Stats */}
-      <View style={styles.statsContainer}>
-        <Text style={styles.sectionTitle}>Overview</Text>
-        <View style={styles.statsGrid}>
-          {statsData.map((stat, index) => (
-            <ProgressStatsCard
-              key={index}
-              label={stat.label}
-              value={stat.value}
-              change={stat.change}
-              changeType={stat.changeType}
-              icon={stat.icon}
-              color={stat.color}
-            />
-          ))}
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Progress</Text>
+          <TouchableOpacity style={styles.addButton}>
+            <Ionicons name="add" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Weekly Progress Chart */}
-      {weeklyProgress.length > 0 && (
-        <View style={styles.chartContainer}>
-          <ProgressChart
-            data={weeklyProgress}
-            title="Weekly Activity"
-            subtitle="Workout duration (minutes) for the last 7 days"
-            color="#FF6B35"
-            height={120}
-            labelFormatter={(index) => {
-              const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-              const today = new Date().getDay();
-              const dayIndex = (today - 6 + index + 7) % 7;
-              return days[dayIndex];
-            }}
-          />
-        </View>
-      )}
-
-      {/* Monthly Progress Chart */}
-      {monthlyProgress.length > 0 && (
-        <View style={styles.chartContainer}>
-          <ProgressChart
-            data={monthlyProgress}
-            title="Monthly Activity"
-            subtitle="Workout duration (minutes) for the last 30 days"
-            color="#4A90E2"
-            height={100}
-            showLabels={false}
-          />
-        </View>
-      )}
-
-      {/* Personal Records Section */}
-      <PersonalRecordsSection
-        personalRecords={personalRecords}
-        loading={recordsLoading}
-        onRecordPress={(record) => console.log('Record pressed:', record)}
-      />
-
-      {/* Workout Summary */}
-      {workoutSessions.length > 0 && (
-        <View style={styles.summaryContainer}>
-          <Text style={styles.sectionTitle}>Workout Summary</Text>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Average Duration</Text>
-              <Text style={styles.summaryValue}>{stats.averageDuration} min</Text>
+        {/* Stats Overview */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>This Week</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['#9E7FFF', '#7C3AED']}
+                style={styles.statGradient}
+              >
+                <Ionicons name="barbell" size={24} color="#FFFFFF" />
+                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statLabel}>Workouts</Text>
+              </LinearGradient>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Average Calories</Text>
-              <Text style={styles.summaryValue}>{stats.averageCalories} cal</Text>
+
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['#f472b6', '#ec4899']}
+                style={styles.statGradient}
+              >
+                <Ionicons name="time" size={24} color="#FFFFFF" />
+                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statLabel}>Minutes</Text>
+              </LinearGradient>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Longest Session</Text>
-              <Text style={styles.summaryValue}>{stats.longestSession} min</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>This Month</Text>
-              <Text style={styles.summaryValue}>{stats.workoutsThisMonth} workouts</Text>
+
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['#38bdf8', '#0ea5e9']}
+                style={styles.statGradient}
+              >
+                <Ionicons name="flame" size={24} color="#FFFFFF" />
+                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statLabel}>Calories</Text>
+              </LinearGradient>
             </View>
           </View>
         </View>
-      )}
 
-      {/* Motivation Section */}
-      {stats.totalWorkouts > 0 && (
-        <View style={styles.motivationContainer}>
-          <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.motivationCard}>
-            <TrendingUp size={32} color="#fff" />
-            <Text style={styles.motivationTitle}>Keep it up! 🎉</Text>
-            <Text style={styles.motivationText}>
-              {stats.workoutsThisWeek > 0 
-                ? `You've completed ${stats.workoutsThisWeek} workout${stats.workoutsThisWeek > 1 ? 's' : ''} this week. You're building great habits!`
-                : "Ready to start a new week? Your next workout is waiting!"
-              }
-            </Text>
-          </LinearGradient>
+        {/* Personal Records */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Personal Records</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.emptyState}>
+            <LinearGradient
+              colors={['#1f2937', '#111827']}
+              style={styles.emptyStateGradient}
+            >
+              <Ionicons name="trophy" size={48} color="#A3A3A3" />
+              <Text style={styles.emptyStateTitle}>No records yet</Text>
+              <Text style={styles.emptyStateText}>
+                Complete workouts to start tracking your personal bests
+              </Text>
+            </LinearGradient>
+          </View>
         </View>
-      )}
 
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+        {/* Body Measurements */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Body Measurements</Text>
+            <TouchableOpacity>
+              <Ionicons name="add-circle" size={24} color="#9E7FFF" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.measurementCard}>
+            <LinearGradient
+              colors={['#1f2937', '#111827']}
+              style={styles.measurementGradient}
+            >
+              <View style={styles.measurementRow}>
+                <View style={styles.measurementItem}>
+                  <Ionicons name="scale" size={20} color="#9E7FFF" />
+                  <Text style={styles.measurementLabel}>Weight</Text>
+                  <Text style={styles.measurementValue}>-- kg</Text>
+                </View>
+                <View style={styles.measurementItem}>
+                  <Ionicons name="fitness" size={20} color="#f472b6" />
+                  <Text style={styles.measurementLabel}>Body Fat</Text>
+                  <Text style={styles.measurementValue}>-- %</Text>
+                </View>
+              </View>
+              <View style={styles.measurementRow}>
+                <View style={styles.measurementItem}>
+                  <Ionicons name="body" size={20} color="#38bdf8" />
+                  <Text style={styles.measurementLabel}>Muscle Mass</Text>
+                  <Text style={styles.measurementValue}>-- kg</Text>
+                </View>
+                <View style={styles.measurementItem}>
+                  <Ionicons name="heart" size={20} color="#ef4444" />
+                  <Text style={styles.measurementLabel}>Resting HR</Text>
+                  <Text style={styles.measurementValue}>-- bpm</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+
+        {/* Progress Photos */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Progress Photos</Text>
+            <TouchableOpacity>
+              <Ionicons name="camera" size={24} color="#9E7FFF" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.emptyState}>
+            <LinearGradient
+              colors={['#1f2937', '#111827']}
+              style={styles.emptyStateGradient}
+            >
+              <Ionicons name="camera" size={48} color="#A3A3A3" />
+              <Text style={styles.emptyStateTitle}>No photos yet</Text>
+              <Text style={styles.emptyStateText}>
+                Take progress photos to track your transformation
+              </Text>
+              <TouchableOpacity style={styles.emptyStateButton}>
+                <Text style={styles.emptyStateButtonText}>Take Photo</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+
+        {/* Workout Chart Placeholder */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Workout Frequency</Text>
+          <View style={styles.chartCard}>
+            <LinearGradient
+              colors={['#1f2937', '#111827']}
+              style={styles.chartGradient}
+            >
+              <View style={styles.chartPlaceholder}>
+                <Ionicons name="bar-chart" size={48} color="#A3A3A3" />
+                <Text style={styles.chartText}>Chart will appear here</Text>
+                <Text style={styles.chartSubtext}>Complete workouts to see your progress</Text>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -232,109 +181,163 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
+  scrollView: {
+    flex: 1,
+  },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 30,
-  },
-  headerTitle: {
-    fontSize: 32,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-    marginTop: 4,
-  },
-  errorContainer: {
-    backgroundColor: '#E74C3C20',
-    borderRadius: 12,
-    padding: 20,
-    margin: 20,
-    borderWidth: 1,
-    borderColor: '#E74C3C',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#E74C3C',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-  },
-  statsContainer: {
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -4,
-  },
-  chartContainer: {
-    paddingHorizontal: 20,
-    marginTop: 30,
-  },
-  summaryContainer: {
-    paddingHorizontal: 20,
-    marginTop: 30,
-  },
-  summaryCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    padding: 20,
+    paddingTop: 10,
   },
-  summaryLabel: {
-    fontSize: 16,
-    color: '#ccc',
-    fontFamily: 'Inter-Regular',
+  title: {
+    fontSize: 32,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
   },
-  summaryValue: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-  },
-  motivationContainer: {
-    paddingHorizontal: 20,
-    marginTop: 30,
-  },
-  motivationCard: {
-    borderRadius: 20,
-    padding: 24,
+  addButton: {
+    backgroundColor: '#9E7FFF',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  motivationTitle: {
-    fontSize: 20,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginTop: 12,
-    marginBottom: 8,
+  section: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
-  motivationText: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-    lineHeight: 24,
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#9E7FFF',
+    fontFamily: 'Inter-Medium',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  statGradient: {
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Medium',
+    marginTop: 4,
     opacity: 0.9,
   },
-  bottomSpacer: {
-    height: 100,
+  emptyState: {
+    marginBottom: 8,
+  },
+  emptyStateGradient: {
+    padding: 40,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2F2F2F',
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-SemiBold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#A3A3A3',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  emptyStateButton: {
+    backgroundColor: '#9E7FFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyStateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  measurementCard: {
+    marginBottom: 8,
+  },
+  measurementGradient: {
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2F2F2F',
+  },
+  measurementRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  measurementItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  measurementLabel: {
+    fontSize: 12,
+    color: '#A3A3A3',
+    fontFamily: 'Inter-Medium',
+    marginTop: 8,
+  },
+  measurementValue: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
+    marginTop: 4,
+  },
+  chartCard: {
+    marginBottom: 8,
+  },
+  chartGradient: {
+    padding: 40,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2F2F2F',
+  },
+  chartPlaceholder: {
+    alignItems: 'center',
+  },
+  chartText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-SemiBold',
+    marginTop: 16,
+  },
+  chartSubtext: {
+    fontSize: 14,
+    color: '#A3A3A3',
+    fontFamily: 'Inter-Regular',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

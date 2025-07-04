@@ -1,202 +1,160 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { Trophy, Star, Target, Award, Filter, Crown, Zap, Calendar, Users, Medal } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import { useAchievements } from '@/hooks/useAchievements';
-import AchievementProgressCard from '@/components/AchievementProgressCard';
-import AchievementsHeader from '@/components/AchievementsHeader';
-import AchievementCategoryFilter from '@/components/AchievementCategoryFilter';
-import { Achievement } from '@/lib/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useData } from '@/contexts/DataContext';
 
 export default function AchievementsScreen() {
-  const { user } = useAuth();
-  const {
-    userAchievements,
-    achievementProgress,
-    loading,
-    getTotalPoints,
-    getUnlockedCount,
-    getTotalAchievements,
-    refreshAchievements,
-    refreshProgress,
-  } = useAchievements(user?.id || null);
+  const { achievements, loading } = useData();
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [refreshing, setRefreshing] = useState(false);
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading achievements...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  const categories = [
-    { id: 'all', name: 'All', icon: Target },
-    { id: 'workout', name: 'Workout', icon: Trophy },
-    { id: 'strength', name: 'Strength', icon: Award },
-    { id: 'consistency', name: 'Consistency', icon: Zap },
-    { id: 'endurance', name: 'Endurance', icon: Medal },
-    { id: 'social', name: 'Social', icon: Users },
-  ];
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([refreshAchievements(), refreshProgress()]);
-    setRefreshing(false);
-  };
-
-  const getAchievementsByCategory = () => {
-    if (selectedCategory === 'all') {
-      return achievementProgress;
-    }
-    return achievementProgress.filter(progress => {
-      const achievement = userAchievements.find(ua => ua.achievement_id === progress.achievement_id)?.achievement;
-      return achievement?.category === selectedCategory;
-    });
-  };
-
-  const getAchievementData = (progress: any): Achievement | null => {
-    const userAchievement = userAchievements.find(ua => ua.achievement_id === progress.achievement_id);
-    if (userAchievement) {
-      return userAchievement.achievement;
-    }
-    
-    // For achievements not yet unlocked, we need to fetch from the progress data
-    // This would require modifying the hook to include achievement details
-    return null;
-  };
-
-  const filteredProgress = getAchievementsByCategory();
-  const unlockedProgress = filteredProgress.filter(p => p.unlocked);
-  const lockedProgress = filteredProgress.filter(p => !p.unlocked);
-
-  // Calculate completion percentage
-  const completionPercentage = getTotalAchievements() > 0 
-    ? Math.round((getUnlockedCount() / getTotalAchievements()) * 100) 
-    : 0;
+  const unlockedAchievements = achievements.filter(a => a.unlocked);
+  const lockedAchievements = achievements.filter(a => !a.unlocked);
 
   return (
-    <ScrollView 
-      style={styles.container} 
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <AchievementsHeader
-        unlockedCount={getUnlockedCount()}
-        totalPoints={getTotalPoints()}
-        completionPercentage={completionPercentage}
-      />
-
-      <View style={styles.content}>
-        <AchievementCategoryFilter
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onCategorySelect={setSelectedCategory}
-        />
-
-        {/* Achievement Summary */}
-        <View style={styles.summaryContainer}>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <Crown size={24} color="#FFD700" />
-                <Text style={styles.summaryValue}>{getUnlockedCount()}</Text>
-                <Text style={styles.summaryLabel}>Unlocked</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Star size={24} color="#FF6B35" />
-                <Text style={styles.summaryValue}>{getTotalPoints()}</Text>
-                <Text style={styles.summaryLabel}>Total Points</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Target size={24} color="#4A90E2" />
-                <Text style={styles.summaryValue}>{completionPercentage}%</Text>
-                <Text style={styles.summaryLabel}>Complete</Text>
-              </View>
-            </View>
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Achievements</Text>
+          <View style={styles.progressBadge}>
+            <Text style={styles.progressText}>
+              {unlockedAchievements.length}/{achievements.length}
+            </Text>
           </View>
         </View>
 
-        {unlockedProgress.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Trophy size={20} color="#FFD700" />
-              <Text style={styles.sectionTitle}>Unlocked ({unlockedProgress.length})</Text>
-            </View>
-            {unlockedProgress.map((progress) => {
-              const achievement = getAchievementData(progress);
-              if (!achievement) return null;
-              
-              return (
-                <AchievementProgressCard
-                  key={progress.achievement_id}
-                  achievement={achievement}
-                  progress={progress}
+        {/* Progress Overview */}
+        <View style={styles.section}>
+          <View style={styles.overviewCard}>
+            <LinearGradient
+              colors={['#9E7FFF', '#7C3AED']}
+              style={styles.overviewGradient}
+            >
+              <View style={styles.overviewContent}>
+                <Ionicons name="trophy" size={32} color="#FFFFFF" />
+                <View style={styles.overviewText}>
+                  <Text style={styles.overviewTitle}>
+                    {unlockedAchievements.length} Unlocked
+                  </Text>
+                  <Text style={styles.overviewSubtitle}>
+                    {lockedAchievements.length} more to go!
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${(unlockedAchievements.length / achievements.length) * 100}%` }
+                  ]} 
                 />
-              );
-            })}
+              </View>
+            </LinearGradient>
           </View>
-        )}
+        </View>
 
-        {lockedProgress.length > 0 && (
+        {/* Unlocked Achievements */}
+        {unlockedAchievements.length > 0 && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Target size={20} color="#999" />
-              <Text style={styles.sectionTitle}>In Progress ({lockedProgress.length})</Text>
+            <Text style={styles.sectionTitle}>Unlocked</Text>
+            {unlockedAchievements.map((achievement) => (
+              <View key={achievement.id} style={styles.achievementCard}>
+                <LinearGradient
+                  colors={['#1f2937', '#111827']}
+                  style={styles.achievementGradient}
+                >
+                  <View style={styles.achievementIcon}>
+                    <Text style={styles.achievementEmoji}>{achievement.icon}</Text>
+                  </View>
+                  <View style={styles.achievementContent}>
+                    <Text style={styles.achievementName}>{achievement.name}</Text>
+                    <Text style={styles.achievementDescription}>
+                      {achievement.description}
+                    </Text>
+                    {achievement.unlocked_at && (
+                      <Text style={styles.achievementDate}>
+                        Unlocked {new Date(achievement.unlocked_at).toLocaleDateString()}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.achievementBadge}>
+                    <Ionicons name="checkmark" size={20} color="#10b981" />
+                  </View>
+                </LinearGradient>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Locked Achievements */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {unlockedAchievements.length > 0 ? 'Locked' : 'All Achievements'}
+          </Text>
+          {lockedAchievements.map((achievement) => (
+            <View key={achievement.id} style={styles.achievementCard}>
+              <LinearGradient
+                colors={['#1f2937', '#111827']}
+                style={[styles.achievementGradient, styles.lockedAchievement]}
+              >
+                <View style={[styles.achievementIcon, styles.lockedIcon]}>
+                  <Text style={[styles.achievementEmoji, styles.lockedEmoji]}>
+                    {achievement.icon}
+                  </Text>
+                </View>
+                <View style={styles.achievementContent}>
+                  <Text style={[styles.achievementName, styles.lockedText]}>
+                    {achievement.name}
+                  </Text>
+                  <Text style={[styles.achievementDescription, styles.lockedText]}>
+                    {achievement.description}
+                  </Text>
+                  <Text style={styles.achievementCategory}>
+                    {achievement.category.charAt(0).toUpperCase() + achievement.category.slice(1)}
+                  </Text>
+                </View>
+                <View style={styles.achievementBadge}>
+                  <Ionicons name="lock-closed" size={20} color="#A3A3A3" />
+                </View>
+              </LinearGradient>
             </View>
-            {lockedProgress.map((progress) => {
-              const achievement = getAchievementData(progress);
-              if (!achievement) return null;
-              
-              return (
-                <AchievementProgressCard
-                  key={progress.achievement_id}
-                  achievement={achievement}
-                  progress={progress}
-                />
-              );
-            })}
-          </View>
-        )}
+          ))}
+        </View>
 
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <Trophy size={48} color="#666" />
-            <Text style={styles.loadingText}>Loading achievements...</Text>
-          </View>
-        )}
-
-        {!loading && filteredProgress.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Trophy size={64} color="#666" />
-            <Text style={styles.emptyTitle}>No achievements yet</Text>
-            <Text style={styles.emptyText}>
-              Complete workouts to start unlocking achievements!
-            </Text>
-            <TouchableOpacity style={styles.startButton}>
-              <Text style={styles.startButtonText}>Start Your First Workout</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Motivational Section */}
-        {getUnlockedCount() > 0 && (
-          <View style={styles.motivationContainer}>
-            <View style={styles.motivationCard}>
-              <Star size={32} color="#FFD700" />
-              <Text style={styles.motivationTitle}>Keep Going! 🎉</Text>
+        {/* Motivation */}
+        <View style={styles.section}>
+          <View style={styles.motivationCard}>
+            <LinearGradient
+              colors={['#f472b6', '#ec4899']}
+              style={styles.motivationGradient}
+            >
+              <Ionicons name="star" size={24} color="#FFFFFF" />
+              <Text style={styles.motivationTitle}>Keep Going!</Text>
               <Text style={styles.motivationText}>
-                You've unlocked {getUnlockedCount()} achievement{getUnlockedCount() > 1 ? 's' : ''} and earned {getTotalPoints()} points. 
-                {lockedProgress.length > 0 && ` ${lockedProgress.length} more achievement${lockedProgress.length > 1 ? 's' : ''} await${lockedProgress.length === 1 ? 's' : ''}!`}
+                Complete workouts and hit milestones to unlock more achievements
               </Text>
-            </View>
+            </LinearGradient>
           </View>
-        )}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -205,117 +163,179 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  summaryContainer: {
-    marginBottom: 30,
-  },
-  summaryCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  summaryItem: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  summaryValue: {
-    fontSize: 24,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: '#999',
+  loadingText: {
+    color: '#FFFFFF',
+    fontSize: 18,
     fontFamily: 'Inter-Medium',
   },
-  section: {
-    marginBottom: 30,
+  scrollView: {
+    flex: 1,
   },
-  sectionHeader: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 10,
+  },
+  title: {
+    fontSize: 32,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
+  },
+  progressBadge: {
+    backgroundColor: '#9E7FFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  progressText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+  },
+  section: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 16,
+  },
+  overviewCard: {
+    marginBottom: 8,
+  },
+  overviewGradient: {
+    padding: 20,
+    borderRadius: 16,
+  },
+  overviewContent: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
   },
-  sectionTitle: {
+  overviewText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  overviewTitle: {
     fontSize: 20,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-    marginTop: 16,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 80,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    color: '#fff',
+    color: '#FFFFFF',
     fontFamily: 'Inter-Bold',
-    marginTop: 20,
+  },
+  overviewSubtitle: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Regular',
+    opacity: 0.9,
+    marginTop: 4,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+  },
+  achievementCard: {
     marginBottom: 12,
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 30,
-    paddingHorizontal: 20,
-  },
-  startButton: {
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+  achievementGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2F2F2F',
   },
-  startButtonText: {
+  lockedAchievement: {
+    opacity: 0.6,
+  },
+  achievementIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(158, 127, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  lockedIcon: {
+    backgroundColor: 'rgba(163, 163, 163, 0.2)',
+  },
+  achievementEmoji: {
+    fontSize: 24,
+  },
+  lockedEmoji: {
+    opacity: 0.5,
+  },
+  achievementContent: {
+    flex: 1,
+  },
+  achievementName: {
     fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 4,
   },
-  motivationContainer: {
-    marginTop: 20,
+  achievementDescription: {
+    fontSize: 14,
+    color: '#A3A3A3',
+    fontFamily: 'Inter-Regular',
+    marginBottom: 4,
+  },
+  achievementDate: {
+    fontSize: 12,
+    color: '#10b981',
+    fontFamily: 'Inter-Medium',
+  },
+  achievementCategory: {
+    fontSize: 12,
+    color: '#9E7FFF',
+    fontFamily: 'Inter-Medium',
+  },
+  lockedText: {
+    opacity: 0.7,
+  },
+  achievementBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   motivationCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 20,
+    marginBottom: 20,
+  },
+  motivationGradient: {
     padding: 24,
+    borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FFD700',
   },
   motivationTitle: {
-    fontSize: 20,
-    color: '#fff',
+    fontSize: 18,
+    color: '#FFFFFF',
     fontFamily: 'Inter-Bold',
     marginTop: 12,
     marginBottom: 8,
   },
   motivationText: {
     fontSize: 14,
-    color: '#ccc',
+    color: '#FFFFFF',
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
-    lineHeight: 20,
+    opacity: 0.9,
   },
 });
