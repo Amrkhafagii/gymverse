@@ -13,10 +13,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '@/contexts/DataContext';
 import { pickImageFromLibrary, takePhotoWithCamera, saveProfilePicture } from '@/lib/storage/fileStorage';
+import TDEECalculator from '@/components/TDEECalculator';
 
 export default function ProfileScreen() {
   const { profile, settings, loading, updateProfile } = useData();
   const [uploading, setUploading] = useState(false);
+  const [showTDEECalculator, setShowTDEECalculator] = useState(false);
 
   const handleProfilePictureChange = () => {
     Alert.alert(
@@ -133,6 +135,47 @@ export default function ProfileScreen() {
               </View>
             </LinearGradient>
           </View>
+        </View>
+
+        {/* TDEE Calculator Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Nutrition Calculator</Text>
+          <TouchableOpacity 
+            style={styles.tdeeCard}
+            onPress={() => setShowTDEECalculator(true)}
+          >
+            <LinearGradient
+              colors={['#FF6B35', '#FF8C42']}
+              style={styles.tdeeGradient}
+            >
+              <View style={styles.tdeeIcon}>
+                <Ionicons name="calculator" size={32} color="#FFFFFF" />
+              </View>
+              <View style={styles.tdeeContent}>
+                <Text style={styles.tdeeTitle}>TDEE Calculator</Text>
+                <Text style={styles.tdeeSubtitle}>
+                  Calculate your daily calorie needs and macro targets using the Leangains protocol
+                </Text>
+                <View style={styles.tdeeFeatures}>
+                  <View style={styles.tdeeFeature}>
+                    <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                    <Text style={styles.tdeeFeatureText}>Katch-McArdle BMR</Text>
+                  </View>
+                  <View style={styles.tdeeFeature}>
+                    <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                    <Text style={styles.tdeeFeatureText}>Training/Rest Day Macros</Text>
+                  </View>
+                  <View style={styles.tdeeFeature}>
+                    <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                    <Text style={styles.tdeeFeatureText}>Cut/Bulk/Maintain Goals</Text>
+                  </View>
+                </View>
+              </View>
+              <View style={styles.tdeeArrow}>
+                <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
         {/* Quick Stats */}
@@ -264,6 +307,12 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* TDEE Calculator Modal */}
+      <TDEECalculator
+        visible={showTDEECalculator}
+        onClose={() => setShowTDEECalculator(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -385,6 +434,63 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     opacity: 0.8,
     marginTop: 4,
+  },
+  // TDEE Calculator Styles
+  tdeeCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  tdeeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    minHeight: 120,
+  },
+  tdeeIcon: {
+    marginRight: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tdeeContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  tdeeTitle: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 6,
+  },
+  tdeeSubtitle: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Regular',
+    opacity: 0.9,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  tdeeFeatures: {
+    gap: 6,
+  },
+  tdeeFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tdeeFeatureText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Medium',
+    opacity: 0.9,
+  },
+  tdeeArrow: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statsGrid: {
     flexDirection: 'row',
