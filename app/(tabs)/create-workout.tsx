@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Save, Plus, X, Trash2, GripVertical, Clock, Target } from 'lucide-react-native';
+import { ArrowLeft, Save, Plus, X, Clock, Target } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, Exercise, createWorkout, createWorkoutExercise } from '@/lib/supabase';
+import { supabase, Exercise } from '@/lib/supabase';
 import ExerciseSelector from '@/components/ExerciseSelector';
 import WorkoutExerciseCard from '@/components/WorkoutExerciseCard';
 import SegmentedControl from '@/components/SegmentedControl';
@@ -356,7 +356,7 @@ export default function CreateWorkoutScreen() {
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>No exercises added yet</Text>
               <Text style={styles.emptyText}>
-                Tap "Add Exercise" to start building your workout
+                Tap &ldquo;Add Exercise&rdquo; to start building your workout
               </Text>
             </View>
           ) : (

@@ -54,7 +54,7 @@ export default function SignUpScreen() {
           [{ text: 'OK', onPress: () => router.replace('/(auth)/sign-in') }]
         );
       }
-    } catch (error) {
+    } catch (err) {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setLoading(false);

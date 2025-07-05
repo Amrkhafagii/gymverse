@@ -5,14 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '@/contexts/DataContext';
-
-const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { profile, streak, achievements, loading } = useData();
@@ -115,7 +112,7 @@ export default function HomeScreen() {
 
         {/* Today's Focus */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Focus</Text>
+          <Text style={styles.sectionTitle}>Today&apos;s Focus</Text>
           <View style={styles.focusCard}>
             <LinearGradient
               colors={['#1f2937', '#111827']}
@@ -169,7 +166,7 @@ export default function HomeScreen() {
               style={styles.quoteGradient}
             >
               <Text style={styles.quote}>
-                "The only bad workout is the one that didn't happen."
+                &ldquo;The only bad workout is the one that didn&apos;t happen.&rdquo;
               </Text>
               <Text style={styles.quoteAuthor}>- Unknown</Text>
             </LinearGradient>

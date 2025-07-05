@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,40 +6,319 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Dimensions,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { 
-  ArrowLeft, 
-  Bookmark, 
-  Share2, 
-  Play, 
-  Plus,
-  Target, 
-  Zap, 
-  Star,
-  Flame,
-  Shield,
-  Clock,
-  AlertTriangle,
-  CheckCircle,
-  Info,
-  Dumbbell,
+import {
+  ArrowLeft,
+  Play,
+  Pause,
+  RotateCcw,
   Heart,
-  Activity
+  Share,
+  BookOpen,
+  Target,
+  Timer,
+  TrendingUp,
+  Info,
+  ChevronRight,
 } from 'lucide-react-native';
-import { getExerciseById, ExerciseData } from '@/lib/data/exerciseDatabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase, Exercise, ExerciseProgress } from '@/lib/supabase';
+import FormVideoPlayer from '@/components/exercise/FormVideoPlayer';
+import FormTipsModal from '@/components/exercise/FormTipsModal';
+import ExerciseFormSection from '@/components/exercise/ExerciseFormSection';
+
+const { width } = Dimensions.get('window');
 
 export default function ExerciseDetailScreen() {
-  const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'instructions' | 'variations'>('overview');
+  const [exercise, setExercise] = useState<Exercise | null>(null);
+  const [progress, setProgress] = useState<ExerciseProgress[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [showTips, setShowTips] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'form' | 'progress'>('overview');
 
-  const exercise = getExerciseById(exerciseId);
+  useEffect(() => {
+    if (id) {
+      loadExerciseDetails();
+    }
+  }, [id]);
+
+  const loadExerciseDetails = async () => {
+    try {
+      setLoading(true);
+
+      // Load exercise details
+      const { data: exerciseData, error: exerciseError } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (exerciseError) throw exerciseError;
+      setExercise(exerciseData);
+
+      if (user) {
+        // Check if exercise is favorited
+        const { data: favoriteData } = await supabase
+          .from('user_favorite_exercises')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('exercise_id', id)
+          .single();
+
+        setIsFavorite(!!favoriteData);
+
+        // Load progress data
+        const { data: progressData, error: progressError } = await supabase
+          .from('exercise_progress')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('exercise_id', id)
+          .order('recorded_at', { ascending: false })
+          .limit(10);
+
+        if (progressError && progressError.code !== 'PGRST116') {
+          console.error('Error loading progress:', progressError);
+        } else {
+          setProgress(progressData || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading exercise details:', error);
+      Alert.alert('Error', 'Failed to load exercise details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!user || !exercise) return;
+
+    try {
+      if (isFavorite) {
+        await supabase
+          .from('user_favorite_exercises')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('exercise_id', exercise.id);
+      } else {
+        await supabase
+          .from('user_favorite_exercises')
+          .insert({
+            user_id: user.id,
+            exercise_id: exercise.id,
+          });
+      }
+      setIsFavorite(!isFavorite);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      Alert.alert('Error', 'Failed to update favorite status');
+    }
+  };
+
+  const handleShare = async () => {
+    if (!exercise) return;
+    
+    try {
+      // In a real app, you would use the Share API
+      Alert.alert('Share Exercise', `Share "${exercise.name}" with friends!`);
+    } catch (error) {
+      console.error('Error sharing exercise:', error);
+    }
+  };
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'beginner':
+        return '#4CAF50';
+      case 'intermediate':
+        return '#FF9800';
+      case 'advanced':
+        return '#F44336';
+      default:
+        return '#999';
+    }
+  };
+
+  const getMuscleGroupColor = (muscleGroup: string) => {
+    const colors: { [key: string]: string } = {
+      chest: '#E91E63',
+      back: '#3F51B5',
+      shoulders: '#FF5722',
+      arms: '#9C27B0',
+      legs: '#4CAF50',
+      core: '#FF9800',
+      cardio: '#2196F3',
+      full_body: '#795548',
+    };
+    return colors[muscleGroup] || '#999';
+  };
+
+  const renderTabContent = () => {
+    if (!exercise) return null;
+
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <View style={styles.tabContent}>
+            {/* Exercise Stats */}
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: getDifficultyColor(exercise.difficulty_level) + '20' }]}>
+                  <Target size={20} color={getDifficultyColor(exercise.difficulty_level)} />
+                </View>
+                <Text style={styles.statLabel}>Difficulty</Text>
+                <Text style={styles.statValue}>{exercise.difficulty_level}</Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: getMuscleGroupColor(exercise.primary_muscle_group) + '20' }]}>
+                  <TrendingUp size={20} color={getMuscleGroupColor(exercise.primary_muscle_group)} />
+                </View>
+                <Text style={styles.statLabel}>Primary</Text>
+                <Text style={styles.statValue}>{exercise.primary_muscle_group}</Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: '#4A90E220' }]}>
+                  <Timer size={20} color="#4A90E2" />
+                </View>
+                <Text style={styles.statLabel}>Type</Text>
+                <Text style={styles.statValue}>{exercise.exercise_type}</Text>
+              </View>
+            </View>
+
+            {/* Description */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.description}>
+                {exercise.description || 'No description available for this exercise.'}
+              </Text>
+            </View>
+
+            {/* Instructions */}
+            {exercise.instructions && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Instructions</Text>
+                {exercise.instructions.map((instruction, index) => (
+                  <View key={index} style={styles.instructionItem}>
+                    <View style={styles.instructionNumber}>
+                      <Text style={styles.instructionNumberText}>{index + 1}</Text>
+                    </View>
+                    <Text style={styles.instructionText}>{instruction}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Equipment */}
+            {exercise.equipment_needed && exercise.equipment_needed.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Equipment Needed</Text>
+                <View style={styles.equipmentList}>
+                  {exercise.equipment_needed.map((equipment, index) => (
+                    <View key={index} style={styles.equipmentTag}>
+                      <Text style={styles.equipmentText}>{equipment}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Muscle Groups */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Muscle Groups</Text>
+              <View style={styles.muscleGroups}>
+                <View style={[styles.muscleTag, styles.primaryMuscle]}>
+                  <Text style={styles.muscleTagText}>
+                    {exercise.primary_muscle_group} (Primary)
+                  </Text>
+                </View>
+                {exercise.secondary_muscle_groups?.map((muscle, index) => (
+                  <View key={index} style={[styles.muscleTag, styles.secondaryMuscle]}>
+                    <Text style={styles.muscleTagText}>{muscle}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        );
+
+      case 'form':
+        return <ExerciseFormSection exercise={exercise} />;
+
+      case 'progress':
+        return (
+          <View style={styles.tabContent}>
+            {progress.length > 0 ? (
+              <View>
+                <Text style={styles.sectionTitle}>Recent Progress</Text>
+                {progress.map((record, index) => (
+                  <View key={record.id} style={styles.progressItem}>
+                    <View style={styles.progressHeader}>
+                      <Text style={styles.progressDate}>
+                        {new Date(record.recorded_at).toLocaleDateString()}
+                      </Text>
+                      <Text style={styles.progressTime}>
+                        {new Date(record.recorded_at).toLocaleTimeString([], { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </Text>
+                    </View>
+                    <View style={styles.progressStats}>
+                      {record.weight_kg && (
+                        <Text style={styles.progressStat}>
+                          Weight: {record.weight_kg}kg
+                        </Text>
+                      )}
+                      {record.reps && (
+                        <Text style={styles.progressStat}>
+                          Reps: {record.reps}
+                        </Text>
+                      )}
+                      {record.duration_seconds && (
+                        <Text style={styles.progressStat}>
+                          Duration: {Math.floor(record.duration_seconds / 60)}:{(record.duration_seconds % 60).toString().padStart(2, '0')}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <TrendingUp size={48} color="#666" />
+                <Text style={styles.emptyTitle}>No Progress Yet</Text>
+                <Text style={styles.emptyText}>
+                  Start tracking this exercise to see your progress here
+                </Text>
+              </View>
+            )}
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!exercise) {
     return (
@@ -54,397 +333,112 @@ export default function ExerciseDetailScreen() {
     );
   }
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'beginner': return '#2ECC71';
-      case 'intermediate': return '#F39C12';
-      case 'advanced': return '#E74C3C';
-      default: return '#95A5A6';
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'strength': return <Dumbbell size={20} color="#FF6B35" />;
-      case 'cardio': return <Heart size={20} color="#E74C3C" />;
-      case 'flexibility': return <Zap size={20} color="#2ECC71" />;
-      case 'balance': return <Target size={20} color="#9B59B6" />;
-      case 'plyometric': return <Activity size={20} color="#3498DB" />;
-      default: return <Target size={20} color="#95A5A6" />;
-    }
-  };
-
-  const getSafetyColor = (rating: number) => {
-    if (rating >= 4) return '#2ECC71';
-    if (rating >= 3) return '#F39C12';
-    return '#E74C3C';
-  };
-
-  const handleBookmark = () => {
-    if (!user) {
-      Alert.alert('Sign In Required', 'Please sign in to bookmark exercises.');
-      return;
-    }
-    
-    setIsBookmarked(!isBookmarked);
-    // TODO: Implement bookmark functionality with backend
-  };
-
-  const handleShare = () => {
-    Alert.alert(
-      'Share Exercise',
-      `Share "${exercise.name}" with friends?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Share', onPress: () => {
-          // TODO: Implement share functionality
-          console.log('Sharing exercise:', exercise.name);
-        }}
-      ]
-    );
-  };
-
-  const handleAddToWorkout = () => {
-    if (!user) {
-      Alert.alert(
-        'Sign In Required',
-        'Please sign in to add exercises to workouts.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => router.push('/auth/sign-in') }
-        ]
-      );
-      return;
-    }
-
-    Alert.alert(
-      'Add to Workout',
-      'Choose how to add this exercise:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Create New Workout', 
-          onPress: () => router.push({
-            pathname: '/(tabs)/create-workout',
-            params: { preselectedExercise: exercise.id }
-          })
-        },
-        { 
-          text: 'Add to Existing', 
-          onPress: () => {
-            // TODO: Show workout selection modal
-            Alert.alert('Feature Coming Soon', 'Adding to existing workouts will be available soon!');
-          }
-        }
-      ]
-    );
-  };
-
-  const handleStartQuickWorkout = () => {
-    if (!user) {
-      Alert.alert(
-        'Sign In Required',
-        'Please sign in to start workouts.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => router.push('/auth/sign-in') }
-        ]
-      );
-      return;
-    }
-
-    Alert.alert(
-      'Quick Workout',
-      `Start a quick workout with ${exercise.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Start', 
-          onPress: () => {
-            // TODO: Create quick workout session with this exercise
-            Alert.alert('Feature Coming Soon', 'Quick workouts will be available soon!');
-          }
-        }
-      ]
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header Image */}
+      {/* Header */}
+      <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+            <ArrowLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerButton} onPress={toggleFavorite}>
+              <Heart 
+                size={24} 
+                color={isFavorite ? "#FF6B35" : "#fff"} 
+                fill={isFavorite ? "#FF6B35" : "transparent"}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
+              <Share size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* Exercise Image/Video */}
+      {exercise.video_url ? (
+        <FormVideoPlayer videoUrl={exercise.video_url} />
+      ) : exercise.image_url ? (
         <View style={styles.imageContainer}>
-          <Image source={{ uri: exercise.demo_image_url }} style={styles.headerImage} />
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.imageOverlay}
-          />
-          
-          {/* Header Controls */}
-          <View style={styles.headerControls}>
-            <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
-              <ArrowLeft size={24} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.headerActions}>
-              <TouchableOpacity 
-                style={[styles.headerButton, isBookmarked && styles.bookmarkedButton]} 
-                onPress={handleBookmark}
-              >
-                <Bookmark size={24} color={isBookmarked ? "#FF6B35" : "#fff"} fill={isBookmarked ? "#FF6B35" : "none"} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
-                <Share2 size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
+          <Image source={{ uri: exercise.image_url }} style={styles.exerciseImage} />
+        </View>
+      ) : (
+        <View style={styles.placeholderContainer}>
+          <Play size={48} color="#666" />
+          <Text style={styles.placeholderText}>No media available</Text>
+        </View>
+      )}
+
+      {/* Exercise Info */}
+      <View style={styles.exerciseInfo}>
+        <Text style={styles.exerciseName}>{exercise.name}</Text>
+        <View style={styles.exerciseMeta}>
+          <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(exercise.difficulty_level) + '20' }]}>
+            <Text style={[styles.difficultyText, { color: getDifficultyColor(exercise.difficulty_level) }]}>
+              {exercise.difficulty_level}
+            </Text>
           </View>
-
-          {/* Exercise Info Overlay */}
-          <View style={styles.exerciseInfo}>
-            <View style={styles.exerciseBadges}>
-              <View style={styles.typeBadge}>
-                {getTypeIcon(exercise.exercise_type)}
-                <Text style={styles.typeBadgeText}>{exercise.exercise_type}</Text>
-              </View>
-              <View style={[
-                styles.difficultyBadge,
-                { backgroundColor: getDifficultyColor(exercise.difficulty_level) + '20' }
-              ]}>
-                <Text style={[
-                  styles.difficultyText,
-                  { color: getDifficultyColor(exercise.difficulty_level) }
-                ]}>
-                  {exercise.difficulty_level}
-                </Text>
-              </View>
-              <View style={styles.popularityBadge}>
-                <Star size={14} color="#FFD700" fill="#FFD700" />
-                <Text style={styles.popularityText}>{exercise.popularity_score}</Text>
-              </View>
-            </View>
-            <Text style={styles.exerciseName}>{exercise.name}</Text>
-            <Text style={styles.exerciseDescription}>{exercise.description}</Text>
-          </View>
+          <View style={styles.metaDivider} />
+          <Text style={styles.muscleGroup}>{exercise.primary_muscle_group}</Text>
         </View>
+      </View>
 
-        {/* Quick Stats */}
-        <View style={styles.statsContainer}>
-          <LinearGradient colors={['#1f2937', '#111827']} style={styles.statsGradient}>
-            <View style={styles.statItem}>
-              <Flame size={24} color="#E74C3C" />
-              <Text style={styles.statValue}>{exercise.calories_per_minute}</Text>
-              <Text style={styles.statLabel}>Cal/Min</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Shield size={24} color={getSafetyColor(exercise.safety_rating)} />
-              <Text style={styles.statValue}>{exercise.safety_rating}/5</Text>
-              <Text style={styles.statLabel}>Safety</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Target size={24} color="#9B59B6" />
-              <Text style={styles.statValue}>{exercise.muscle_groups.length}</Text>
-              <Text style={styles.statLabel}>Muscles</Text>
-            </View>
-          </LinearGradient>
-        </View>
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'overview' && styles.activeTab]}
+          onPress={() => setActiveTab('overview')}
+        >
+          <Info size={20} color={activeTab === 'overview' ? '#FF6B35' : '#999'} />
+          <Text style={[styles.tabText, activeTab === 'overview' && styles.activeTabText]}>
+            Overview
+          </Text>
+        </TouchableOpacity>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.primaryButton} onPress={handleStartQuickWorkout}>
-            <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.primaryButtonGradient}>
-              <Play size={20} color="#fff" />
-              <Text style={styles.primaryButtonText}>Quick Workout</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleAddToWorkout}>
-            <Plus size={20} color="#FF6B35" />
-            <Text style={styles.secondaryButtonText}>Add to Workout</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'form' && styles.activeTab]}
+          onPress={() => setActiveTab('form')}
+        >
+          <BookOpen size={20} color={activeTab === 'form' ? '#FF6B35' : '#999'} />
+          <Text style={[styles.tabText, activeTab === 'form' && styles.activeTabText]}>
+            Form Guide
+          </Text>
+        </TouchableOpacity>
 
-        {/* Tab Navigation */}
-        <View style={styles.tabContainer}>
-          {[
-            { key: 'overview', label: 'Overview', icon: <Info size={16} color="#fff" /> },
-            { key: 'instructions', label: 'Instructions', icon: <CheckCircle size={16} color="#fff" /> },
-            { key: 'variations', label: 'Variations', icon: <Zap size={16} color="#fff" /> },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tab, selectedTab === tab.key && styles.tabActive]}
-              onPress={() => setSelectedTab(tab.key as any)}
-            >
-              {tab.icon}
-              <Text style={[styles.tabText, selectedTab === tab.key && styles.tabTextActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'progress' && styles.activeTab]}
+          onPress={() => setActiveTab('progress')}
+        >
+          <TrendingUp size={20} color={activeTab === 'progress' ? '#FF6B35' : '#999'} />
+          <Text style={[styles.tabText, activeTab === 'progress' && styles.activeTabText]}>
+            Progress
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Tab Content */}
-        <View style={styles.tabContent}>
-          {selectedTab === 'overview' && (
-            <View>
-              {/* Target Muscles */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Target Muscles</Text>
-                <View style={styles.muscleGroups}>
-                  {exercise.muscle_groups.map((muscle, index) => (
-                    <View key={index} style={styles.muscleGroup}>
-                      <Text style={styles.muscleGroupText}>
-                        {muscle.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              {/* Equipment */}
-              {exercise.equipment.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Equipment Needed</Text>
-                  <View style={styles.equipmentList}>
-                    {exercise.equipment.map((equipment, index) => (
-                      <View key={index} style={styles.equipmentItem}>
-                        <CheckCircle size={16} color="#2ECC71" />
-                        <Text style={styles.equipmentText}>
-                          {equipment.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Exercise Properties */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Exercise Properties</Text>
-                <View style={styles.propertiesGrid}>
-                  <View style={styles.propertyItem}>
-                    <View style={styles.propertyIcon}>
-                      <Target size={20} color="#FF6B35" />
-                    </View>
-                    <Text style={styles.propertyLabel}>Type</Text>
-                    <Text style={styles.propertyValue}>{exercise.is_compound ? 'Compound' : 'Isolation'}</Text>
-                  </View>
-                  <View style={styles.propertyItem}>
-                    <View style={styles.propertyIcon}>
-                      <Zap size={20} color="#9B59B6" />
-                    </View>
-                    <Text style={styles.propertyLabel}>Movement</Text>
-                    <Text style={styles.propertyValue}>{exercise.is_unilateral ? 'Unilateral' : 'Bilateral'}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Tips */}
-              {exercise.tips.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>💡 Pro Tips</Text>
-                  <View style={styles.tipsList}>
-                    {exercise.tips.map((tip, index) => (
-                      <View key={index} style={styles.tipItem}>
-                        <View style={styles.tipBullet} />
-                        <Text style={styles.tipText}>{tip}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Common Mistakes */}
-              {exercise.common_mistakes.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>⚠️ Common Mistakes</Text>
-                  <View style={styles.mistakesList}>
-                    {exercise.common_mistakes.map((mistake, index) => (
-                      <View key={index} style={styles.mistakeItem}>
-                        <AlertTriangle size={16} color="#E74C3C" />
-                        <Text style={styles.mistakeText}>{mistake}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-
-          {selectedTab === 'instructions' && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Step-by-Step Instructions</Text>
-              <View style={styles.instructionsList}>
-                {exercise.instructions.map((instruction, index) => (
-                  <View key={index} style={styles.instructionItem}>
-                    <View style={styles.instructionNumber}>
-                      <Text style={styles.instructionNumberText}>{index + 1}</Text>
-                    </View>
-                    <Text style={styles.instructionText}>{instruction}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {selectedTab === 'variations' && (
-            <View>
-              {exercise.variations.length > 0 ? (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Exercise Variations</Text>
-                  <View style={styles.variationsList}>
-                    {exercise.variations.map((variation, index) => (
-                      <View key={index} style={styles.variationItem}>
-                        <LinearGradient colors={['#1f2937', '#111827']} style={styles.variationGradient}>
-                          <View style={styles.variationHeader}>
-                            <Text style={styles.variationName}>{variation}</Text>
-                            <ChevronRight size={16} color="#666" />
-                          </View>
-                        </LinearGradient>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.emptyVariations}>
-                  <Text style={styles.emptyVariationsText}>No variations available for this exercise</Text>
-                </View>
-              )}
-
-              {/* Alternative Names */}
-              {exercise.alternative_names.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Also Known As</Text>
-                  <View style={styles.alternativeNames}>
-                    {exercise.alternative_names.map((name, index) => (
-                      <View key={index} style={styles.alternativeName}>
-                        <Text style={styles.alternativeNameText}>{name}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-
-        {/* Tags */}
-        {exercise.tags.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tags</Text>
-            <View style={styles.tags}>
-              {exercise.tags.map((tag, index) => (
-                <View key={index} style={styles.tag}>
-                  <Text style={styles.tagText}>#{tag.replace(/_/g, '')}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        <View style={styles.bottomSpacer} />
+      {/* Tab Content */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {renderTabContent()}
       </ScrollView>
+
+      {/* Form Tips Modal */}
+      <FormTipsModal
+        visible={showTips}
+        onClose={() => setShowTips(false)}
+        exercise={exercise}
+      />
+
+      {/* Action Button */}
+      <View style={styles.actionContainer}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => setShowTips(true)}>
+          <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.actionButtonGradient}>
+            <BookOpen size={20} color="#fff" />
+            <Text style={styles.actionButtonText}>View Form Tips</Text>
+            <ChevronRight size={20} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -454,199 +448,130 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  scrollView: {
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  imageContainer: {
-    position: 'relative',
-    height: 300,
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
   },
-  headerImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
-  imageOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 150,
+  errorText: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: 'Inter-Medium',
+    marginBottom: 20,
   },
-  headerControls: {
-    position: 'absolute',
-    top: 60,
-    left: 0,
-    right: 0,
+  backButton: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    alignItems: 'center',
   },
   headerButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
     padding: 8,
-  },
-  bookmarkedButton: {
-    backgroundColor: 'rgba(255, 107, 53, 0.2)',
   },
   headerActions: {
     flexDirection: 'row',
   },
+  imageContainer: {
+    height: 200,
+    backgroundColor: '#1a1a1a',
+  },
+  exerciseImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  placeholderContainer: {
+    height: 200,
+    backgroundColor: '#1a1a1a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: '#666',
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    marginTop: 8,
+  },
   exerciseInfo: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  exerciseBadges: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 53, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  typeBadgeText: {
-    fontSize: 12,
-    color: '#FF6B35',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
-    textTransform: 'capitalize',
-  },
-  difficultyBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  difficultyText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    textTransform: 'capitalize',
-  },
-  popularityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  popularityText: {
-    fontSize: 12,
-    color: '#FFD700',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 4,
+    padding: 20,
+    backgroundColor: '#0a0a0a',
   },
   exerciseName: {
-    fontSize: 28,
+    fontSize: 24,
     color: '#fff',
     fontFamily: 'Inter-Bold',
     marginBottom: 8,
   },
-  exerciseDescription: {
-    fontSize: 16,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    lineHeight: 22,
-  },
-  statsContainer: {
-    margin: 20,
-  },
-  statsGradient: {
+  exerciseMeta: {
     flexDirection: 'row',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  statItem: {
-    flex: 1,
     alignItems: 'center',
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: '#333',
-    marginHorizontal: 20,
+  difficultyBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  statValue: {
-    fontSize: 24,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statLabel: {
+  difficultyText: {
     fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    textTransform: 'capitalize',
+  },
+  metaDivider: {
+    width: 4,
+    height: 4,
+    backgroundColor: '#666',
+    borderRadius: 2,
+    marginHorizontal: 12,
+  },
+  muscleGroup: {
+    fontSize: 14,
     color: '#999',
     fontFamily: 'Inter-Medium',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  primaryButton: {
-    flex: 2,
-    marginRight: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  primaryButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
-  },
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FF6B35',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    flexDirection: 'row',
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    color: '#FF6B35',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
+    textTransform: 'capitalize',
   },
   tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    backgroundColor: '#1a1a1a',
+    marginHorizontal: 20,
+    borderRadius: 12,
+    padding: 4,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
     paddingVertical: 12,
-    borderRadius: 12,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#333',
+    borderRadius: 8,
   },
-  tabActive: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
+  activeTab: {
+    backgroundColor: '#FF6B3520',
   },
   tabText: {
     fontSize: 14,
@@ -654,263 +579,210 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     marginLeft: 6,
   },
-  tabTextActive: {
-    color: '#fff',
+  activeTabText: {
+    color: '#FF6B35',
   },
-  tabContent: {
+  content: {
+    flex: 1,
     paddingHorizontal: 20,
   },
-  section: {
-    marginBottom: 24,
+  tabContent: {
+    paddingTop: 20,
   },
-  sectionTitle: {
-    fontSize: 20,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 16,
-  },
-  muscleGroups: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  muscleGroup: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  muscleGroupText: {
-    fontSize: 12,
-    color: '#fff',
-    fontFamily: 'Inter-Medium',
-  },
-  equipmentList: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  equipmentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  equipmentText: {
-    fontSize: 14,
-    color: '#fff',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 12,
-  },
-  propertiesGrid: {
+  statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 24,
   },
-  propertyItem: {
+  statCard: {
     flex: 1,
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 16,
-    marginHorizontal: 4,
     alignItems: 'center',
+    marginHorizontal: 4,
     borderWidth: 1,
     borderColor: '#333',
   },
-  propertyIcon: {
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  propertyLabel: {
+  statLabel: {
     fontSize: 12,
     color: '#999',
     fontFamily: 'Inter-Medium',
     marginBottom: 4,
   },
-  propertyValue: {
+  statValue: {
     fontSize: 14,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
+    textTransform: 'capitalize',
   },
-  tipsList: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#333',
+  section: {
+    marginBottom: 24,
   },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  sectionTitle: {
+    fontSize: 18,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 12,
   },
-  tipBullet: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#2ECC71',
-    marginTop: 6,
-    marginRight: 12,
-  },
-  tipText: {
-    fontSize: 14,
-    color: '#A3A3A3',
+  description: {
+    fontSize: 16,
+    color: '#ccc',
     fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-    flex: 1,
-  },
-  mistakesList: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  mistakeItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  mistakeText: {
-    fontSize: 14,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-    flex: 1,
-    marginLeft: 12,
-  },
-  instructionsList: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#333',
+    lineHeight: 24,
   },
   instructionItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   instructionNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#FF6B35',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
+    marginTop: 2,
   },
   instructionNumberText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#fff',
     fontFamily: 'Inter-Bold',
   },
   instructionText: {
+    flex: 1,
     fontSize: 14,
-    color: '#A3A3A3',
+    color: '#ccc',
     fontFamily: 'Inter-Regular',
     lineHeight: 20,
-    flex: 1,
   },
-  variationsList: {
-    gap: 8,
+  equipmentList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
-  variationItem: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  variationGradient: {
-    padding: 16,
+  equipmentTag: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#333',
   },
-  variationHeader: {
+  equipmentText: {
+    fontSize: 12,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    textTransform: 'capitalize',
+  },
+  muscleGroups: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  muscleTag: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  primaryMuscle: {
+    backgroundColor: '#FF6B3520',
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+  secondaryMuscle: {
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  muscleTagText: {
+    fontSize: 12,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    textTransform: 'capitalize',
+  },
+  progressItem: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
-  variationName: {
-    fontSize: 16,
+  progressDate: {
+    fontSize: 14,
     color: '#fff',
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Inter-SemiBold',
   },
-  emptyVariations: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 40,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  emptyVariationsText: {
-    fontSize: 16,
+  progressTime: {
+    fontSize: 12,
     color: '#999',
     fontFamily: 'Inter-Regular',
   },
-  alternativeNames: {
+  progressStats: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  alternativeName: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  alternativeNameText: {
+  progressStat: {
     fontSize: 12,
-    color: '#A3A3A3',
+    color: '#ccc',
     fontFamily: 'Inter-Medium',
+    marginRight: 16,
+    marginBottom: 4,
   },
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  tag: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  tagText: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Medium',
-  },
-  errorContainer: {
-    flex: 1,
+  emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    paddingVertical: 40,
   },
-  errorText: {
+  emptyTitle: {
     fontSize: 18,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 20,
+    marginTop: 16,
+    marginBottom: 8,
   },
-  backButton: {
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
   },
-  backButtonText: {
+  actionContainer: {
+    padding: 20,
+    backgroundColor: '#0a0a0a',
+  },
+  actionButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  actionButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  actionButtonText: {
     fontSize: 16,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
-  },
-  bottomSpacer: {
-    height: 100,
+    marginHorizontal: 8,
   },
 });
