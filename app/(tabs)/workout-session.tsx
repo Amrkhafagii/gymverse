@@ -14,7 +14,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Play, Pause, Square, Plus, Minus, Clock, Target, CircleCheck as CheckCircle, X, Timer, SkipForward, RotateCcw, Trophy, Star, CirclePause as PauseCircle, CircleStop as StopCircle, TriangleAlert as AlertTriangle } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
 import { useAchievements } from '@/hooks/useAchievements';
 import { usePersonalRecords } from '@/hooks/usePersonalRecords';
 import AchievementModal from '@/components/AchievementModal';
@@ -65,7 +65,7 @@ export default function WorkoutSessionScreen() {
     workoutId: string;
     workoutName: string;
   }>();
-  const { user } = useAuth();
+  const { user } = useDeviceAuth();
   const { checkForNewAchievements, newAchievements, clearNewAchievements } = useAchievements(user?.id || null);
   const { checkForNewRecords, newRecords, clearNewRecords } = usePersonalRecords(user?.id || null);
 
