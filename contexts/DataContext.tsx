@@ -1,166 +1,269 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  Profile, 
-  AppSettings, 
-  WorkoutStreak, 
-  Achievement,
-  getProfile,
-  saveProfile,
-  getSettings,
-  saveSettings,
-  getWorkoutStreak,
-  updateWorkoutStreak,
-  getAchievements,
-  unlockAchievement as unlockAchievementStorage
-} from '@/lib/storage/asyncStorage';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+interface User {
+  id: string;
+  username: string;
+  full_name?: string;
+  avatar_url?: string;
+  bio?: string;
+  followers_count: number;
+  following_count: number;
+  workouts_count: number;
+}
+
+interface Workout {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  duration: number;
+  calories_burned?: number;
+  exercises: Exercise[];
+  created_at: string;
+  user?: User;
+}
+
+interface Exercise {
+  id: string;
+  name: string;
+  sets: Set[];
+  notes?: string;
+}
+
+interface Set {
+  id: string;
+  reps: number;
+  weight?: number;
+  duration?: number;
+  rest_time?: number;
+}
+
+interface Achievement {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  icon: string;
+  earned_at: string;
+  category: 'strength' | 'endurance' | 'consistency' | 'milestone';
+}
 
 interface DataContextType {
-  // Profile
-  profile: Profile | null;
-  updateProfile: (updates: Partial<Profile>) => Promise<void>;
+  // User data
+  currentUser: User | null;
+  users: User[];
   
-  // Settings
-  settings: AppSettings | null;
-  updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
+  // Workout data
+  workouts: Workout[];
+  userWorkouts: Workout[];
   
-  // Streak
-  streak: WorkoutStreak | null;
-  recordWorkout: (date?: string) => Promise<void>;
-  
-  // Achievements
+  // Achievement data
   achievements: Achievement[];
-  unlockAchievement: (achievementId: string) => Promise<boolean>;
+  userAchievements: Achievement[];
   
-  // Loading state
+  // Loading states
   loading: boolean;
   
-  // Refresh data
-  refreshData: () => Promise<void>;
+  // Actions
+  addWorkout: (workout: Omit<Workout, 'id' | 'created_at' | 'user_id'>) => void;
+  updateWorkout: (id: string, workout: Partial<Workout>) => void;
+  deleteWorkout: (id: string) => void;
+  followUser: (userId: string) => void;
+  unfollowUser: (userId: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [streak, setStreak] = useState<WorkoutStreak | null>(null);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
+// Mock data
+const mockCurrentUser: User = {
+  id: '1',
+  username: 'fitness_enthusiast',
+  full_name: 'Alex Johnson',
+  avatar_url: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
+  bio: 'Passionate about fitness and helping others reach their goals 💪',
+  followers_count: 1250,
+  following_count: 890,
+  workouts_count: 156,
+};
+
+const mockUsers: User[] = [
+  {
+    id: '2',
+    username: 'stronglifter',
+    full_name: 'Sarah Wilson',
+    avatar_url: 'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=400',
+    bio: 'Powerlifter | Personal Trainer | Nutrition Coach',
+    followers_count: 2100,
+    following_count: 450,
+    workouts_count: 203,
+  },
+  {
+    id: '3',
+    username: 'cardio_king',
+    full_name: 'Mike Chen',
+    avatar_url: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=400',
+    bio: 'Marathon runner | Cycling enthusiast',
+    followers_count: 890,
+    following_count: 1200,
+    workouts_count: 89,
+  },
+  {
+    id: '4',
+    username: 'yoga_master',
+    full_name: 'Emma Davis',
+    avatar_url: 'https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=400',
+    bio: 'Yoga instructor | Mindfulness coach',
+    followers_count: 1800,
+    following_count: 600,
+    workouts_count: 134,
+  },
+];
+
+const mockWorkouts: Workout[] = [
+  {
+    id: '1',
+    user_id: '1',
+    name: 'Upper Body Strength',
+    description: 'Focused on chest, shoulders, and arms',
+    duration: 75,
+    calories_burned: 320,
+    exercises: [
+      {
+        id: '1',
+        name: 'Bench Press',
+        sets: [
+          { id: '1', reps: 10, weight: 185 },
+          { id: '2', reps: 8, weight: 195 },
+          { id: '3', reps: 6, weight: 205 },
+        ],
+      },
+      {
+        id: '2',
+        name: 'Shoulder Press',
+        sets: [
+          { id: '4', reps: 12, weight: 135 },
+          { id: '5', reps: 10, weight: 145 },
+          { id: '6', reps: 8, weight: 155 },
+        ],
+      },
+    ],
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    user: mockCurrentUser,
+  },
+  {
+    id: '2',
+    user_id: '2',
+    name: 'Deadlift Day',
+    description: 'Heavy deadlifts and accessory work',
+    duration: 90,
+    calories_burned: 450,
+    exercises: [
+      {
+        id: '3',
+        name: 'Deadlift',
+        sets: [
+          { id: '7', reps: 5, weight: 315 },
+          { id: '8', reps: 3, weight: 335 },
+          { id: '9', reps: 1, weight: 365 },
+        ],
+      },
+    ],
+    created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    user: mockUsers[0],
+  },
+];
+
+const mockAchievements: Achievement[] = [
+  {
+    id: '1',
+    user_id: '1',
+    title: 'First Workout',
+    description: 'Completed your first workout',
+    icon: '🎯',
+    earned_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    category: 'milestone',
+  },
+  {
+    id: '2',
+    user_id: '1',
+    title: 'Consistency Champion',
+    description: 'Worked out 7 days in a row',
+    icon: '🔥',
+    earned_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    category: 'consistency',
+  },
+  {
+    id: '3',
+    user_id: '1',
+    title: 'Strength Milestone',
+    description: 'Bench pressed 200+ lbs',
+    icon: '💪',
+    earned_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    category: 'strength',
+  },
+];
+
+export function DataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
+  const [workouts, setWorkouts] = useState<Workout[]>(mockWorkouts);
+  const [achievements, setAchievements] = useState<Achievement[]>(mockAchievements);
 
   useEffect(() => {
-    loadInitialData();
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
-  const loadInitialData = async () => {
-    try {
-      setLoading(true);
-      
-      const [profileData, settingsData, streakData, achievementsData] = await Promise.all([
-        getProfile(),
-        getSettings(),
-        getWorkoutStreak(),
-        getAchievements(),
-      ]);
-      
-      setProfile(profileData);
-      setSettings(settingsData);
-      setStreak(streakData);
-      setAchievements(achievementsData);
-    } catch (error) {
-      console.error('Error loading initial data:', error);
-    } finally {
-      setLoading(false);
-    }
+  const addWorkout = (workoutData: Omit<Workout, 'id' | 'created_at' | 'user_id'>) => {
+    const newWorkout: Workout = {
+      ...workoutData,
+      id: Date.now().toString(),
+      user_id: mockCurrentUser.id,
+      created_at: new Date().toISOString(),
+      user: mockCurrentUser,
+    };
+    setWorkouts(prev => [newWorkout, ...prev]);
   };
 
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!profile) return;
-    
-    try {
-      const updatedProfile = { ...profile, ...updates };
-      await saveProfile(updatedProfile);
-      setProfile(updatedProfile);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      throw error;
-    }
+  const updateWorkout = (id: string, workoutData: Partial<Workout>) => {
+    setWorkouts(prev => prev.map(workout => 
+      workout.id === id ? { ...workout, ...workoutData } : workout
+    ));
   };
 
-  const updateSettings = async (updates: Partial<AppSettings>) => {
-    if (!settings) return;
-    
-    try {
-      const updatedSettings = { ...settings, ...updates };
-      await saveSettings(updatedSettings);
-      setSettings(updatedSettings);
-    } catch (error) {
-      console.error('Error updating settings:', error);
-      throw error;
-    }
+  const deleteWorkout = (id: string) => {
+    setWorkouts(prev => prev.filter(workout => workout.id !== id));
   };
 
-  const recordWorkout = async (date?: string) => {
-    try {
-      const workoutDate = date || new Date().toISOString();
-      const updatedStreak = await updateWorkoutStreak(workoutDate);
-      setStreak(updatedStreak);
-      
-      // Check for streak achievements
-      await checkStreakAchievements(updatedStreak.current_streak);
-    } catch (error) {
-      console.error('Error recording workout:', error);
-      throw error;
-    }
+  const followUser = (userId: string) => {
+    // Mock implementation - in real app would update backend
+    console.log('Following user:', userId);
   };
 
-  const unlockAchievement = async (achievementId: string): Promise<boolean> => {
-    try {
-      const unlocked = await unlockAchievementStorage(achievementId);
-      
-      if (unlocked) {
-        const updatedAchievements = achievements.map(achievement =>
-          achievement.id === achievementId
-            ? { ...achievement, unlocked: true, unlocked_at: new Date().toISOString() }
-            : achievement
-        );
-        setAchievements(updatedAchievements);
-      }
-      
-      return unlocked;
-    } catch (error) {
-      console.error('Error unlocking achievement:', error);
-      return false;
-    }
+  const unfollowUser = (userId: string) => {
+    // Mock implementation - in real app would update backend
+    console.log('Unfollowing user:', userId);
   };
 
-  const checkStreakAchievements = async (currentStreak: number) => {
-    const streakAchievements = [
-      { id: 'week_streak', threshold: 7 },
-      { id: 'month_streak', threshold: 30 },
-    ];
+  const userWorkouts = workouts.filter(workout => workout.user_id === mockCurrentUser.id);
+  const userAchievements = achievements.filter(achievement => achievement.user_id === mockCurrentUser.id);
 
-    for (const { id, threshold } of streakAchievements) {
-      if (currentStreak >= threshold) {
-        await unlockAchievement(id);
-      }
-    }
-  };
-
-  const refreshData = async () => {
-    await loadInitialData();
-  };
-
-  const value = {
-    profile,
-    updateProfile,
-    settings,
-    updateSettings,
-    streak,
-    recordWorkout,
+  const value: DataContextType = {
+    currentUser: mockCurrentUser,
+    users: mockUsers,
+    workouts,
+    userWorkouts,
     achievements,
-    unlockAchievement,
+    userAchievements,
     loading,
-    refreshData,
+    addWorkout,
+    updateWorkout,
+    deleteWorkout,
+    followUser,
+    unfollowUser,
   };
 
   return (

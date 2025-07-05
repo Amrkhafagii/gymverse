@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,314 +6,155 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  Settings, 
+  Trophy, 
+  Calendar, 
+  Users, 
+  Activity,
+  Target,
+  Award,
+  TrendingUp
+} from 'lucide-react-native';
 import { useData } from '@/contexts/DataContext';
-import { pickImageFromLibrary, takePhotoWithCamera, saveProfilePicture } from '@/lib/storage/fileStorage';
-import TDEECalculator from '@/components/TDEECalculator';
 
 export default function ProfileScreen() {
-  const { profile, settings, loading, updateProfile } = useData();
-  const [uploading, setUploading] = useState(false);
-  const [showTDEECalculator, setShowTDEECalculator] = useState(false);
+  const { currentUser, userWorkouts, userAchievements } = useData();
 
-  const handleProfilePictureChange = () => {
-    Alert.alert(
-      'Change Profile Picture',
-      'Choose an option',
-      [
-        { text: 'Camera', onPress: handleTakePhoto },
-        { text: 'Photo Library', onPress: handlePickImage },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  };
-
-  const handleTakePhoto = async () => {
-    try {
-      setUploading(true);
-      const imageUri = await takePhotoWithCamera();
-      if (imageUri) {
-        const savedPath = await saveProfilePicture(imageUri);
-        await updateProfile({ avatar_url: savedPath });
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to take photo');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handlePickImage = async () => {
-    try {
-      setUploading(true);
-      const imageUri = await pickImageFromLibrary();
-      if (imageUri) {
-        const savedPath = await saveProfilePicture(imageUri);
-        await updateProfile({ avatar_url: savedPath });
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading profile...</Text>
-        </View>
-      </SafeAreaView>
-    );
+  if (!currentUser) {
+    return null;
   }
 
+  const stats = [
+    { label: 'Workouts', value: userWorkouts.length, icon: Activity, color: '#FF6B35' },
+    { label: 'Followers', value: currentUser.followers_count, icon: Users, color: '#9E7FFF' },
+    { label: 'Following', value: currentUser.following_count, icon: TrendingUp, color: '#00D4AA' },
+    { label: 'Achievements', value: userAchievements.length, icon: Trophy, color: '#FFD700' },
+  ];
+
+  const recentAchievements = userAchievements.slice(0, 3);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-          <TouchableOpacity style={styles.settingsButton}>
-            <Ionicons name="settings" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Profile Card */}
-        <View style={styles.section}>
-          <View style={styles.profileCard}>
-            <LinearGradient
-              colors={['#9E7FFF', '#7C3AED']}
-              style={styles.profileGradient}
-            >
-              <TouchableOpacity 
-                style={styles.avatarContainer}
-                onPress={handleProfilePictureChange}
-                disabled={uploading}
-              >
-                {profile?.avatar_url ? (
-                  <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Ionicons name="person" size={40} color="#FFFFFF" />
-                  </View>
-                )}
-                <View style={styles.avatarOverlay}>
-                  <Ionicons 
-                    name={uploading ? "hourglass" : "camera"} 
-                    size={16} 
-                    color="#FFFFFF" 
-                  />
-                </View>
-              </TouchableOpacity>
-              
-              <Text style={styles.profileName}>
-                {profile?.full_name || profile?.username || 'GymVerse User'}
-              </Text>
-              
-              {profile?.bio && (
-                <Text style={styles.profileBio}>{profile.bio}</Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <LinearGradient
+        colors={['#0a0a0a', '#1a1a1a']}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.profileSection}>
+            <Image
+              source={{ uri: currentUser.avatar_url }}
+              style={styles.avatar}
+            />
+            <View style={styles.profileInfo}>
+              <Text style={styles.name}>{currentUser.full_name}</Text>
+              <Text style={styles.username}>@{currentUser.username}</Text>
+              {currentUser.bio && (
+                <Text style={styles.bio}>{currentUser.bio}</Text>
               )}
-              
-              <View style={styles.profileStats}>
-                <View style={styles.profileStat}>
-                  <Text style={styles.profileStatValue}>
-                    {profile?.fitness_level || 'Beginner'}
-                  </Text>
-                  <Text style={styles.profileStatLabel}>Level</Text>
+            </View>
+            <TouchableOpacity style={styles.settingsButton}>
+              <Settings size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statsContainer}>
+            {stats.map((stat, index) => (
+              <View key={index} style={styles.statItem}>
+                <View style={[styles.statIcon, { backgroundColor: `${stat.color}20` }]}>
+                  <stat.icon size={20} color={stat.color} />
                 </View>
-                <View style={styles.profileStat}>
-                  <Text style={styles.profileStatValue}>
-                    {new Date(profile?.created_at || Date.now()).getFullYear()}
-                  </Text>
-                  <Text style={styles.profileStatLabel}>Since</Text>
-                </View>
+                <Text style={styles.statValue}>{stat.value.toLocaleString()}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
               </View>
-            </LinearGradient>
+            ))}
           </View>
         </View>
+      </LinearGradient>
 
-        {/* TDEE Calculator Section */}
+      <View style={styles.content}>
+        {/* Recent Achievements */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Nutrition Calculator</Text>
-          <TouchableOpacity 
-            style={styles.tdeeCard}
-            onPress={() => setShowTDEECalculator(true)}
-          >
-            <LinearGradient
-              colors={['#FF6B35', '#FF8C42']}
-              style={styles.tdeeGradient}
-            >
-              <View style={styles.tdeeIcon}>
-                <Ionicons name="calculator" size={32} color="#FFFFFF" />
-              </View>
-              <View style={styles.tdeeContent}>
-                <Text style={styles.tdeeTitle}>TDEE Calculator</Text>
-                <Text style={styles.tdeeSubtitle}>
-                  Calculate your daily calorie needs and macro targets using the Leangains protocol
-                </Text>
-                <View style={styles.tdeeFeatures}>
-                  <View style={styles.tdeeFeature}>
-                    <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-                    <Text style={styles.tdeeFeatureText}>Katch-McArdle BMR</Text>
-                  </View>
-                  <View style={styles.tdeeFeature}>
-                    <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-                    <Text style={styles.tdeeFeatureText}>Training/Rest Day Macros</Text>
-                  </View>
-                  <View style={styles.tdeeFeature}>
-                    <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-                    <Text style={styles.tdeeFeatureText}>Cut/Bulk/Maintain Goals</Text>
-                  </View>
-                </View>
-              </View>
-              <View style={styles.tdeeArrow}>
-                <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
-        {/* Quick Stats */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Stats</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#1f2937', '#111827']}
-                style={styles.statGradient}
-              >
-                <Ionicons name="scale" size={24} color="#9E7FFF" />
-                <Text style={styles.statValue}>
-                  {profile?.weight_kg ? `${profile.weight_kg} kg` : '--'}
-                </Text>
-                <Text style={styles.statLabel}>Weight</Text>
-              </LinearGradient>
-            </View>
-
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#1f2937', '#111827']}
-                style={styles.statGradient}
-              >
-                <Ionicons name="resize" size={24} color="#f472b6" />
-                <Text style={styles.statValue}>
-                  {profile?.height_cm ? `${profile.height_cm} cm` : '--'}
-                </Text>
-                <Text style={styles.statLabel}>Height</Text>
-              </LinearGradient>
-            </View>
+          <View style={styles.sectionHeader}>
+            <Award size={20} color="#FFD700" />
+            <Text style={styles.sectionTitle}>Recent Achievements</Text>
           </View>
-        </View>
-
-        {/* Menu Options */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Settings</Text>
           
-          <TouchableOpacity style={styles.menuItem}>
-            <LinearGradient
-              colors={['#1f2937', '#111827']}
-              style={styles.menuGradient}
-            >
-              <View style={styles.menuIcon}>
-                <Ionicons name="person-circle" size={24} color="#9E7FFF" />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>Edit Profile</Text>
-                <Text style={styles.menuSubtitle}>Update your information</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#A3A3A3" />
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <LinearGradient
-              colors={['#1f2937', '#111827']}
-              style={styles.menuGradient}
-            >
-              <View style={styles.menuIcon}>
-                <Ionicons name="notifications" size={24} color="#f472b6" />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>Notifications</Text>
-                <Text style={styles.menuSubtitle}>
-                  {settings?.notifications.workout_reminders ? 'Enabled' : 'Disabled'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#A3A3A3" />
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <LinearGradient
-              colors={['#1f2937', '#111827']}
-              style={styles.menuGradient}
-            >
-              <View style={styles.menuIcon}>
-                <Ionicons name="bar-chart" size={24} color="#38bdf8" />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>Units</Text>
-                <Text style={styles.menuSubtitle}>
-                  {settings?.units === 'metric' ? 'Metric (kg, cm)' : 'Imperial (lbs, ft)'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#A3A3A3" />
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <LinearGradient
-              colors={['#1f2937', '#111827']}
-              style={styles.menuGradient}
-            >
-              <View style={styles.menuIcon}>
-                <Ionicons name="download" size={24} color="#10b981" />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>Export Data</Text>
-                <Text style={styles.menuSubtitle}>Backup your workout data</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#A3A3A3" />
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <LinearGradient
-              colors={['#1f2937', '#111827']}
-              style={styles.menuGradient}
-            >
-              <View style={styles.menuIcon}>
-                <Ionicons name="help-circle" size={24} color="#f59e0b" />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>Help & Support</Text>
-                <Text style={styles.menuSubtitle}>Get help and contact us</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#A3A3A3" />
-            </LinearGradient>
-          </TouchableOpacity>
+          {recentAchievements.length > 0 ? (
+            <View style={styles.achievementsGrid}>
+              {recentAchievements.map((achievement) => (
+                <View key={achievement.id} style={styles.achievementCard}>
+                  <Text style={styles.achievementIcon}>{achievement.icon}</Text>
+                  <Text style={styles.achievementTitle}>{achievement.title}</Text>
+                  <Text style={styles.achievementDescription}>{achievement.description}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Trophy size={48} color="#333" />
+              <Text style={styles.emptyStateText}>No achievements yet</Text>
+              <Text style={styles.emptyStateSubtext}>Complete workouts to earn your first achievement!</Text>
+            </View>
+          )}
         </View>
 
-        {/* App Info */}
+        {/* Quick Actions */}
         <View style={styles.section}>
-          <View style={styles.appInfo}>
-            <Text style={styles.appInfoText}>GymVerse v1.0.0</Text>
-            <Text style={styles.appInfoText}>Made with ❤️ for fitness enthusiasts</Text>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          
+          <View style={styles.quickActions}>
+            <TouchableOpacity style={styles.actionButton}>
+              <LinearGradient
+                colors={['#FF6B35', '#FF8C42']}
+                style={styles.actionGradient}
+              >
+                <Target size={24} color="#fff" />
+                <Text style={styles.actionText}>Set Goals</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButton}>
+              <LinearGradient
+                colors={['#9E7FFF', '#B794FF']}
+                style={styles.actionGradient}
+              >
+                <Calendar size={24} color="#fff" />
+                <Text style={styles.actionText}>Schedule</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
 
-      {/* TDEE Calculator Modal */}
-      <TDEECalculator
-        visible={showTDEECalculator}
-        onClose={() => setShowTDEECalculator(false)}
-      />
-    </SafeAreaView>
+        {/* Workout Summary */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>This Week</Text>
+          
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{userWorkouts.length}</Text>
+              <Text style={styles.summaryLabel}>Total Workouts</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>
+                {userWorkouts.reduce((total, workout) => total + workout.duration, 0)}m
+              </Text>
+              <Text style={styles.summaryLabel}>Total Time</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>
+                {userWorkouts.reduce((total, workout) => total + (workout.calories_burned || 0), 0)}
+              </Text>
+              <Text style={styles.summaryLabel}>Calories Burned</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -322,245 +163,189 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontFamily: 'Inter-Medium',
-  },
-  scrollView: {
-    flex: 1,
-  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: 10,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
-  title: {
-    fontSize: 32,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-  },
-  settingsButton: {
-    backgroundColor: '#262626',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  section: {
+  headerContent: {
     paddingHorizontal: 20,
-    marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 16,
-  },
-  profileCard: {
-    marginBottom: 8,
-  },
-  profileGradient: {
-    padding: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 16,
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 30,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
+    marginRight: 16,
   },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  profileInfo: {
+    flex: 1,
   },
-  avatarOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileName: {
+  name: {
     fontSize: 24,
-    color: '#FFFFFF',
     fontFamily: 'Inter-Bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  username: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#9E7FFF',
     marginBottom: 8,
   },
-  profileBio: {
+  bio: {
     fontSize: 14,
-    color: '#FFFFFF',
     fontFamily: 'Inter-Regular',
-    opacity: 0.9,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  profileStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  profileStat: {
-    alignItems: 'center',
-  },
-  profileStatValue: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-  },
-  profileStatLabel: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Regular',
-    opacity: 0.8,
-    marginTop: 4,
-  },
-  // TDEE Calculator Styles
-  tdeeCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  tdeeGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    minHeight: 120,
-  },
-  tdeeIcon: {
-    marginRight: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tdeeContent: {
-    flex: 1,
-    marginRight: 12,
-  },
-  tdeeTitle: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 6,
-  },
-  tdeeSubtitle: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Regular',
-    opacity: 0.9,
+    color: '#A3A3A3',
     lineHeight: 20,
-    marginBottom: 12,
   },
-  tdeeFeatures: {
-    gap: 6,
+  settingsButton: {
+    padding: 8,
   },
-  tdeeFeature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  tdeeFeatureText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    opacity: 0.9,
-  },
-  tdeeArrow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statsGrid: {
+  statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  statCard: {
+  statItem: {
+    alignItems: 'center',
     flex: 1,
-    marginHorizontal: 4,
   },
-  statGradient: {
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
-  },
-  statValue: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Medium',
-    marginTop: 4,
-  },
-  menuItem: {
-    marginBottom: 12,
-  },
-  menuGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
-  },
-  menuIcon: {
+  statIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(158, 127, 255, 0.1)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
+    marginBottom: 8,
   },
-  menuContent: {
-    flex: 1,
-  },
-  menuTitle: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
+  statValue: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#fff',
     marginBottom: 4,
   },
-  menuSubtitle: {
-    fontSize: 14,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-  },
-  appInfo: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  appInfoText: {
+  statLabel: {
     fontSize: 12,
-    color: '#A3A3A3',
     fontFamily: 'Inter-Regular',
+    color: '#A3A3A3',
+  },
+  content: {
+    padding: 20,
+  },
+  section: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#fff',
+    marginLeft: 8,
+  },
+  achievementsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  achievementCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    width: '48%',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  achievementIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  achievementTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#fff',
+    textAlign: 'center',
     marginBottom: 4,
+  },
+  achievementDescription: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#A3A3A3',
+    textAlign: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#fff',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#A3A3A3',
+    textAlign: 'center',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  actionGradient: {
+    padding: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  actionText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#fff',
+    marginLeft: 8,
+  },
+  summaryCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#A3A3A3',
+  },
+  summaryDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#333',
+    marginHorizontal: 16,
   },
 });
