@@ -31,6 +31,11 @@ interface TDEECalculatorProps {
   onClose: () => void;
 }
 
+interface BMRResult {
+  bmr: number;
+  formulaUsed: 'standard' | 'hybrid';
+}
+
 interface TDEEResults {
   bmr: number;
   tdee: number;
@@ -39,6 +44,7 @@ interface TDEEResults {
   carbs: number;
   fat: number;
   lbm: number;
+  formulaUsed?: 'standard' | 'hybrid';
 }
 
 interface FormData {
@@ -128,6 +134,30 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
     return Object.keys(newErrors).length === 0;
   };
 
+  const calculateBMR = (weightKg: number, heightCm: number, ageNum: number, isMale: boolean, bodyFatPercentage?: number): BMRResult => {
+    // Standard Harris-Benedict equation
+    const sexConstant = isMale ? 5 : -161;
+    const standardBMR = 10 * weightKg + 6.25 * heightCm - 5 * ageNum + sexConstant;
+
+    // If body fat percentage is not provided or invalid, use standard formula
+    if (!bodyFatPercentage || bodyFatPercentage <= 0 || bodyFatPercentage >= 100) {
+      return { bmr: standardBMR, formulaUsed: 'standard' };
+    }
+
+    // Calculate Lean Body Mass in kg
+    const lbmKg = weightKg * (1 - bodyFatPercentage / 100);
+    // Convert LBM to pounds
+    const lbmLbs = lbmKg * 2.20462;
+
+    // Hybrid BMR calculation: average of standard and (14 * LBM in lbs)
+    const hybridBMR = (standardBMR + (14 * lbmLbs)) / 2;
+
+    return { 
+      bmr: hybridBMR, 
+      formulaUsed: 'hybrid' 
+    };
+  };
+
   const calculateTDEE = (): TDEEResults => {
     let weight = parseFloat(formData.weight);
     let height = parseFloat(formData.height);
@@ -143,11 +173,11 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
     // Calculate Lean Body Mass
     const lbm = weight * (1 - bodyFat / 100);
 
-    // Katch-McArdle BMR formula
-    const bmr = 370 + (21.6 * lbm);
+    // Calculate BMR using the new function
+    const bmrResult = calculateBMR(weight, height, age, formData.sex === 'male', bodyFat);
 
     // Calculate TDEE
-    const tdee = bmr * formData.activityLevel;
+    const tdee = bmrResult.bmr * formData.activityLevel;
 
     // Adjust for goal
     const goalMultiplier = goals.find(g => g.value === formData.goal)?.multiplier || 1.0;
@@ -199,13 +229,14 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
     const fat = fatCalories / 9; // 9 calories per gram of fat
 
     return {
-      bmr: Math.round(bmr),
+      bmr: Math.round(bmrResult.bmr),
       tdee: Math.round(tdee),
       adjustedCalories: Math.round(adjustedCalories),
       protein: Math.round(protein),
       carbs: Math.round(carbs),
       fat: Math.round(fat),
       lbm: Math.round(lbm * 10) / 10,
+      formulaUsed: bmrResult.formulaUsed
     };
   };
 
@@ -568,7 +599,7 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                     </Text>
                   </View>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>BMR (Katch-McArdle)</Text>
+                    <Text style={styles.detailLabel}>BMR ({results?.formulaUsed === 'hybrid' ? 'Hybrid' : 'Standard'})</Text>
                     <Text style={styles.detailValue}>{results?.bmr} kcal</Text>
                   </View>
                   <View style={styles.detailRow}>
