@@ -1,67 +1,90 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
-
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { Home, Dumbbell, TrendingUp, Users, Trophy } from 'lucide-react-native';
+import { View, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Home, Dumbbell, TrendingUp, Users, User } from 'lucide-react-native';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 90,
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
+        },
+        tabBarBackground: () => (
+          <View style={styles.tabBarBackground}>
+            <LinearGradient
+              colors={['rgba(26, 26, 26, 0.95)', 'rgba(10, 10, 10, 0.98)']}
+              style={styles.gradient}
+            />
+          </View>
+        ),
+        tabBarActiveTintColor: '#9E7FFF',
+        tabBarInactiveTintColor: '#666',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontFamily: 'Inter-Medium',
+          marginBottom: 8,
+        },
+        tabBarIconStyle: {
+          marginTop: 8,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Home size={28} color={color} />,
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="workouts"
         options={{
           title: 'Workouts',
-          tabBarIcon: ({ color }) => <Dumbbell size={28} color={color} />,
+          tabBarIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color }) => <TrendingUp size={28} color={color} />,
+          tabBarIcon: ({ color, size }) => <TrendingUp size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="social"
         options={{
           title: 'Social',
-          tabBarIcon: ({ color }) => <Users size={28} color={color} />,
+          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="leaderboards"
+        name="profile"
         options={{
-          title: 'Rankings',
-          tabBarIcon: ({ color }) => <Trophy size={28} color={color} />,
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBarBackground: {
+    flex: 1,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  },
+  gradient: {
+    flex: 1,
+  },
+});

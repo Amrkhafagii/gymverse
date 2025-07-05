@@ -2,178 +2,231 @@ import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
   TouchableOpacity,
   Image,
+  Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  Settings, 
-  Trophy, 
-  Calendar, 
-  Users, 
-  Activity,
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  User,
+  Settings,
+  Trophy,
   Target,
-  Award,
-  TrendingUp
+  Calendar,
+  Bell,
+  Shield,
+  HelpCircle,
+  Star,
+  ChevronRight,
+  Edit3,
 } from 'lucide-react-native';
-import { useData } from '@/contexts/DataContext';
 
 export default function ProfileScreen() {
-  const { currentUser, userWorkouts, userAchievements } = useData();
+  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
+  const [darkModeEnabled, setDarkModeEnabled] = React.useState(true);
 
-  if (!currentUser) {
-    return null;
-  }
+  // Mock user data
+  const userData = {
+    name: 'Fitness Enthusiast',
+    username: '@fitnesslover',
+    email: 'user@example.com',
+    joinDate: 'January 2024',
+    avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+    stats: {
+      workoutsCompleted: 127,
+      totalMinutes: 3420,
+      achievements: 23,
+      streak: 15,
+    },
+  };
 
-  const stats = [
-    { label: 'Workouts', value: userWorkouts.length, icon: Activity, color: '#FF6B35' },
-    { label: 'Followers', value: currentUser.followers_count, icon: Users, color: '#9E7FFF' },
-    { label: 'Following', value: currentUser.following_count, icon: TrendingUp, color: '#00D4AA' },
-    { label: 'Achievements', value: userAchievements.length, icon: Trophy, color: '#FFD700' },
+  const menuSections = [
+    {
+      title: 'Account',
+      items: [
+        { icon: Edit3, title: 'Edit Profile', subtitle: 'Update your information' },
+        { icon: Target, title: 'Goals & Preferences', subtitle: 'Set your fitness goals' },
+        { icon: Trophy, title: 'Achievements', subtitle: 'View your progress' },
+      ],
+    },
+    {
+      title: 'Settings',
+      items: [
+        { 
+          icon: Bell, 
+          title: 'Notifications', 
+          subtitle: 'Workout reminders',
+          hasSwitch: true,
+          switchValue: notificationsEnabled,
+          onSwitchChange: setNotificationsEnabled,
+        },
+        { 
+          icon: Shield, 
+          title: 'Dark Mode', 
+          subtitle: 'App appearance',
+          hasSwitch: true,
+          switchValue: darkModeEnabled,
+          onSwitchChange: setDarkModeEnabled,
+        },
+        { icon: Calendar, title: 'Workout Schedule', subtitle: 'Manage your routine' },
+      ],
+    },
+    {
+      title: 'Support',
+      items: [
+        { icon: HelpCircle, title: 'Help & Support', subtitle: 'Get assistance' },
+        { icon: Star, title: 'Rate App', subtitle: 'Share your feedback' },
+      ],
+    },
   ];
 
-  const recentAchievements = userAchievements.slice(0, 3);
-
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient
-        colors={['#0a0a0a', '#1a1a1a']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.profileSection}>
-            <Image
-              source={{ uri: currentUser.avatar_url }}
-              style={styles.avatar}
-            />
-            <View style={styles.profileInfo}>
-              <Text style={styles.name}>{currentUser.full_name}</Text>
-              <Text style={styles.username}>@{currentUser.username}</Text>
-              {currentUser.bio && (
-                <Text style={styles.bio}>{currentUser.bio}</Text>
-              )}
-            </View>
+    <SafeAreaView style={styles.container}>
+      <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Profile</Text>
             <TouchableOpacity style={styles.settingsButton}>
               <Settings size={24} color="#fff" />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.statsContainer}>
-            {stats.map((stat, index) => (
-              <View key={index} style={styles.statItem}>
-                <View style={[styles.statIcon, { backgroundColor: `${stat.color}20` }]}>
-                  <stat.icon size={20} color={stat.color} />
+          {/* Profile Card */}
+          <View style={styles.profileCard}>
+            <LinearGradient
+              colors={['#1a1a1a', '#2a2a2a']}
+              style={styles.profileCardGradient}
+            >
+              <View style={styles.profileHeader}>
+                <Image source={{ uri: userData.avatar }} style={styles.avatar} />
+                <View style={styles.profileInfo}>
+                  <Text style={styles.name}>{userData.name}</Text>
+                  <Text style={styles.username}>{userData.username}</Text>
+                  <Text style={styles.joinDate}>Member since {userData.joinDate}</Text>
                 </View>
-                <Text style={styles.statValue}>{stat.value.toLocaleString()}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
+                <TouchableOpacity style={styles.editButton}>
+                  <Edit3 size={20} color="#9E7FFF" />
+                </TouchableOpacity>
               </View>
-            ))}
-          </View>
-        </View>
-      </LinearGradient>
 
-      <View style={styles.content}>
-        {/* Recent Achievements */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Award size={20} color="#FFD700" />
-            <Text style={styles.sectionTitle}>Recent Achievements</Text>
-          </View>
-          
-          {recentAchievements.length > 0 ? (
-            <View style={styles.achievementsGrid}>
-              {recentAchievements.map((achievement) => (
-                <View key={achievement.id} style={styles.achievementCard}>
-                  <Text style={styles.achievementIcon}>{achievement.icon}</Text>
-                  <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                  <Text style={styles.achievementDescription}>{achievement.description}</Text>
+              {/* Stats */}
+              <View style={styles.statsContainer}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{userData.stats.workoutsCompleted}</Text>
+                  <Text style={styles.statLabel}>Workouts</Text>
                 </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <Trophy size={48} color="#333" />
-              <Text style={styles.emptyStateText}>No achievements yet</Text>
-              <Text style={styles.emptyStateSubtext}>Complete workouts to earn your first achievement!</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.actionButton}>
-              <LinearGradient
-                colors={['#FF6B35', '#FF8C42']}
-                style={styles.actionGradient}
-              >
-                <Target size={24} color="#fff" />
-                <Text style={styles.actionText}>Set Goals</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <LinearGradient
-                colors={['#9E7FFF', '#B794FF']}
-                style={styles.actionGradient}
-              >
-                <Calendar size={24} color="#fff" />
-                <Text style={styles.actionText}>Schedule</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{Math.floor(userData.stats.totalMinutes / 60)}h</Text>
+                  <Text style={styles.statLabel}>Total Time</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{userData.stats.achievements}</Text>
+                  <Text style={styles.statLabel}>Achievements</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{userData.stats.streak}</Text>
+                  <Text style={styles.statLabel}>Day Streak</Text>
+                </View>
+              </View>
+            </LinearGradient>
           </View>
-        </View>
 
-        {/* Workout Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>This Week</Text>
-          
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>{userWorkouts.length}</Text>
-              <Text style={styles.summaryLabel}>Total Workouts</Text>
+          {/* Menu Sections */}
+          {menuSections.map((section, sectionIndex) => (
+            <View key={sectionIndex} style={styles.menuSection}>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <View style={styles.menuItems}>
+                {section.items.map((item, itemIndex) => (
+                  <TouchableOpacity
+                    key={itemIndex}
+                    style={[
+                      styles.menuItem,
+                      itemIndex === section.items.length - 1 && styles.lastMenuItem,
+                    ]}
+                  >
+                    <View style={styles.menuItemLeft}>
+                      <View style={styles.menuItemIcon}>
+                        <item.icon size={20} color="#9E7FFF" />
+                      </View>
+                      <View style={styles.menuItemContent}>
+                        <Text style={styles.menuItemTitle}>{item.title}</Text>
+                        <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.menuItemRight}>
+                      {item.hasSwitch ? (
+                        <Switch
+                          value={item.switchValue}
+                          onValueChange={item.onSwitchChange}
+                          trackColor={{ false: '#333', true: '#9E7FFF40' }}
+                          thumbColor={item.switchValue ? '#9E7FFF' : '#666'}
+                        />
+                      ) : (
+                        <ChevronRight size={20} color="#666" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>
-                {userWorkouts.reduce((total, workout) => total + workout.duration, 0)}m
-              </Text>
-              <Text style={styles.summaryLabel}>Total Time</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>
-                {userWorkouts.reduce((total, workout) => total + (workout.calories_burned || 0), 0)}
-              </Text>
-              <Text style={styles.summaryLabel}>Calories Burned</Text>
-            </View>
+          ))}
+
+          {/* App Version */}
+          <View style={styles.versionContainer}>
+            <Text style={styles.versionText}>GymVerse v1.0.0</Text>
           </View>
-        </View>
-      </View>
-    </ScrollView>
+        </ScrollView>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+  },
+  gradient: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-  },
-  headerContent: {
-    paddingHorizontal: 20,
-  },
-  profileSection: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
+  },
+  headerTitle: {
+    fontSize: 28,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+  },
+  settingsButton: {
+    padding: 8,
+  },
+  profileCard: {
+    marginHorizontal: 20,
     marginBottom: 30,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  profileCardGradient: {
+    padding: 24,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   avatar: {
     width: 80,
@@ -185,167 +238,119 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontSize: 22,
     color: '#fff',
+    fontFamily: 'Inter-Bold',
     marginBottom: 4,
   },
   username: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
     color: '#9E7FFF',
-    marginBottom: 8,
+    fontFamily: 'Inter-Medium',
+    marginBottom: 4,
   },
-  bio: {
+  joinDate: {
     fontSize: 14,
+    color: '#999',
     fontFamily: 'Inter-Regular',
-    color: '#A3A3A3',
-    lineHeight: 20,
   },
-  settingsButton: {
+  editButton: {
     padding: 8,
   },
   statsContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
   },
   statItem: {
     alignItems: 'center',
     flex: 1,
   },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
+  statNumber: {
+    fontSize: 20,
     color: '#fff',
+    fontFamily: 'Inter-Bold',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
+    color: '#999',
     fontFamily: 'Inter-Regular',
-    color: '#A3A3A3',
   },
-  content: {
-    padding: 20,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
-    color: '#fff',
-    marginLeft: 8,
-  },
-  achievementsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  achievementCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    width: '48%',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  achievementIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  achievementTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  achievementDescription: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#A3A3A3',
-    textAlign: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#fff',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#A3A3A3',
-    textAlign: 'center',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  actionGradient: {
-    padding: 16,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  actionText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#fff',
-    marginLeft: 8,
-  },
-  summaryCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  summaryItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  summaryValue: {
-    fontSize: 20,
-    fontFamily: 'Inter-Bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#A3A3A3',
-  },
-  summaryDivider: {
+  statDivider: {
     width: 1,
     height: 40,
     backgroundColor: '#333',
-    marginHorizontal: 16,
+  },
+  menuSection: {
+    marginBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  menuItems: {
+    backgroundColor: '#1a1a1a',
+    marginHorizontal: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  lastMenuItem: {
+    borderBottomWidth: 0,
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  menuItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#9E7FFF20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  menuItemContent: {
+    flex: 1,
+  },
+  menuItemTitle: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 2,
+  },
+  menuItemSubtitle: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+  },
+  menuItemRight: {
+    marginLeft: 16,
+  },
+  versionContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  versionText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Inter-Regular',
   },
 });

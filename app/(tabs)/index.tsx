@@ -2,177 +2,180 @@ import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
   TouchableOpacity,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Calendar,
+  Trophy,
+  Target,
+  TrendingUp,
+  Clock,
+  Flame,
+  Zap,
+  ChevronRight,
+} from 'lucide-react-native';
 import { useData } from '@/contexts/DataContext';
 
+const { width } = Dimensions.get('window');
+
 export default function HomeScreen() {
-  const { profile, streak, achievements, loading } = useData();
+  const { workouts, achievements } = useData();
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const todayWorkouts = workouts.filter(
+    workout => new Date(workout.date).toDateString() === new Date().toDateString()
+  );
 
-  const unlockedAchievements = achievements.filter(a => a.unlocked).length;
-  const todayDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const weeklyStats = {
+    workoutsCompleted: 4,
+    totalMinutes: 240,
+    caloriesBurned: 1200,
+    streak: 7,
+  };
+
+  const quickActions = [
+    { icon: Zap, title: 'Quick Workout', subtitle: '15 min HIIT', color: '#FF6B35' },
+    { icon: Target, title: 'Today\'s Goal', subtitle: '3 exercises left', color: '#9E7FFF' },
+    { icon: Calendar, title: 'Schedule', subtitle: 'Plan your week', color: '#00D4AA' },
+    { icon: TrendingUp, title: 'Progress', subtitle: 'View stats', color: '#FFB800' },
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.username}>{profile?.username || 'GymVerse User'}</Text>
-            <Text style={styles.date}>{todayDate}</Text>
-          </View>
-        </View>
-
-        {/* Quick Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#9E7FFF', '#7C3AED']}
-                style={styles.statGradient}
-              >
-                <Ionicons name="flame" size={24} color="#FFFFFF" />
-                <Text style={styles.statValue}>{streak?.current_streak || 0}</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
-              </LinearGradient>
+      <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greeting}>Good morning!</Text>
+              <Text style={styles.username}>Ready to crush your goals?</Text>
             </View>
-
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#f472b6', '#ec4899']}
-                style={styles.statGradient}
-              >
-                <Ionicons name="trophy" size={24} color="#FFFFFF" />
-                <Text style={styles.statValue}>{unlockedAchievements}</Text>
-                <Text style={styles.statLabel}>Achievements</Text>
-              </LinearGradient>
-            </View>
-
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#38bdf8', '#0ea5e9']}
-                style={styles.statGradient}
-              >
-                <Ionicons name="trending-up" size={24} color="#FFFFFF" />
-                <Text style={styles.statValue}>{streak?.longest_streak || 0}</Text>
-                <Text style={styles.statLabel}>Best Streak</Text>
-              </LinearGradient>
+            <View style={styles.streakContainer}>
+              <Flame size={20} color="#FF6B35" />
+              <Text style={styles.streakText}>{weeklyStats.streak} day streak</Text>
             </View>
           </View>
-        </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Start</Text>
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.actionCard}>
-              <LinearGradient
-                colors={['#262626', '#171717']}
-                style={styles.actionGradient}
-              >
-                <Ionicons name="play" size={32} color="#9E7FFF" />
-                <Text style={styles.actionTitle}>Start Workout</Text>
-                <Text style={styles.actionSubtitle}>Begin your session</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard}>
-              <LinearGradient
-                colors={['#262626', '#171717']}
-                style={styles.actionGradient}
-              >
-                <Ionicons name="create" size={32} color="#f472b6" />
-                <Text style={styles.actionTitle}>Custom Workout</Text>
-                <Text style={styles.actionSubtitle}>Create your own</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Today's Focus */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today&apos;s Focus</Text>
-          <View style={styles.focusCard}>
-            <LinearGradient
-              colors={['#1f2937', '#111827']}
-              style={styles.focusGradient}
-            >
-              <View style={styles.focusHeader}>
-                <Ionicons name="flash" size={24} color="#38bdf8" />
-                <Text style={styles.focusTitle}>Upper Body Strength</Text>
+          {/* Weekly Stats */}
+          <View style={styles.statsContainer}>
+            <Text style={styles.sectionTitle}>This Week</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <Trophy size={24} color="#FFB800" />
+                <Text style={styles.statNumber}>{weeklyStats.workoutsCompleted}</Text>
+                <Text style={styles.statLabel}>Workouts</Text>
               </View>
-              <Text style={styles.focusDescription}>
-                Focus on building upper body strength with compound movements
-              </Text>
-              <View style={styles.focusStats}>
-                <View style={styles.focusStat}>
-                  <Ionicons name="time" size={16} color="#A3A3A3" />
-                  <Text style={styles.focusStatText}>45 min</Text>
-                </View>
-                <View style={styles.focusStat}>
-                  <Ionicons name="fitness" size={16} color="#A3A3A3" />
-                  <Text style={styles.focusStatText}>6 exercises</Text>
-                </View>
+              <View style={styles.statCard}>
+                <Clock size={24} color="#9E7FFF" />
+                <Text style={styles.statNumber}>{weeklyStats.totalMinutes}</Text>
+                <Text style={styles.statLabel}>Minutes</Text>
               </View>
-            </LinearGradient>
+              <View style={styles.statCard}>
+                <Flame size={24} color="#FF6B35" />
+                <Text style={styles.statNumber}>{weeklyStats.caloriesBurned}</Text>
+                <Text style={styles.statLabel}>Calories</Text>
+              </View>
+            </View>
           </View>
-        </View>
 
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <View style={styles.activityCard}>
-            <LinearGradient
-              colors={['#1f2937', '#111827']}
-              style={styles.activityGradient}
-            >
-              <Text style={styles.activityTitle}>No recent workouts</Text>
-              <Text style={styles.activitySubtitle}>
-                Start your first workout to see your progress here
-              </Text>
-              <TouchableOpacity style={styles.activityButton}>
-                <Text style={styles.activityButtonText}>Get Started</Text>
+          {/* Quick Actions */}
+          <View style={styles.quickActionsContainer}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <View style={styles.quickActionsGrid}>
+              {quickActions.map((action, index) => (
+                <TouchableOpacity key={index} style={styles.quickActionCard}>
+                  <LinearGradient
+                    colors={[`${action.color}20`, `${action.color}10`]}
+                    style={styles.quickActionGradient}
+                  >
+                    <action.icon size={24} color={action.color} />
+                    <Text style={styles.quickActionTitle}>{action.title}</Text>
+                    <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Today's Workouts */}
+          <View style={styles.todayContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Today's Workouts</Text>
+              <TouchableOpacity style={styles.seeAllButton}>
+                <Text style={styles.seeAllText}>See All</Text>
+                <ChevronRight size={16} color="#9E7FFF" />
               </TouchableOpacity>
-            </LinearGradient>
+            </View>
+            
+            {todayWorkouts.length > 0 ? (
+              todayWorkouts.slice(0, 2).map((workout) => (
+                <TouchableOpacity key={workout.id} style={styles.workoutCard}>
+                  <LinearGradient
+                    colors={['#1a1a1a', '#2a2a2a']}
+                    style={styles.workoutCardGradient}
+                  >
+                    <View style={styles.workoutHeader}>
+                      <Text style={styles.workoutName}>{workout.name}</Text>
+                      <View style={styles.workoutBadge}>
+                        <Text style={styles.workoutBadgeText}>{workout.exercises.length} exercises</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.workoutDescription}>{workout.description}</Text>
+                    <View style={styles.workoutStats}>
+                      <View style={styles.workoutStat}>
+                        <Clock size={16} color="#999" />
+                        <Text style={styles.workoutStatText}>{workout.duration} min</Text>
+                      </View>
+                      <View style={styles.workoutStat}>
+                        <Target size={16} color="#999" />
+                        <Text style={styles.workoutStatText}>{workout.targetMuscles.join(', ')}</Text>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Calendar size={48} color="#666" />
+                <Text style={styles.emptyStateTitle}>No workouts scheduled</Text>
+                <Text style={styles.emptyStateText}>Plan your first workout to get started</Text>
+                <TouchableOpacity style={styles.planWorkoutButton}>
+                  <LinearGradient
+                    colors={['#9E7FFF', '#7C3AED']}
+                    style={styles.planWorkoutGradient}
+                  >
+                    <Text style={styles.planWorkoutText}>Plan Workout</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-        </View>
 
-        {/* Motivation Quote */}
-        <View style={styles.section}>
-          <View style={styles.quoteCard}>
-            <LinearGradient
-              colors={['#9E7FFF', '#7C3AED']}
-              style={styles.quoteGradient}
-            >
-              <Text style={styles.quote}>
-                &ldquo;The only bad workout is the one that didn&apos;t happen.&rdquo;
-              </Text>
-              <Text style={styles.quoteAuthor}>- Unknown</Text>
-            </LinearGradient>
+          {/* Recent Achievements */}
+          <View style={styles.achievementsContainer}>
+            <Text style={styles.sectionTitle}>Recent Achievements</Text>
+            {achievements.slice(0, 3).map((achievement) => (
+              <View key={achievement.id} style={styles.achievementCard}>
+                <View style={styles.achievementIcon}>
+                  <Trophy size={20} color="#FFB800" />
+                </View>
+                <View style={styles.achievementContent}>
+                  <Text style={styles.achievementTitle}>{achievement.title}</Text>
+                  <Text style={styles.achievementDescription}>{achievement.description}</Text>
+                </View>
+                <Text style={styles.achievementDate}>
+                  {new Date(achievement.unlockedAt).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </LinearGradient>
     </SafeAreaView>
   );
 }
@@ -180,204 +183,259 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
   },
-  loadingContainer: {
+  gradient: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  loadingText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontFamily: 'Inter-Medium',
-  },
-  scrollView: {
-    flex: 1,
+  scrollContent: {
+    paddingBottom: 100,
   },
   header: {
-    padding: 20,
-    paddingTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
   },
   greeting: {
-    fontSize: 16,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
+    fontSize: 24,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
   },
   username: {
-    fontSize: 28,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginTop: 4,
-  },
-  date: {
-    fontSize: 14,
-    color: '#A3A3A3',
+    fontSize: 16,
+    color: '#999',
     fontFamily: 'Inter-Regular',
     marginTop: 4,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  streakText: {
+    color: '#FF6B35',
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 14,
+    marginLeft: 6,
   },
   statsContainer: {
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 16,
   },
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   statCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
     flex: 1,
     marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#333',
   },
-  statGradient: {
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  statValue: {
+  statNumber: {
     fontSize: 24,
-    color: '#FFFFFF',
+    color: '#fff',
     fontFamily: 'Inter-Bold',
     marginTop: 8,
   },
   statLabel: {
     fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
+    color: '#999',
+    fontFamily: 'Inter-Regular',
     marginTop: 4,
-    opacity: 0.9,
   },
-  section: {
+  quickActionsContainer: {
     paddingHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: 30,
   },
-  sectionTitle: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  quickActionCard: {
+    width: (width - 52) / 2,
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  quickActionGradient: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  quickActionTitle: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  quickActionSubtitle: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  todayContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  quickActions: {
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  seeAllText: {
+    color: '#9E7FFF',
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 14,
+    marginRight: 4,
+  },
+  workoutCard: {
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  workoutCardGradient: {
+    padding: 20,
+  },
+  workoutHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  workoutName: {
+    fontSize: 18,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    flex: 1,
+  },
+  workoutBadge: {
+    backgroundColor: '#9E7FFF20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  workoutBadgeText: {
+    color: '#9E7FFF',
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+  },
+  workoutDescription: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    marginBottom: 12,
+  },
+  workoutStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  actionCard: {
+  workoutStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
-    marginHorizontal: 4,
   },
-  actionGradient: {
-    padding: 20,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
-  },
-  actionTitle: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    marginTop: 12,
-  },
-  actionSubtitle: {
+  workoutStatText: {
+    color: '#999',
     fontSize: 12,
-    color: '#A3A3A3',
     fontFamily: 'Inter-Regular',
-    marginTop: 4,
-  },
-  focusCard: {
-    marginBottom: 8,
-  },
-  focusGradient: {
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
-  },
-  focusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  focusTitle: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 12,
-  },
-  focusDescription: {
-    fontSize: 14,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  focusStats: {
-    flexDirection: 'row',
-  },
-  focusStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  focusStatText: {
-    fontSize: 12,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Medium',
     marginLeft: 6,
   },
-  activityCard: {
-    marginBottom: 8,
-  },
-  activityGradient: {
-    padding: 20,
-    borderRadius: 16,
+  emptyState: {
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
+    paddingVertical: 40,
   },
-  activityTitle: {
-    fontSize: 16,
-    color: '#FFFFFF',
+  emptyStateTitle: {
+    fontSize: 18,
+    color: '#fff',
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 8,
+    marginTop: 16,
   },
-  activitySubtitle: {
+  emptyStateText: {
     fontSize: 14,
-    color: '#A3A3A3',
+    color: '#999',
     fontFamily: 'Inter-Regular',
+    marginTop: 8,
     textAlign: 'center',
-    marginBottom: 16,
   },
-  activityButton: {
-    backgroundColor: '#9E7FFF',
+  planWorkoutButton: {
+    marginTop: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  planWorkoutGradient: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 12,
   },
-  activityButtonText: {
-    color: '#FFFFFF',
+  planWorkoutText: {
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
     fontSize: 14,
+  },
+  achievementsContainer: {
+    paddingHorizontal: 20,
+  },
+  achievementCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  achievementIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFB80020',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  achievementContent: {
+    flex: 1,
+  },
+  achievementTitle: {
+    fontSize: 16,
+    color: '#fff',
     fontFamily: 'Inter-SemiBold',
   },
-  quoteCard: {
-    marginBottom: 20,
-  },
-  quoteGradient: {
-    padding: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  quote: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 8,
-  },
-  quoteAuthor: {
-    fontSize: 14,
-    color: '#FFFFFF',
+  achievementDescription: {
+    fontSize: 12,
+    color: '#999',
     fontFamily: 'Inter-Regular',
-    opacity: 0.8,
+    marginTop: 2,
+  },
+  achievementDate: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Inter-Regular',
   },
 });
