@@ -27,7 +27,6 @@
     "expo-router": "^5.1.2",
     "expo-splash-screen": "~0.30.6",
     "react-dom": "18.2.0",
-
     "expo-sqlite": "~15.1.2",
     "expo-status-bar": "~2.2.2",
     "expo-system-ui": "~5.0.10",
@@ -48,9 +47,10 @@
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
     "knip": "^5.61.3",
-    "@types/react-test-renderer": "^18.0.7",  
-      "react-test-renderer": "18.2.0",
-
-    "typescript": "~5.8.3"
+    "@types/react-test-renderer": "^18.0.7",
+    "react-test-renderer": "18.2.0",
+    "typescript": "~5.8.3",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~9.2.0"
   }
 }
