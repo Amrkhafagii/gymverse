@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,60 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AIWorkoutSuggestions from '@/components/ai/AIWorkoutSuggestions';
+import RestDayRecommendations from '@/components/ai/RestDayRecommendations';
+import { AIWorkoutSuggestion, WorkoutHistory } from '@/lib/services/aiService';
+import { useRestDayRecommendations } from '@/hooks/useRestDayRecommendations';
 
 export default function WorkoutsScreen() {
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [showRestRecommendations, setShowRestRecommendations] = useState(false);
+  const { recommendation, loading, error, generateRecommendation } = useRestDayRecommendations();
+
+  // Mock workout history - in real app, this would come from your data context
+  const mockWorkoutHistory: WorkoutHistory[] = [
+    {
+      date: '2024-01-15',
+      exercises: ['push-ups', 'bench-press', 'squats'],
+      muscle_groups: ['chest', 'shoulders', 'quadriceps'],
+      duration_minutes: 45,
+      intensity: 8,
+      workout_type: 'strength'
+    },
+    {
+      date: '2024-01-14',
+      exercises: ['pull-ups', 'deadlifts', 'lunges'],
+      muscle_groups: ['back', 'hamstrings', 'glutes'],
+      duration_minutes: 50,
+      intensity: 9,
+      workout_type: 'strength'
+    },
+    {
+      date: '2024-01-13',
+      exercises: ['burpees', 'mountain-climbers', 'plank'],
+      muscle_groups: ['full_body', 'core', 'cardiovascular'],
+      duration_minutes: 30,
+      intensity: 8,
+      workout_type: 'cardio'
+    },
+    {
+      date: '2024-01-12',
+      exercises: ['squats', 'lunges', 'calf-raises'],
+      muscle_groups: ['quadriceps', 'hamstrings', 'glutes', 'calves'],
+      duration_minutes: 40,
+      intensity: 7,
+      workout_type: 'strength'
+    },
+    {
+      date: '2024-01-11',
+      exercises: ['bench-press', 'shoulder-press', 'tricep-dips'],
+      muscle_groups: ['chest', 'shoulders', 'triceps'],
+      duration_minutes: 35,
+      intensity: 8,
+      workout_type: 'strength'
+    }
+  ];
+
   const workoutTemplates = [
     {
       id: 1,
@@ -51,6 +103,18 @@ export default function WorkoutsScreen() {
     },
   ];
 
+  const handleAIWorkoutSelect = (workout: AIWorkoutSuggestion) => {
+    // Handle the selected AI workout - could navigate to workout screen
+    console.log('Selected AI workout:', workout);
+    // In a real app, you might navigate to a workout execution screen
+    // or save the workout to the user's library
+  };
+
+  const handleRestDayAnalysis = async () => {
+    await generateRecommendation(mockWorkoutHistory);
+    setShowRestRecommendations(true);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -75,23 +139,29 @@ export default function WorkoutsScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.quickAction}>
+            <TouchableOpacity 
+              style={styles.quickAction}
+              onPress={() => setShowAISuggestions(true)}
+            >
               <LinearGradient
                 colors={['#f472b6', '#ec4899']}
                 style={styles.quickActionGradient}
               >
-                <Ionicons name="create" size={24} color="#FFFFFF" />
-                <Text style={styles.quickActionText}>Custom</Text>
+                <Ionicons name="sparkles" size={24} color="#FFFFFF" />
+                <Text style={styles.quickActionText}>AI Suggest</Text>
               </LinearGradient>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.quickAction}>
+            <TouchableOpacity 
+              style={styles.quickAction}
+              onPress={handleRestDayAnalysis}
+            >
               <LinearGradient
                 colors={['#38bdf8', '#0ea5e9']}
                 style={styles.quickActionGradient}
               >
-                <Ionicons name="time" size={24} color="#FFFFFF" />
-                <Text style={styles.quickActionText}>History</Text>
+                <Ionicons name="bed" size={24} color="#FFFFFF" />
+                <Text style={styles.quickActionText}>Rest Analysis</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -151,6 +221,21 @@ export default function WorkoutsScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <AIWorkoutSuggestions
+        visible={showAISuggestions}
+        onClose={() => setShowAISuggestions(false)}
+        onSelectWorkout={handleAIWorkoutSelect}
+        workoutHistory={mockWorkoutHistory}
+      />
+
+      <RestDayRecommendations
+        visible={showRestRecommendations}
+        onClose={() => setShowRestRecommendations(false)}
+        recommendation={recommendation}
+        loading={loading}
+        error={error}
+      />
     </SafeAreaView>
   );
 }
