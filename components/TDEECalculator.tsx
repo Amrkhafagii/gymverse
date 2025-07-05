@@ -72,10 +72,10 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
 
   const activityLevels = [
     { value: 1.2, label: 'Sedentary', description: 'Desk job, no exercise' },
-    { value: 1.3, label: 'Lightly Active', description: 'Light exercise 1-3 days/week' },
-    { value: 1.4, label: 'Moderately Active', description: 'Moderate exercise 3-5 days/week' },
-    { value: 1.5, label: 'Very Active', description: 'Heavy exercise 6-7 days/week' },
-    { value: 1.7, label: 'Extremely Active', description: 'Very heavy exercise, physical job' },
+    { value: 1.375, label: 'Lightly Active', description: 'Light exercise 1-3 days/week' },
+    { value: 1.55, label: 'Moderately Active', description: 'Moderate exercise 3-5 days/week' },
+    { value: 1.725, label: 'Very Active', description: 'Heavy exercise 6-7 days/week' },
+    { value: 1.9, label: 'Extremely Active', description: 'Very heavy exercise, physical job' },
   ];
 
   const goals = [
@@ -83,7 +83,7 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
       value: 'cutting', 
       label: 'Cutting', 
       description: '25% deficit for fat loss',
-      multiplier: 0.75,
+      multiplier: 0.80,
       icon: TrendingDown,
       color: '#E74C3C'
     },
@@ -99,7 +99,7 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
       value: 'bulking', 
       label: 'Bulking', 
       description: '10-20% surplus for muscle gain',
-      multiplier: 1.15,
+      multiplier: 1.1,
       icon: TrendingUp,
       color: '#27AE60'
     },
