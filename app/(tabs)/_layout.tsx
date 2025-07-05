@@ -1,21 +1,13 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
+
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { 
-  Home, 
-  Dumbbell, 
-  Plus, 
-  BarChart3, 
-  User,
-  BookOpen,
-  Search,
-  Calendar
-} from 'lucide-react-native';
+import { Home, Dumbbell, TrendingUp, Users, Trophy } from 'lucide-react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -50,45 +42,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="workout-templates"
-        options={{
-          title: 'Templates',
-          tabBarIcon: ({ color }) => <BookOpen size={28} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="exercise-library"
-        options={{
-          title: 'Exercises',
-          tabBarIcon: ({ color }) => <Search size={28} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="schedule"
-        options={{
-          title: 'Schedule',
-          tabBarIcon: ({ color }) => <Calendar size={28} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="create-workout"
-        options={{
-          title: 'Create',
-          tabBarIcon: ({ color }) => <Plus size={28} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color }) => <BarChart3 size={28} color={color} />,
+          tabBarIcon: ({ color }) => <TrendingUp size={28} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="social"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <User size={28} color={color} />,
+          title: 'Social',
+          tabBarIcon: ({ color }) => <Users size={28} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboards"
+        options={{
+          title: 'Rankings',
+          tabBarIcon: ({ color }) => <Trophy size={28} color={color} />,
         }}
       />
     </Tabs>
