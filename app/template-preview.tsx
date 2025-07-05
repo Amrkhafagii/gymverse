@@ -25,14 +25,15 @@ import {
   Dumbbell,
   Heart,
   Info,
-  CheckCircle
+  CheckCircle,
+  Smartphone
 } from 'lucide-react-native';
 import { WORKOUT_TEMPLATES, WorkoutTemplate, TemplateExercise } from '@/lib/data/workoutTemplates';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
 
 export default function TemplatePreviewScreen() {
   const { templateId } = useLocalSearchParams<{ templateId: string }>();
-  const { user } = useAuth();
+  const { user, isAuthenticated, updateLastActive } = useDeviceAuth();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<TemplateExercise | null>(null);
 
@@ -72,69 +73,92 @@ export default function TemplatePreviewScreen() {
     }
   };
 
-  const handleStartWorkout = () => {
-    if (!user) {
+  const handleStartWorkout = async () => {
+    if (!isAuthenticated || !user) {
       Alert.alert(
-        'Sign In Required',
-        'Please sign in to start a workout.',
+        'Device Authentication Required',
+        'Your device needs to be authenticated to start workouts. This ensures your progress is properly tracked.',
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => router.push('/auth/sign-in') }
+          { text: 'OK', style: 'default' }
         ]
       );
       return;
     }
 
-    Alert.alert(
-      'Start Workout',
-      `Ready to start "${template.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Start', 
-          onPress: () => {
-            // Navigate to workout session with template data
-            router.push({
-              pathname: '/workout-session',
-              params: { 
-                templateId: template.id,
-                workoutName: template.name 
-              }
-            });
+    try {
+      await updateLastActive();
+
+      Alert.alert(
+        'Start Workout',
+        `Ready to start "${template.name}" on your ${user.platform} device?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Start', 
+            onPress: () => {
+              // Navigate to workout session with template data
+              router.push({
+                pathname: '/workout-session',
+                params: { 
+                  templateId: template.id,
+                  workoutName: template.name 
+                }
+              });
+            }
           }
-        }
-      ]
-    );
+        ]
+      );
+    } catch (error) {
+      console.error('Error starting workout:', error);
+      Alert.alert('Error', 'Failed to start workout. Please try again.');
+    }
   };
 
-  const handleCustomizeWorkout = () => {
-    if (!user) {
+  const handleCustomizeWorkout = async () => {
+    if (!isAuthenticated || !user) {
       Alert.alert(
-        'Sign In Required',
-        'Please sign in to customize workouts.',
+        'Device Authentication Required',
+        'Your device needs to be authenticated to customize workouts.',
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => router.push('/auth/sign-in') }
+          { text: 'OK', style: 'default' }
         ]
       );
       return;
     }
 
-    // Navigate to create workout with template pre-filled
-    router.push({
-      pathname: '/(tabs)/create-workout',
-      params: { templateId: template.id }
-    });
+    try {
+      await updateLastActive();
+
+      // Navigate to create workout with template pre-filled
+      router.push({
+        pathname: '/(tabs)/create-workout',
+        params: { templateId: template.id }
+      });
+    } catch (error) {
+      console.error('Error customizing workout:', error);
+      Alert.alert('Error', 'Failed to customize workout. Please try again.');
+    }
   };
 
-  const handleBookmark = () => {
-    if (!user) {
-      Alert.alert('Sign In Required', 'Please sign in to bookmark templates.');
+  const handleBookmark = async () => {
+    if (!isAuthenticated || !user) {
+      Alert.alert(
+        'Device Authentication Required', 
+        'Your device needs to be authenticated to bookmark templates.'
+      );
       return;
     }
     
-    setIsBookmarked(!isBookmarked);
-    // TODO: Implement bookmark functionality with backend
+    try {
+      await updateLastActive();
+      setIsBookmarked(!isBookmarked);
+      
+      // TODO: Implement bookmark functionality with backend using device ID
+      console.log(`${isBookmarked ? 'Removing' : 'Adding'} bookmark for device:`, user.deviceId);
+    } catch (error) {
+      console.error('Error bookmarking template:', error);
+      Alert.alert('Error', 'Failed to update bookmark. Please try again.');
+    }
   };
 
   const handleShare = () => {
@@ -224,6 +248,18 @@ export default function TemplatePreviewScreen() {
             <Text style={styles.templateDescription}>{template.description}</Text>
           </View>
         </View>
+
+        {/* Device Status */}
+        {user && (
+          <View style={styles.deviceStatus}>
+            <LinearGradient colors={['#1f2937', '#111827']} style={styles.deviceStatusGradient}>
+              <Smartphone size={16} color="#FF6B35" />
+              <Text style={styles.deviceStatusText}>
+                {user.platform} Device • {isBookmarked ? 'Bookmarked' : 'Ready to bookmark'}
+              </Text>
+            </LinearGradient>
+          </View>
+        )}
 
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
@@ -504,6 +540,26 @@ const styles = StyleSheet.create({
     color: '#A3A3A3',
     fontFamily: 'Inter-Regular',
     lineHeight: 22,
+  },
+  deviceStatus: {
+    marginHorizontal: 20,
+    marginTop: 16,
+  },
+  deviceStatusGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  deviceStatusText: {
+    fontSize: 12,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 8,
   },
   statsContainer: {
     margin: 20,

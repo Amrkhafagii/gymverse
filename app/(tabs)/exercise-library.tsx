@@ -26,7 +26,9 @@ import {
   Activity,
   Shield,
   Users,
-  Flame
+  Flame,
+  Smartphone,
+  User
 } from 'lucide-react-native';
 import { 
   EXERCISE_DATABASE,
@@ -42,12 +44,28 @@ import {
   EQUIPMENT_LIST,
   EXERCISE_TYPES
 } from '@/lib/data/exerciseDatabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type FilterCategory = 'all' | 'muscle' | 'equipment' | 'difficulty' | 'type';
 
+interface DeviceExerciseStats {
+  deviceId: string;
+  exerciseId: string;
+  totalSessions: number;
+  totalSets: number;
+  totalReps: number;
+  maxWeight: number;
+  lastPerformed: string;
+  personalBest: {
+    weight?: number;
+    reps?: number;
+    duration?: number;
+  };
+}
+
 export default function ExerciseLibraryScreen() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, updateLastActive } = useDeviceAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
@@ -55,7 +73,41 @@ export default function ExerciseLibraryScreen() {
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'popular' | 'all' | 'compound'>('popular');
+  const [viewMode, setViewMode] = useState<'popular' | 'all' | 'compound' | 'personal'>('popular');
+  const [deviceStats, setDeviceStats] = useState<DeviceExerciseStats[]>([]);
+
+  // Load device-specific exercise stats
+  React.useEffect(() => {
+    if (isAuthenticated && user) {
+      loadDeviceExerciseStats();
+    }
+  }, [isAuthenticated, user]);
+
+  const loadDeviceExerciseStats = async () => {
+    if (!user) return;
+
+    try {
+      const statsKey = `device_exercise_stats_${user.deviceId}`;
+      const storedStats = await AsyncStorage.getItem(statsKey);
+      if (storedStats) {
+        setDeviceStats(JSON.parse(storedStats));
+      }
+    } catch (error) {
+      console.error('Error loading device exercise stats:', error);
+    }
+  };
+
+  const getDeviceStatsForExercise = (exerciseId: string): DeviceExerciseStats | null => {
+    return deviceStats.find(stat => stat.exerciseId === exerciseId) || null;
+  };
+
+  const getPersonalExercises = (): ExerciseData[] => {
+    if (!isAuthenticated || deviceStats.length === 0) return [];
+    
+    // Return exercises that have been performed on this device
+    const performedExerciseIds = deviceStats.map(stat => stat.exerciseId);
+    return EXERCISE_DATABASE.filter(ex => performedExerciseIds.includes(ex.id));
+  };
 
   const filteredExercises = useMemo(() => {
     let exercises = EXERCISE_DATABASE;
@@ -71,6 +123,9 @@ export default function ExerciseLibraryScreen() {
           break;
         case 'compound':
           exercises = getCompoundExercises();
+          break;
+        case 'personal':
+          exercises = getPersonalExercises();
           break;
         case 'all':
         default:
@@ -100,32 +155,64 @@ export default function ExerciseLibraryScreen() {
     }
 
     return exercises;
-  }, [searchQuery, viewMode, selectedMuscle, selectedEquipment, selectedDifficulty, selectedType]);
+  }, [searchQuery, viewMode, selectedMuscle, selectedEquipment, selectedDifficulty, selectedType, deviceStats]);
 
   const popularExercises = getPopularExercises(5);
   const compoundExercises = getCompoundExercises().slice(0, 5);
+  const personalExercises = getPersonalExercises().slice(0, 5);
 
-  const handleExercisePress = (exercise: ExerciseData) => {
+  const handleExercisePress = async (exercise: ExerciseData) => {
+    if (isAuthenticated && user) {
+      await updateLastActive();
+    }
+    
     router.push({
       pathname: '/exercise-detail',
       params: { exerciseId: exercise.id }
     });
   };
 
-  const handleCreateCustomExercise = () => {
-    if (!user) {
+  const handleCreateCustomExercise = async () => {
+    if (!isAuthenticated || !user) {
       Alert.alert(
-        'Sign In Required',
-        'Please sign in to create custom exercises.',
+        'Device Authentication Required',
+        'Please ensure your device is authenticated to create custom exercises.',
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => router.push('/auth/sign-in') }
+          { text: 'OK', style: 'cancel' }
         ]
       );
       return;
     }
 
-    router.push('/create-exercise');
+    try {
+      await updateLastActive();
+      router.push('/create-exercise');
+    } catch (error) {
+      console.error('Error navigating to create exercise:', error);
+    }
+  };
+
+  const handleViewProgress = async (exercise: ExerciseData) => {
+    if (!isAuthenticated || !user) {
+      Alert.alert(
+        'Device Authentication Required',
+        'Please ensure your device is authenticated to view exercise progress.',
+        [
+          { text: 'OK', style: 'cancel' }
+        ]
+      );
+      return;
+    }
+
+    try {
+      await updateLastActive();
+      router.push({
+        pathname: '/exercise-progress',
+        params: { exerciseId: exercise.id }
+      });
+    } catch (error) {
+      console.error('Error navigating to exercise progress:', error);
+    }
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -187,6 +274,21 @@ export default function ExerciseLibraryScreen() {
           </View>
         </View>
 
+        {/* Device Status */}
+        {isAuthenticated && user && (
+          <View style={styles.deviceStatus}>
+            <LinearGradient colors={['#1f2937', '#111827']} style={styles.deviceStatusGradient}>
+              <Smartphone size={16} color="#FF6B35" />
+              <Text style={styles.deviceStatusText}>
+                Tracking on {user.platform} • {deviceStats.length} exercises performed
+              </Text>
+              <View style={styles.activeIndicator}>
+                <View style={styles.activeIndicatorDot} />
+              </View>
+            </LinearGradient>
+          </View>
+        )}
+
         {/* Search and Filter Bar */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
@@ -215,6 +317,9 @@ export default function ExerciseLibraryScreen() {
                 { key: 'popular', label: 'Popular', icon: <Star size={16} color="#fff" /> },
                 { key: 'all', label: 'All Exercises', icon: <Target size={16} color="#fff" /> },
                 { key: 'compound', label: 'Compound', icon: <Dumbbell size={16} color="#fff" /> },
+                ...(isAuthenticated && deviceStats.length > 0 ? [
+                  { key: 'personal', label: 'My Exercises', icon: <User size={16} color="#fff" /> }
+                ] : [])
               ].map((mode) => (
                 <TouchableOpacity
                   key={mode.key}
@@ -349,7 +454,7 @@ export default function ExerciseLibraryScreen() {
           </View>
         )}
 
-        {/* Quick Access - Popular & Compound */}
+        {/* Quick Access - Popular, Compound & Personal */}
         {!searchQuery && viewMode === 'popular' && !showFilters && (
           <>
             <View style={styles.section}>
@@ -378,6 +483,13 @@ export default function ExerciseLibraryScreen() {
                             </Text>
                           ))}
                         </View>
+                        {isAuthenticated && getDeviceStatsForExercise(exercise.id) && (
+                          <View style={styles.personalStats}>
+                            <Text style={styles.personalStatsText}>
+                              Performed {getDeviceStatsForExercise(exercise.id)?.totalSessions} times
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -425,11 +537,69 @@ export default function ExerciseLibraryScreen() {
                           <Text style={styles.compoundStatText}>{exercise.safety_rating}/5</Text>
                         </View>
                       </View>
+                      {isAuthenticated && getDeviceStatsForExercise(exercise.id) && (
+                        <TouchableOpacity 
+                          style={styles.progressButton}
+                          onPress={() => handleViewProgress(exercise)}
+                        >
+                          <Text style={styles.progressButtonText}>View Progress</Text>
+                        </TouchableOpacity>
+                      )}
                     </LinearGradient>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
+
+            {/* Personal Exercises Section */}
+            {isAuthenticated && personalExercises.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>📱 Your Exercises</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {personalExercises.map((exercise) => {
+                    const stats = getDeviceStatsForExercise(exercise.id);
+                    return (
+                      <TouchableOpacity
+                        key={exercise.id}
+                        style={styles.personalCard}
+                        onPress={() => handleExercisePress(exercise)}
+                      >
+                        <LinearGradient colors={['#1f2937', '#111827']} style={styles.personalCardGradient}>
+                          <View style={styles.personalHeader}>
+                            <Text style={styles.personalName}>{exercise.name}</Text>
+                            <Smartphone size={16} color="#FF6B35" />
+                          </View>
+                          {stats && (
+                            <View style={styles.personalStatsContainer}>
+                              <View style={styles.personalStatItem}>
+                                <Text style={styles.personalStatValue}>{stats.totalSessions}</Text>
+                                <Text style={styles.personalStatLabel}>Sessions</Text>
+                              </View>
+                              <View style={styles.personalStatItem}>
+                                <Text style={styles.personalStatValue}>{stats.totalSets}</Text>
+                                <Text style={styles.personalStatLabel}>Sets</Text>
+                              </View>
+                              {stats.maxWeight > 0 && (
+                                <View style={styles.personalStatItem}>
+                                  <Text style={styles.personalStatValue}>{stats.maxWeight}kg</Text>
+                                  <Text style={styles.personalStatLabel}>Max</Text>
+                                </View>
+                              )}
+                            </View>
+                          )}
+                          <TouchableOpacity 
+                            style={styles.progressButton}
+                            onPress={() => handleViewProgress(exercise)}
+                          >
+                            <Text style={styles.progressButtonText}>View Progress</Text>
+                          </TouchableOpacity>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
           </>
         )}
 
@@ -439,7 +609,8 @@ export default function ExerciseLibraryScreen() {
             <Text style={styles.sectionTitle}>
               {searchQuery ? `Search Results (${filteredExercises.length})` : 
                viewMode === 'popular' ? 'All Popular Exercises' :
-               viewMode === 'compound' ? 'Compound Exercises' : 'All Exercises'}
+               viewMode === 'compound' ? 'Compound Exercises' : 
+               viewMode === 'personal' ? 'Your Exercises' : 'All Exercises'}
             </Text>
             {filteredExercises.length > 0 && (
               <Text style={styles.resultsCount}>{filteredExercises.length} exercises</Text>
@@ -450,98 +621,138 @@ export default function ExerciseLibraryScreen() {
             <View style={styles.emptyState}>
               <LinearGradient colors={['#1f2937', '#111827']} style={styles.emptyStateGradient}>
                 <Search size={48} color="#666" />
-                <Text style={styles.emptyStateTitle}>No exercises found</Text>
-                <Text style={styles.emptyStateText}>
-                  Try adjusting your search or filters
+                <Text style={styles.emptyStateTitle}>
+                  {viewMode === 'personal' ? 'No exercises performed yet' : 'No exercises found'}
                 </Text>
-                <TouchableOpacity style={styles.clearFiltersButton} onPress={clearAllFilters}>
-                  <Text style={styles.clearFiltersButtonText}>Clear Filters</Text>
-                </TouchableOpacity>
+                <Text style={styles.emptyStateText}>
+                  {viewMode === 'personal' 
+                    ? 'Start working out to see your personal exercise history'
+                    : 'Try adjusting your search or filters'
+                  }
+                </Text>
+                {viewMode !== 'personal' && (
+                  <TouchableOpacity style={styles.clearFiltersButton} onPress={clearAllFilters}>
+                    <Text style={styles.clearFiltersButtonText}>Clear Filters</Text>
+                  </TouchableOpacity>
+                )}
               </LinearGradient>
             </View>
           ) : (
-            filteredExercises.map((exercise) => (
-              <TouchableOpacity
-                key={exercise.id}
-                style={styles.exerciseCard}
-                onPress={() => handleExercisePress(exercise)}
-              >
-                <LinearGradient colors={['#1f2937', '#111827']} style={styles.exerciseGradient}>
-                  <Image source={{ uri: exercise.demo_image_url }} style={styles.exerciseImage} />
-                  <View style={styles.exerciseContent}>
-                    <View style={styles.exerciseHeader}>
-                      <View style={styles.exerciseTitleRow}>
-                        <Text style={styles.exerciseName}>{exercise.name}</Text>
-                        <ChevronRight size={20} color="#666" />
-                      </View>
-                      <View style={styles.exerciseBadges}>
-                        <View style={styles.typeBadge}>
-                          {getTypeIcon(exercise.exercise_type)}
-                          <Text style={styles.typeBadgeText}>{exercise.exercise_type}</Text>
+            filteredExercises.map((exercise) => {
+              const deviceStats = getDeviceStatsForExercise(exercise.id);
+              return (
+                <TouchableOpacity
+                  key={exercise.id}
+                  style={styles.exerciseCard}
+                  onPress={() => handleExercisePress(exercise)}
+                >
+                  <LinearGradient colors={['#1f2937', '#111827']} style={styles.exerciseGradient}>
+                    <Image source={{ uri: exercise.demo_image_url }} style={styles.exerciseImage} />
+                    <View style={styles.exerciseContent}>
+                      <View style={styles.exerciseHeader}>
+                        <View style={styles.exerciseTitleRow}>
+                          <Text style={styles.exerciseName}>{exercise.name}</Text>
+                          <View style={styles.exerciseActions}>
+                            {isAuthenticated && deviceStats && (
+                              <TouchableOpacity 
+                                style={styles.progressIconButton}
+                                onPress={() => handleViewProgress(exercise)}
+                              >
+                                <Activity size={16} color="#FF6B35" />
+                              </TouchableOpacity>
+                            )}
+                            <ChevronRight size={20} color="#666" />
+                          </View>
                         </View>
-                        <View style={[
-                          styles.difficultyBadge,
-                          { backgroundColor: getDifficultyColor(exercise.difficulty_level) + '20' }
-                        ]}>
-                          <Text style={[
-                            styles.difficultyText,
-                            { color: getDifficultyColor(exercise.difficulty_level) }
+                        <View style={styles.exerciseBadges}>
+                          <View style={styles.typeBadge}>
+                            {getTypeIcon(exercise.exercise_type)}
+                            <Text style={styles.typeBadgeText}>{exercise.exercise_type}</Text>
+                          </View>
+                          <View style={[
+                            styles.difficultyBadge,
+                            { backgroundColor: getDifficultyColor(exercise.difficulty_level) + '20' }
                           ]}>
-                            {exercise.difficulty_level}
+                            <Text style={[
+                              styles.difficultyText,
+                              { color: getDifficultyColor(exercise.difficulty_level) }
+                            ]}>
+                              {exercise.difficulty_level}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      <Text style={styles.exerciseDescription} numberOfLines={2}>
+                        {exercise.description}
+                      </Text>
+
+                      {/* Device-specific stats */}
+                      {isAuthenticated && deviceStats && (
+                        <View style={styles.deviceStatsContainer}>
+                          <View style={styles.deviceStatsHeader}>
+                            <Smartphone size={12} color="#FF6B35" />
+                            <Text style={styles.deviceStatsTitle}>Your Stats</Text>
+                          </View>
+                          <View style={styles.deviceStatsRow}>
+                            <Text style={styles.deviceStatsText}>
+                              {deviceStats.totalSessions} sessions • {deviceStats.totalSets} sets
+                            </Text>
+                            {deviceStats.maxWeight > 0 && (
+                              <Text style={styles.deviceStatsText}>
+                                Max: {deviceStats.maxWeight}kg
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      )}
+
+                      <View style={styles.exerciseStats}>
+                        <View style={styles.exerciseStat}>
+                          <Target size={16} color="#999" />
+                          <Text style={styles.exerciseStatText}>
+                            {exercise.muscle_groups.slice(0, 2).join(', ')}
+                            {exercise.muscle_groups.length > 2 && ` +${exercise.muscle_groups.length - 2}`}
                           </Text>
                         </View>
-                      </View>
-                    </View>
-
-                    <Text style={styles.exerciseDescription} numberOfLines={2}>
-                      {exercise.description}
-                    </Text>
-
-                    <View style={styles.exerciseStats}>
-                      <View style={styles.exerciseStat}>
-                        <Target size={16} color="#999" />
-                        <Text style={styles.exerciseStatText}>
-                          {exercise.muscle_groups.slice(0, 2).join(', ')}
-                          {exercise.muscle_groups.length > 2 && ` +${exercise.muscle_groups.length - 2}`}
-                        </Text>
-                      </View>
-                      <View style={styles.exerciseStat}>
-                        <Flame size={16} color="#E74C3C" />
-                        <Text style={styles.exerciseStatText}>{exercise.calories_per_minute} cal/min</Text>
-                      </View>
-                      <View style={styles.exerciseStat}>
-                        <Star size={16} color="#FFD700" />
-                        <Text style={styles.exerciseStatText}>{exercise.popularity_score}</Text>
-                      </View>
-                      <View style={styles.exerciseStat}>
-                        <Shield size={16} color={getSafetyColor(exercise.safety_rating)} />
-                        <Text style={styles.exerciseStatText}>{exercise.safety_rating}/5</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.exerciseTags}>
-                      {exercise.tags.slice(0, 3).map((tag, index) => (
-                        <View key={index} style={styles.exerciseTag}>
-                          <Text style={styles.exerciseTagText}>#{tag}</Text>
+                        <View style={styles.exerciseStat}>
+                          <Flame size={16} color="#E74C3C" />
+                          <Text style={styles.exerciseStatText}>{exercise.calories_per_minute} cal/min</Text>
                         </View>
-                      ))}
-                      {exercise.tags.length > 3 && (
-                        <Text style={styles.moreTagsText}>+{exercise.tags.length - 3}</Text>
+                        <View style={styles.exerciseStat}>
+                          <Star size={16} color="#FFD700" />
+                          <Text style={styles.exerciseStatText}>{exercise.popularity_score}</Text>
+                        </View>
+                        <View style={styles.exerciseStat}>
+                          <Shield size={16} color={getSafetyColor(exercise.safety_rating)} />
+                          <Text style={styles.exerciseStatText}>{exercise.safety_rating}/5</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.exerciseTags}>
+                        {exercise.tags.slice(0, 3).map((tag, index) => (
+                          <View key={index} style={styles.exerciseTag}>
+                            <Text style={styles.exerciseTagText}>#{tag}</Text>
+                          </View>
+                        ))}
+                        {exercise.tags.length > 3 && (
+                          <Text style={styles.moreTagsText}>+{exercise.tags.length - 3}</Text>
+                        )}
+                      </View>
+
+                      {exercise.equipment.length > 0 && (
+                        <View style={styles.equipmentContainer}>
+                          <Text style={styles.equipmentLabel}>Equipment:</Text>
+                          <Text style={styles.equipmentText} numberOfLines={1}>
+                            {exercise.equipment.join(', ').replace(/_/g, ' ')}
+                          </Text>
+                        </View>
                       )}
                     </View>
-
-                    {exercise.equipment.length > 0 && (
-                      <View style={styles.equipmentContainer}>
-                        <Text style={styles.equipmentLabel}>Equipment:</Text>
-                        <Text style={styles.equipmentText} numberOfLines={1}>
-                          {exercise.equipment.join(', ').replace(/_/g, ' ')}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))
+                  </LinearGradient>
+                </TouchableOpacity>
+              );
+            })
           )}
         </View>
 
@@ -585,6 +796,36 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#FF6B35',
+  },
+  deviceStatus: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  deviceStatusGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  deviceStatusText: {
+    fontSize: 12,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 8,
+    flex: 1,
+  },
+  activeIndicator: {
+    marginLeft: 8,
+  },
+  activeIndicatorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2ECC71',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -781,6 +1022,7 @@ const styles = StyleSheet.create({
   popularMuscles: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginBottom: 6,
   },
   popularMuscle: {
     fontSize: 11,
@@ -788,6 +1030,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     marginRight: 6,
     textTransform: 'capitalize',
+  },
+  personalStats: {
+    marginTop: 4,
+  },
+  personalStatsText: {
+    fontSize: 10,
+    color: '#FF6B35',
+    fontFamily: 'Inter-Medium',
   },
   compoundCard: {
     width: 220,
@@ -826,6 +1076,7 @@ const styles = StyleSheet.create({
   compoundStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 8,
   },
   compoundStat: {
     flexDirection: 'row',
@@ -836,6 +1087,61 @@ const styles = StyleSheet.create({
     color: '#999',
     fontFamily: 'Inter-Medium',
     marginLeft: 4,
+  },
+  progressButton: {
+    backgroundColor: '#FF6B3520',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+  progressButtonText: {
+    fontSize: 10,
+    color: '#FF6B35',
+    fontFamily: 'Inter-SemiBold',
+  },
+  personalCard: {
+    width: 200,
+    marginRight: 16,
+  },
+  personalCardGradient: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+    backgroundColor: '#FF6B3510',
+  },
+  personalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  personalName: {
+    fontSize: 14,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    flex: 1,
+  },
+  personalStatsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  personalStatItem: {
+    alignItems: 'center',
+  },
+  personalStatValue: {
+    fontSize: 16,
+    color: '#FF6B35',
+    fontFamily: 'Inter-Bold',
+  },
+  personalStatLabel: {
+    fontSize: 10,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
   },
   exerciseCard: {
     marginBottom: 16,
@@ -868,6 +1174,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontFamily: 'Inter-Bold',
     flex: 1,
+  },
+  exerciseActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressIconButton: {
+    padding: 4,
+    marginRight: 8,
   },
   exerciseBadges: {
     flexDirection: 'row',
@@ -905,6 +1219,34 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     marginBottom: 12,
     lineHeight: 20,
+  },
+  deviceStatsContainer: {
+    backgroundColor: '#FF6B3510',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#FF6B3530',
+  },
+  deviceStatsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  deviceStatsTitle: {
+    fontSize: 12,
+    color: '#FF6B35',
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 4,
+  },
+  deviceStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  deviceStatsText: {
+    fontSize: 11,
+    color: '#FF6B35',
+    fontFamily: 'Inter-Medium',
   },
   exerciseStats: {
     flexDirection: 'row',

@@ -1,41 +1,40 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { DeviceAuthProvider } from '@/contexts/DeviceAuthContext';
 import { useFonts } from 'expo-font';
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
-import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { DataProvider } from '@/contexts/DataContext';
 
+// Prevent the splash screen from auto-hiding before asset loading is complete
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const isFrameworkReady = useFrameworkReady();
-
-  const [fontsLoaded, fontError] = useFonts({
-    'Inter-Regular': Inter_400Regular,
-    'Inter-Medium': Inter_500Medium,
-    'Inter-SemiBold': Inter_600SemiBold,
-    'Inter-Bold': Inter_700Bold,
+  const [loaded] = useFonts({
+    'Inter-Regular': require('../assets/fonts/Inter-Regular.ttf'),
+    'Inter-Medium': require('../assets/fonts/Inter-Medium.ttf'),
+    'Inter-SemiBold': require('../assets/fonts/Inter-SemiBold.ttf'),
+    'Inter-Bold': require('../assets/fonts/Inter-Bold.ttf'),
   });
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && isFrameworkReady) {
+    if (loaded) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, isFrameworkReady]);
+  }, [loaded]);
 
-  if ((!fontsLoaded && !fontError) || !isFrameworkReady) {
+  if (!loaded) {
     return null;
   }
 
   return (
-    <DataProvider>
+    <DeviceAuthProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="+not-found" />
+        <Stack.Screen name="workout-session" />
+        <Stack.Screen name="exercise-detail" />
+        <Stack.Screen name="exercise-progress" />
+        <Stack.Screen name="create-exercise" />
+        <Stack.Screen name="template-preview" />
       </Stack>
-      <StatusBar style="light" />
-    </DataProvider>
+    </DeviceAuthProvider>
   );
 }

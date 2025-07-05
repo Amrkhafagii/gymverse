@@ -18,10 +18,12 @@ import {
   Clock, 
   Flame,
   CheckCircle,
-  Circle
+  Circle,
+  Smartphone,
+  Save
 } from 'lucide-react-native';
 import { WORKOUT_TEMPLATES, TemplateExercise } from '@/lib/data/workoutTemplates';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
 
 interface ExerciseProgress {
   exercise: TemplateExercise;
@@ -35,22 +37,47 @@ interface ExerciseProgress {
   }>;
 }
 
+interface WorkoutSession {
+  deviceId: string;
+  templateId: string;
+  workoutName: string;
+  startTime: string;
+  endTime?: string;
+  totalDuration: number;
+  exerciseProgress: ExerciseProgress[];
+  estimatedCalories: number;
+  completedExercises: number;
+  totalExercises: number;
+}
+
 export default function WorkoutSessionScreen() {
   const { templateId, workoutName } = useLocalSearchParams<{ 
     templateId: string; 
     workoutName: string; 
   }>();
-  const { user } = useAuth();
+  const { user, isAuthenticated, updateLastActive } = useDeviceAuth();
   
   const [isActive, setIsActive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgress[]>([]);
+  const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
 
   const template = WORKOUT_TEMPLATES.find(t => t.id === templateId);
 
   useEffect(() => {
+    if (!isAuthenticated || !user) {
+      Alert.alert(
+        'Device Authentication Required',
+        'Your device needs to be authenticated to track workout sessions.',
+        [
+          { text: 'OK', onPress: () => router.back() }
+        ]
+      );
+      return;
+    }
+
     if (template) {
       // Initialize exercise progress
       const initialProgress: ExerciseProgress[] = template.exercises.map(exercise => ({
@@ -63,7 +90,7 @@ export default function WorkoutSessionScreen() {
       }));
       setExerciseProgress(initialProgress);
     }
-  }, [template]);
+  }, [template, isAuthenticated, user]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -76,6 +103,17 @@ export default function WorkoutSessionScreen() {
     
     return () => clearInterval(interval);
   }, [isActive, isPaused]);
+
+  // Update last active when session is active
+  useEffect(() => {
+    if (isActive && user) {
+      const updateInterval = setInterval(async () => {
+        await updateLastActive();
+      }, 30000); // Update every 30 seconds during active workout
+
+      return () => clearInterval(updateInterval);
+    }
+  }, [isActive, user, updateLastActive]);
 
   if (!template) {
     return (
@@ -90,31 +128,56 @@ export default function WorkoutSessionScreen() {
     );
   }
 
+  if (!isAuthenticated || !user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Smartphone size={48} color="#666" />
+          <Text style={styles.errorText}>Device Authentication Required</Text>
+          <Text style={styles.errorSubtext}>
+            Your device needs to be authenticated to track workout sessions and save progress.
+          </Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStartPause = () => {
-    if (!isActive) {
-      setIsActive(true);
-      setIsPaused(false);
-    } else {
-      setIsPaused(!isPaused);
+  const handleStartPause = async () => {
+    try {
+      await updateLastActive();
+      
+      if (!isActive) {
+        setIsActive(true);
+        setIsPaused(false);
+        setSessionStartTime(new Date().toISOString());
+      } else {
+        setIsPaused(!isPaused);
+      }
+    } catch (error) {
+      console.error('Error updating session state:', error);
     }
   };
 
   const handleStop = () => {
     Alert.alert(
       'End Workout',
-      'Are you sure you want to end this workout?',
+      'Are you sure you want to end this workout? Your progress will be saved to your device.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'End Workout', 
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            await saveWorkoutSession();
             setIsActive(false);
             setIsPaused(false);
             router.back();
@@ -124,33 +187,78 @@ export default function WorkoutSessionScreen() {
     );
   };
 
-  const handleCompleteSet = (exerciseIndex: number, setIndex: number) => {
-    const updatedProgress = [...exerciseProgress];
-    updatedProgress[exerciseIndex].sets[setIndex].completed = true;
-    
-    // Check if all sets for this exercise are completed
-    const allSetsCompleted = updatedProgress[exerciseIndex].sets.every(set => set.completed);
-    if (allSetsCompleted) {
-      updatedProgress[exerciseIndex].completed = true;
+  const saveWorkoutSession = async () => {
+    if (!user || !sessionStartTime) return;
+
+    try {
+      await updateLastActive();
+
+      const completedExercises = exerciseProgress.filter(ep => ep.completed).length;
+      const totalExercises = exerciseProgress.length;
+      const estimatedCalories = Math.round((elapsedTime / 60) * (template.estimated_calories / template.duration_minutes));
+
+      const session: WorkoutSession = {
+        deviceId: user.deviceId,
+        templateId: template.id,
+        workoutName: workoutName || template.name,
+        startTime: sessionStartTime,
+        endTime: new Date().toISOString(),
+        totalDuration: elapsedTime,
+        exerciseProgress,
+        estimatedCalories,
+        completedExercises,
+        totalExercises,
+      };
+
+      // TODO: Save to database with device association
+      console.log('Saving workout session for device:', user.deviceId, session);
       
-      // Move to next exercise if available
-      if (exerciseIndex < exerciseProgress.length - 1) {
-        setCurrentExerciseIndex(exerciseIndex + 1);
-      }
+      // For now, save to local storage as backup
+      const existingSessions = JSON.parse(await AsyncStorage.getItem('workout_sessions') || '[]');
+      existingSessions.push(session);
+      await AsyncStorage.setItem('workout_sessions', JSON.stringify(existingSessions));
+
+    } catch (error) {
+      console.error('Error saving workout session:', error);
     }
-    
-    setExerciseProgress(updatedProgress);
   };
 
-  const handleCompleteWorkout = () => {
+  const handleCompleteSet = async (exerciseIndex: number, setIndex: number) => {
+    try {
+      await updateLastActive();
+      
+      const updatedProgress = [...exerciseProgress];
+      updatedProgress[exerciseIndex].sets[setIndex].completed = true;
+      
+      // Check if all sets for this exercise are completed
+      const allSetsCompleted = updatedProgress[exerciseIndex].sets.every(set => set.completed);
+      if (allSetsCompleted) {
+        updatedProgress[exerciseIndex].completed = true;
+        
+        // Move to next exercise if available
+        if (exerciseIndex < exerciseProgress.length - 1) {
+          setCurrentExerciseIndex(exerciseIndex + 1);
+        }
+      }
+      
+      setExerciseProgress(updatedProgress);
+    } catch (error) {
+      console.error('Error completing set:', error);
+    }
+  };
+
+  const handleCompleteWorkout = async () => {
+    const completedCount = exerciseProgress.filter(ep => ep.completed).length;
+    const totalCount = exerciseProgress.length;
+    
     Alert.alert(
       'Workout Complete!',
-      `Great job! You completed "${workoutName}" in ${formatTime(elapsedTime)}.`,
+      `Great job! You completed ${completedCount}/${totalCount} exercises in ${formatTime(elapsedTime)} on your ${user.platform} device.`,
       [
         { 
           text: 'Finish', 
-          onPress: () => {
-            // TODO: Save workout session to database
+          onPress: async () => {
+            await saveWorkoutSession();
             router.back();
           }
         }
@@ -181,6 +289,21 @@ export default function WorkoutSessionScreen() {
         <TouchableOpacity style={styles.headerButton} onPress={handleStop}>
           <Square size={24} color="#E74C3C" />
         </TouchableOpacity>
+      </View>
+
+      {/* Device Status */}
+      <View style={styles.deviceStatus}>
+        <LinearGradient colors={['#1f2937', '#111827']} style={styles.deviceStatusGradient}>
+          <Smartphone size={16} color="#FF6B35" />
+          <Text style={styles.deviceStatusText}>
+            Tracking on {user.platform} Device • Session Active: {isActive ? 'Yes' : 'No'}
+          </Text>
+          {isActive && (
+            <View style={styles.activeIndicator}>
+              <View style={styles.activeIndicatorDot} />
+            </View>
+          )}
+        </LinearGradient>
       </View>
 
       {/* Progress Bar */}
@@ -340,8 +463,8 @@ export default function WorkoutSessionScreen() {
         <View style={styles.completeContainer}>
           <TouchableOpacity style={styles.completeButton} onPress={handleCompleteWorkout}>
             <LinearGradient colors={['#2ECC71', '#27AE60']} style={styles.completeButtonGradient}>
-              <CheckCircle size={24} color="#fff" />
-              <Text style={styles.completeButtonText}>Complete Workout</Text>
+              <Save size={24} color="#fff" />
+              <Text style={styles.completeButtonText}>Complete & Save Workout</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -379,6 +502,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     fontFamily: 'Inter-Regular',
+  },
+  deviceStatus: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  deviceStatusGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  deviceStatusText: {
+    fontSize: 12,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 8,
+  },
+  activeIndicator: {
+    marginLeft: 8,
+  },
+  activeIndicatorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2ECC71',
   },
   progressContainer: {
     flexDirection: 'row',
@@ -623,7 +775,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
     marginBottom: 20,
+    lineHeight: 20,
   },
   backButton: {
     backgroundColor: '#FF6B35',

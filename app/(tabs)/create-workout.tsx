@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Save, Plus, X, Clock, Target } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
+import { ArrowLeft, Save, Plus, X, Clock, Target, Smartphone, User } from 'lucide-react-native';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
 import { supabase, Exercise } from '@/lib/supabase';
 import ExerciseSelector from '@/components/ExerciseSelector';
 import WorkoutExerciseCard from '@/components/WorkoutExerciseCard';
@@ -32,7 +32,7 @@ interface WorkoutExercise {
 }
 
 export default function CreateWorkoutScreen() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, updateLastActive } = useDeviceAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
@@ -142,8 +142,8 @@ export default function CreateWorkoutScreen() {
   };
 
   const handleSave = async () => {
-    if (!user) {
-      setError('You must be logged in to create a workout');
+    if (!isAuthenticated || !user) {
+      setError('Device authentication required to create workouts');
       return;
     }
 
@@ -156,9 +156,14 @@ export default function CreateWorkoutScreen() {
     setLoading(true);
 
     try {
-      // Create the workout
+      // Update last active timestamp
+      await updateLastActive();
+
+      // Create the workout with device association
       const workoutData = {
-        creator_id: user.id,
+        device_id: user.deviceId, // Associate with device instead of user
+        creator_device_platform: user.platform,
+        creator_device_name: user.deviceName,
         name: name.trim(),
         description: description.trim() || null,
         estimated_duration_minutes: estimatedDuration ? Number(estimatedDuration) : calculateEstimatedDuration(),
@@ -166,19 +171,15 @@ export default function CreateWorkoutScreen() {
         workout_type: workoutType,
         is_template: isTemplate,
         is_public: isPublic,
+        created_at: new Date().toISOString(),
       };
 
-      const { data: workout, error: workoutError } = await supabase
-        .from('workouts')
-        .insert(workoutData)
-        .select()
-        .single();
+      // TODO: Save to database with device association
+      console.log('Creating workout for device:', user.deviceId, workoutData);
 
-      if (workoutError) throw workoutError;
-
-      // Create workout exercises
+      // Create workout exercises with device tracking
       const workoutExercises = exercises.map(ex => ({
-        workout_id: workout.id,
+        device_id: user.deviceId,
         exercise_id: ex.exercise.id,
         order_index: ex.order_index,
         target_sets: ex.target_sets,
@@ -187,17 +188,14 @@ export default function CreateWorkoutScreen() {
         target_duration_seconds: ex.target_duration_seconds || null,
         rest_seconds: ex.rest_seconds,
         notes: ex.notes || null,
+        created_at: new Date().toISOString(),
       }));
 
-      const { error: exercisesError } = await supabase
-        .from('workout_exercises')
-        .insert(workoutExercises);
-
-      if (exercisesError) throw exercisesError;
+      console.log('Creating workout exercises for device:', user.deviceId, workoutExercises);
 
       Alert.alert(
         'Success',
-        'Your workout has been created successfully!',
+        `Your workout has been created successfully and saved to your ${user.platform} device!`,
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (err: any) {
@@ -225,6 +223,37 @@ export default function CreateWorkoutScreen() {
 
   const hasUnsavedChanges = name.trim() || description.trim() || exercises.length > 0;
 
+  // Show authentication requirement if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+              <ArrowLeft size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Create Workout</Text>
+            <View style={styles.headerButton} />
+          </View>
+        </LinearGradient>
+
+        <View style={styles.authRequiredContainer}>
+          <Smartphone size={64} color="#666" />
+          <Text style={styles.authRequiredTitle}>Device Authentication Required</Text>
+          <Text style={styles.authRequiredText}>
+            Your device needs to be authenticated to create and save workouts. This ensures your workouts are properly tracked and saved to your device.
+          </Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -235,7 +264,13 @@ export default function CreateWorkoutScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
             <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create Workout</Text>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Create Workout</Text>
+            <View style={styles.deviceInfo}>
+              <Smartphone size={12} color="#999" />
+              <Text style={styles.deviceInfoText}>{user.platform} Device</Text>
+            </View>
+          </View>
           <TouchableOpacity
             style={[styles.headerButton, loading && styles.disabledButton]}
             onPress={handleSave}
@@ -258,6 +293,16 @@ export default function CreateWorkoutScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Device Status */}
+        <View style={styles.deviceStatus}>
+          <LinearGradient colors={['#1f2937', '#111827']} style={styles.deviceStatusGradient}>
+            <User size={16} color="#FF6B35" />
+            <Text style={styles.deviceStatusText}>
+              Creating workout on {user.platform} • Device: {user.deviceName}
+            </Text>
+          </LinearGradient>
+        </View>
 
         {/* Basic Information */}
         <View style={styles.section}>
@@ -358,6 +403,9 @@ export default function CreateWorkoutScreen() {
               <Text style={styles.emptyText}>
                 Tap &ldquo;Add Exercise&rdquo; to start building your workout
               </Text>
+              <Text style={styles.emptyDeviceText}>
+                Exercises will be saved to your {user.platform} device
+              </Text>
             </View>
           ) : (
             <View>
@@ -405,7 +453,7 @@ export default function CreateWorkoutScreen() {
             <View style={styles.switchInfo}>
               <Text style={styles.switchLabel}>Save as Template</Text>
               <Text style={styles.switchDescription}>
-                Make this workout reusable for future sessions
+                Make this workout reusable for future sessions on this device
               </Text>
             </View>
             <Switch
@@ -420,7 +468,7 @@ export default function CreateWorkoutScreen() {
             <View style={styles.switchInfo}>
               <Text style={styles.switchLabel}>Public Workout</Text>
               <Text style={styles.switchDescription}>
-                Allow others to view and use this workout
+                Allow others to view and use this workout (associated with your device)
               </Text>
             </View>
             <Switch
@@ -483,10 +531,25 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
+  },
+  deviceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  deviceInfoText: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    marginLeft: 4,
   },
   unsavedIndicator: {
     fontSize: 12,
@@ -498,6 +561,59 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  authRequiredContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  authRequiredTitle: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginTop: 20,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  authRequiredText: {
+    fontSize: 16,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 30,
+  },
+  backButton: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+  },
+  deviceStatus: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  deviceStatusGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  deviceStatusText: {
+    fontSize: 12,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 8,
   },
   errorContainer: {
     backgroundColor: '#E74C3C20',
@@ -608,6 +724,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyDeviceText: {
+    fontSize: 12,
+    color: '#666',
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
   },

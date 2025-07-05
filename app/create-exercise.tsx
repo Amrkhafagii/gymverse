@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Save, Plus, X, Target, Dumbbell, Heart, Activity, Zap } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
 import { MUSCLE_GROUPS, EQUIPMENT_LIST, EXERCISE_TYPES } from '@/lib/data/exerciseDatabase';
 
 interface CustomExercise {
@@ -33,7 +33,7 @@ interface CustomExercise {
 }
 
 export default function CreateExerciseScreen() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, updateLastActive } = useDeviceAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,8 +89,8 @@ export default function CreateExerciseScreen() {
   };
 
   const handleSave = async () => {
-    if (!user) {
-      setError('You must be logged in to create exercises');
+    if (!isAuthenticated || !user) {
+      setError('Device authentication required to create exercises');
       return;
     }
 
@@ -103,6 +103,9 @@ export default function CreateExerciseScreen() {
     setLoading(true);
 
     try {
+      // Update last active timestamp
+      await updateLastActive();
+
       // Clean up arrays by removing empty strings
       const cleanedExercise = {
         ...exercise,
@@ -111,10 +114,12 @@ export default function CreateExerciseScreen() {
         common_mistakes: exercise.common_mistakes.filter(mistake => mistake.trim()),
         variations: exercise.variations.filter(variation => variation.trim()),
         alternative_names: exercise.alternative_names.filter(name => name.trim()),
+        created_by_device: user.deviceId,
+        created_at: new Date().toISOString(),
       };
 
-      // TODO: Save to database
-      console.log('Saving custom exercise:', cleanedExercise);
+      // TODO: Save to database with device user association
+      console.log('Saving custom exercise for device:', user.deviceId, cleanedExercise);
 
       Alert.alert(
         'Success',
@@ -288,6 +293,9 @@ export default function CreateExerciseScreen() {
     }
   };
 
+  // Show device info in header for transparency
+  const deviceInfo = user ? `${user.platform} Device` : 'Device';
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -300,7 +308,10 @@ export default function CreateExerciseScreen() {
             <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
               <ArrowLeft size={24} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Create Exercise</Text>
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>Create Exercise</Text>
+              <Text style={styles.headerSubtitle}>{deviceInfo}</Text>
+            </View>
             <TouchableOpacity
               style={[styles.headerButton, loading && styles.disabledButton]}
               onPress={handleSave}
@@ -692,10 +703,20 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    marginTop: 2,
   },
   content: {
     flex: 1,

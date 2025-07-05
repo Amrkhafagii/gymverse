@@ -7,54 +7,221 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Trophy, TrendingUp, Calendar, Target } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import { useExerciseProgress } from '@/hooks/useExerciseProgress';
+import { ArrowLeft, Trophy, TrendingUp, Calendar, Target, Smartphone, User, Activity } from 'lucide-react-native';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
+import { EXERCISE_DATABASE } from '@/lib/data/exerciseDatabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ExerciseProgressChart from '@/components/ExerciseProgressChart';
 import PersonalRecordCard from '@/components/PersonalRecordCard';
 
+interface DeviceProgressData {
+  deviceId: string;
+  exerciseId: string;
+  date: string;
+  sets: Array<{
+    reps?: number;
+    weight?: number;
+    duration?: number;
+    restTime?: number;
+  }>;
+  totalVolume: number;
+  maxWeight: number;
+  maxReps: number;
+  totalDuration: number;
+  notes?: string;
+}
+
+interface DevicePersonalRecord {
+  id: string;
+  deviceId: string;
+  exerciseId: string;
+  recordType: 'max_weight' | 'max_reps' | 'max_duration' | 'max_volume';
+  value: number;
+  unit: string;
+  achievedAt: string;
+  previousRecord?: number;
+}
+
+interface DeviceExerciseStats {
+  totalSessions: number;
+  totalSets: number;
+  totalReps: number;
+  averageReps: number;
+  maxWeight: number;
+  totalVolume: number;
+  averageVolume: number;
+  firstSession: string;
+  lastSession: string;
+}
+
+interface ProgressChartData {
+  weightProgress: Array<{ date: string; value: number }>;
+  repsProgress: Array<{ date: string; value: number }>;
+  volumeProgress: Array<{ date: string; value: number }>;
+  durationProgress: Array<{ date: string; value: number }>;
+}
+
 export default function ExerciseProgressScreen() {
   const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>();
-  const { user } = useAuth();
-  const {
-    exercise,
-    progressData,
-    personalRecords,
-    stats,
-    loading,
-    error,
-    refreshProgress,
-  } = useExerciseProgress(user?.id || null, exerciseId ? parseInt(exerciseId) : null);
-
+  const { user, isAuthenticated, updateLastActive } = useDeviceAuth();
+  
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [progressData, setProgressData] = useState<ProgressChartData>({
+    weightProgress: [],
+    repsProgress: [],
+    volumeProgress: [],
+    durationProgress: [],
+  });
+  const [personalRecords, setPersonalRecords] = useState<DevicePersonalRecord[]>([]);
+  const [stats, setStats] = useState<DeviceExerciseStats>({
+    totalSessions: 0,
+    totalSets: 0,
+    totalReps: 0,
+    averageReps: 0,
+    maxWeight: 0,
+    totalVolume: 0,
+    averageVolume: 0,
+    firstSession: '',
+    lastSession: '',
+  });
+
+  const exercise = EXERCISE_DATABASE.find(ex => ex.id === exerciseId);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || !exerciseId) {
+      setError('Device authentication required to view progress');
+      setLoading(false);
+      return;
+    }
+
+    if (!exercise) {
+      setError('Exercise not found');
+      setLoading(false);
+      return;
+    }
+
+    loadDeviceProgressData();
+  }, [isAuthenticated, user, exerciseId, exercise]);
+
+  const loadDeviceProgressData = async () => {
+    if (!user || !exerciseId) return;
+
+    try {
+      setLoading(true);
+      await updateLastActive();
+
+      // Load progress data from device storage
+      const progressKey = `device_progress_${user.deviceId}_${exerciseId}`;
+      const recordsKey = `device_records_${user.deviceId}_${exerciseId}`;
+
+      const [storedProgress, storedRecords] = await Promise.all([
+        AsyncStorage.getItem(progressKey),
+        AsyncStorage.getItem(recordsKey),
+      ]);
+
+      let deviceProgressData: DeviceProgressData[] = [];
+      let deviceRecords: DevicePersonalRecord[] = [];
+
+      if (storedProgress) {
+        deviceProgressData = JSON.parse(storedProgress);
+      }
+
+      if (storedRecords) {
+        deviceRecords = JSON.parse(storedRecords);
+      }
+
+      // Process progress data for charts
+      const chartData = processProgressDataForCharts(deviceProgressData);
+      setProgressData(chartData);
+
+      // Set personal records
+      setPersonalRecords(deviceRecords);
+
+      // Calculate stats
+      const calculatedStats = calculateExerciseStats(deviceProgressData);
+      setStats(calculatedStats);
+
+      setError(null);
+    } catch (err) {
+      console.error('Error loading device progress data:', err);
+      setError('Failed to load progress data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processProgressDataForCharts = (data: DeviceProgressData[]): ProgressChartData => {
+    const sortedData = data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return {
+      weightProgress: sortedData
+        .filter(d => d.maxWeight > 0)
+        .map(d => ({ date: d.date, value: d.maxWeight })),
+      repsProgress: sortedData
+        .filter(d => d.maxReps > 0)
+        .map(d => ({ date: d.date, value: d.maxReps })),
+      volumeProgress: sortedData
+        .filter(d => d.totalVolume > 0)
+        .map(d => ({ date: d.date, value: d.totalVolume })),
+      durationProgress: sortedData
+        .filter(d => d.totalDuration > 0)
+        .map(d => ({ date: d.date, value: d.totalDuration })),
+    };
+  };
+
+  const calculateExerciseStats = (data: DeviceProgressData[]): DeviceExerciseStats => {
+    if (data.length === 0) {
+      return {
+        totalSessions: 0,
+        totalSets: 0,
+        totalReps: 0,
+        averageReps: 0,
+        maxWeight: 0,
+        totalVolume: 0,
+        averageVolume: 0,
+        firstSession: '',
+        lastSession: '',
+      };
+    }
+
+    const sortedData = data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    const totalSessions = data.length;
+    const totalSets = data.reduce((sum, session) => sum + session.sets.length, 0);
+    const totalReps = data.reduce((sum, session) => 
+      sum + session.sets.reduce((setSum, set) => setSum + (set.reps || 0), 0), 0
+    );
+    const maxWeight = Math.max(...data.map(d => d.maxWeight), 0);
+    const totalVolume = data.reduce((sum, session) => sum + session.totalVolume, 0);
+
+    return {
+      totalSessions,
+      totalSets,
+      totalReps,
+      averageReps: totalSets > 0 ? Math.round(totalReps / totalSets) : 0,
+      maxWeight,
+      totalVolume,
+      averageVolume: totalSessions > 0 ? Math.round(totalVolume / totalSessions) : 0,
+      firstSession: sortedData[0].date,
+      lastSession: sortedData[sortedData.length - 1].date,
+    };
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refreshProgress();
+    await loadDeviceProgressData();
     setRefreshing(false);
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading exercise progress...</Text>
-      </View>
-    );
-  }
-
-  if (error || !exercise) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error || 'Exercise not found'}</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const handleBackPress = () => {
+    router.back();
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -84,6 +251,72 @@ export default function ExerciseProgressScreen() {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  // Show authentication requirement if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+          <TouchableOpacity style={styles.headerBackButton} onPress={handleBackPress}>
+            <ArrowLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Exercise Progress</Text>
+        </LinearGradient>
+
+        <View style={styles.authRequiredContainer}>
+          <Smartphone size={64} color="#666" />
+          <Text style={styles.authRequiredTitle}>Device Authentication Required</Text>
+          <Text style={styles.authRequiredText}>
+            Your device needs to be authenticated to view exercise progress and personal records.
+          </Text>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+          <TouchableOpacity style={styles.headerBackButton} onPress={handleBackPress}>
+            <ArrowLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Exercise Progress</Text>
+        </LinearGradient>
+
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading progress data...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (error || !exercise) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+          <TouchableOpacity style={styles.headerBackButton} onPress={handleBackPress}>
+            <ArrowLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Exercise Progress</Text>
+        </LinearGradient>
+
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error || 'Exercise not found'}</Text>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <ScrollView 
       style={styles.container} 
@@ -93,7 +326,7 @@ export default function ExerciseProgressScreen() {
       }
     >
       <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
-        <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.headerBackButton} onPress={handleBackPress}>
           <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
         
@@ -117,6 +350,19 @@ export default function ExerciseProgressScreen() {
         </View>
       </LinearGradient>
 
+      {/* Device Status */}
+      <View style={styles.deviceStatus}>
+        <LinearGradient colors={['#1f2937', '#111827']} style={styles.deviceStatusGradient}>
+          <User size={16} color="#FF6B35" />
+          <Text style={styles.deviceStatusText}>
+            Progress tracked on {user.platform} • Device: {user.deviceName}
+          </Text>
+          <View style={styles.activeIndicator}>
+            <View style={styles.activeIndicatorDot} />
+          </View>
+        </LinearGradient>
+      </View>
+
       {exercise.demo_image_url && (
         <View style={styles.imageContainer}>
           <Image source={{ uri: exercise.demo_image_url }} style={styles.exerciseImage} />
@@ -125,7 +371,7 @@ export default function ExerciseProgressScreen() {
 
       {/* Exercise Stats Overview */}
       <View style={styles.statsContainer}>
-        <Text style={styles.sectionTitle}>Overview</Text>
+        <Text style={styles.sectionTitle}>Your Progress Overview</Text>
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Calendar size={20} color="#4A90E2" />
@@ -148,6 +394,14 @@ export default function ExerciseProgressScreen() {
             <Text style={styles.statLabel}>Records</Text>
           </View>
         </View>
+        
+        {stats.totalSessions > 0 && (
+          <View style={styles.sessionInfo}>
+            <Text style={styles.sessionInfoText}>
+              First session: {formatDate(stats.firstSession)} • Last session: {formatDate(stats.lastSession)}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Progress Charts */}
@@ -156,7 +410,7 @@ export default function ExerciseProgressScreen() {
           <ExerciseProgressChart
             data={progressData.weightProgress}
             title="Weight Progress"
-            subtitle="Maximum weight lifted per session"
+            subtitle="Maximum weight lifted per session on this device"
             color="#FF6B35"
             unit="kg"
             chartType="line"
@@ -169,7 +423,7 @@ export default function ExerciseProgressScreen() {
           <ExerciseProgressChart
             data={progressData.repsProgress}
             title="Reps Progress"
-            subtitle="Maximum reps performed per session"
+            subtitle="Maximum reps performed per session on this device"
             color="#4A90E2"
             unit="reps"
             chartType="line"
@@ -182,7 +436,7 @@ export default function ExerciseProgressScreen() {
           <ExerciseProgressChart
             data={progressData.volumeProgress}
             title="Volume Progress"
-            subtitle="Total volume (weight × reps) per session"
+            subtitle="Total volume (weight × reps) per session on this device"
             color="#27AE60"
             unit="kg"
             chartType="bar"
@@ -195,7 +449,7 @@ export default function ExerciseProgressScreen() {
           <ExerciseProgressChart
             data={progressData.durationProgress}
             title="Duration Progress"
-            subtitle="Exercise duration per session"
+            subtitle="Exercise duration per session on this device"
             color="#9B59B6"
             unit="min"
             chartType="line"
@@ -207,6 +461,7 @@ export default function ExerciseProgressScreen() {
       {personalRecords.length > 0 && (
         <View style={styles.recordsContainer}>
           <Text style={styles.sectionTitle}>Personal Records</Text>
+          <Text style={styles.sectionSubtitle}>Achievements on your {user.platform} device</Text>
           {personalRecords.map((record, index) => (
             <PersonalRecordCard
               key={record.id}
@@ -254,15 +509,15 @@ export default function ExerciseProgressScreen() {
       )}
 
       {/* Empty State */}
-      {progressData.weightProgress.length === 0 && 
-       progressData.repsProgress.length === 0 && 
-       progressData.volumeProgress.length === 0 && 
-       progressData.durationProgress.length === 0 && (
+      {stats.totalSessions === 0 && (
         <View style={styles.emptyState}>
-          <TrendingUp size={48} color="#666" />
+          <Activity size={48} color="#666" />
           <Text style={styles.emptyTitle}>No Progress Data Yet</Text>
           <Text style={styles.emptyText}>
-            Complete workouts with this exercise to see your progress charts and statistics.
+            Complete workouts with this exercise on your {user.platform} device to see your progress charts and statistics.
+          </Text>
+          <Text style={styles.emptyDeviceText}>
+            All progress is tracked per device for privacy and accuracy.
           </Text>
         </View>
       )}
@@ -302,6 +557,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
+  authRequiredContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  authRequiredTitle: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginTop: 20,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  authRequiredText: {
+    fontSize: 16,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 30,
+  },
   backButton: {
     backgroundColor: '#FF6B35',
     paddingHorizontal: 20,
@@ -320,6 +597,12 @@ const styles = StyleSheet.create({
   },
   headerBackButton: {
     marginBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
   },
   exerciseHeader: {
     alignItems: 'flex-start',
@@ -352,6 +635,36 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     lineHeight: 24,
   },
+  deviceStatus: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+  },
+  deviceStatusGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  deviceStatusText: {
+    fontSize: 12,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 8,
+    flex: 1,
+  },
+  activeIndicator: {
+    marginLeft: 8,
+  },
+  activeIndicatorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2ECC71',
+  },
   imageContainer: {
     paddingHorizontal: 20,
     marginTop: 20,
@@ -370,6 +683,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
     marginBottom: 16,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    marginBottom: 16,
+    marginTop: -8,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -396,6 +716,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     fontFamily: 'Inter-Medium',
+  },
+  sessionInfo: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  sessionInfoText: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
   },
   chartContainer: {
     paddingHorizontal: 20,
@@ -488,6 +822,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 8,
+  },
+  emptyDeviceText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   bottomSpacer: {
     height: 100,

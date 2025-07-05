@@ -13,9 +13,25 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Save, X, Calendar, Ruler, Weight, Activity, Globe, Lock } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import { updateProfile } from '@/lib/supabase';
+import { ArrowLeft, Save, X, Calendar, Ruler, Weight, Activity, Globe, Lock, Smartphone, User } from 'lucide-react-native';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface DeviceProfile {
+  deviceId: string;
+  platform: string;
+  deviceName: string;
+  fullName: string;
+  bio: string;
+  dateOfBirth: string;
+  heightCm: string;
+  weightKg: string;
+  fitnessLevel: 'beginner' | 'intermediate' | 'advanced';
+  preferredUnits: 'metric' | 'imperial';
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface FormData {
   fullName: string;
@@ -39,10 +55,11 @@ interface FormErrors {
 }
 
 export default function EditProfileScreen() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, isAuthenticated, updateLastActive } = useDeviceAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -59,23 +76,14 @@ export default function EditProfileScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [originalData, setOriginalData] = useState<FormData | null>(null);
 
-  // Initialize form with current profile data
+  // Load device profile on mount
   useEffect(() => {
-    if (profile) {
-      const initialData: FormData = {
-        fullName: profile.full_name || '',
-        bio: profile.bio || '',
-        dateOfBirth: profile.date_of_birth || '',
-        heightCm: profile.height_cm?.toString() || '',
-        weightKg: profile.weight_kg?.toString() || '',
-        fitnessLevel: (profile.fitness_level as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
-        preferredUnits: (profile.preferred_units as 'metric' | 'imperial') || 'metric',
-        isPublic: profile.is_public ?? true,
-      };
-      setFormData(initialData);
-      setOriginalData(initialData);
+    if (isAuthenticated && user) {
+      loadDeviceProfile();
+    } else {
+      setProfileLoading(false);
     }
-  }, [profile]);
+  }, [isAuthenticated, user]);
 
   // Check for changes
   useEffect(() => {
@@ -86,6 +94,53 @@ export default function EditProfileScreen() {
       setHasChanges(changed);
     }
   }, [formData, originalData]);
+
+  const loadDeviceProfile = async () => {
+    if (!user) return;
+
+    try {
+      setProfileLoading(true);
+      
+      // Load profile from local storage (device-specific)
+      const profileKey = `device_profile_${user.deviceId}`;
+      const storedProfile = await AsyncStorage.getItem(profileKey);
+      
+      if (storedProfile) {
+        const profile: DeviceProfile = JSON.parse(storedProfile);
+        const initialData: FormData = {
+          fullName: profile.fullName || '',
+          bio: profile.bio || '',
+          dateOfBirth: profile.dateOfBirth || '',
+          heightCm: profile.heightCm || '',
+          weightKg: profile.weightKg || '',
+          fitnessLevel: profile.fitnessLevel || 'beginner',
+          preferredUnits: profile.preferredUnits || 'metric',
+          isPublic: profile.isPublic ?? true,
+        };
+        setFormData(initialData);
+        setOriginalData(initialData);
+      } else {
+        // Initialize with default values for new device profile
+        const initialData: FormData = {
+          fullName: '',
+          bio: '',
+          dateOfBirth: '',
+          heightCm: '',
+          weightKg: '',
+          fitnessLevel: 'beginner',
+          preferredUnits: 'metric',
+          isPublic: true,
+        };
+        setFormData(initialData);
+        setOriginalData(initialData);
+      }
+    } catch (error) {
+      console.error('Error loading device profile:', error);
+      setError('Failed to load profile data');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -146,7 +201,10 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!isAuthenticated || !user) {
+      setError('Device authentication required to save profile');
+      return;
+    }
 
     setError(null);
     
@@ -157,32 +215,38 @@ export default function EditProfileScreen() {
     setLoading(true);
 
     try {
-      const updatedData: any = {
-        full_name: formData.fullName.trim() || null,
-        bio: formData.bio.trim() || null,
-        date_of_birth: formData.dateOfBirth || null,
-        height_cm: formData.heightCm ? parseFloat(formData.heightCm) : null,
-        weight_kg: formData.weightKg ? parseFloat(formData.weightKg) : null,
-        fitness_level: formData.fitnessLevel,
-        preferred_units: formData.preferredUnits,
-        is_public: formData.isPublic,
-        updated_at: new Date().toISOString(),
+      await updateLastActive();
+
+      const now = new Date().toISOString();
+      const profileData: DeviceProfile = {
+        deviceId: user.deviceId,
+        platform: user.platform,
+        deviceName: user.deviceName,
+        fullName: formData.fullName.trim(),
+        bio: formData.bio.trim(),
+        dateOfBirth: formData.dateOfBirth,
+        heightCm: formData.heightCm,
+        weightKg: formData.weightKg,
+        fitnessLevel: formData.fitnessLevel,
+        preferredUnits: formData.preferredUnits,
+        isPublic: formData.isPublic,
+        createdAt: originalData ? (await getExistingProfile())?.createdAt || now : now,
+        updatedAt: now,
       };
 
-      const { error: updateError } = await updateProfile(user.id, updatedData);
+      // Save to device-specific local storage
+      const profileKey = `device_profile_${user.deviceId}`;
+      await AsyncStorage.setItem(profileKey, JSON.stringify(profileData));
 
-      if (updateError) {
-        throw updateError;
-      }
+      // TODO: Optionally sync to backend with device association
+      console.log('Saved device profile:', profileData);
 
-      // Refresh the profile in the auth context
-      await refreshProfile();
       setOriginalData(formData);
       setHasChanges(false);
 
       Alert.alert(
         'Success',
-        'Your profile has been updated successfully!',
+        `Your profile has been updated successfully on your ${user.platform} device!`,
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (err: any) {
@@ -190,6 +254,19 @@ export default function EditProfileScreen() {
       setError(err.message || 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getExistingProfile = async (): Promise<DeviceProfile | null> => {
+    if (!user) return null;
+    
+    try {
+      const profileKey = `device_profile_${user.deviceId}`;
+      const storedProfile = await AsyncStorage.getItem(profileKey);
+      return storedProfile ? JSON.parse(storedProfile) : null;
+    } catch (error) {
+      console.error('Error getting existing profile:', error);
+      return null;
     }
   };
 
@@ -228,6 +305,60 @@ export default function EditProfileScreen() {
     return lbs.toString();
   };
 
+  // Show authentication requirement if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+              <ArrowLeft size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Edit Profile</Text>
+            <View style={styles.headerButton} />
+          </View>
+        </LinearGradient>
+
+        <View style={styles.authRequiredContainer}>
+          <Smartphone size={64} color="#666" />
+          <Text style={styles.authRequiredTitle}>Device Authentication Required</Text>
+          <Text style={styles.authRequiredText}>
+            Your device needs to be authenticated to create and manage your profile. This ensures your personal data is securely stored on your device.
+          </Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  if (profileLoading) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+              <ArrowLeft size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Edit Profile</Text>
+            <View style={styles.headerButton} />
+          </View>
+        </LinearGradient>
+
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -238,7 +369,13 @@ export default function EditProfileScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
             <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Edit Profile</Text>
+            <View style={styles.deviceInfo}>
+              <Smartphone size={12} color="#999" />
+              <Text style={styles.deviceInfoText}>{user.platform} Device</Text>
+            </View>
+          </View>
           <TouchableOpacity
             style={[
               styles.headerButton,
@@ -264,6 +401,16 @@ export default function EditProfileScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Device Status */}
+        <View style={styles.deviceStatus}>
+          <LinearGradient colors={['#1f2937', '#111827']} style={styles.deviceStatusGradient}>
+            <User size={16} color="#FF6B35" />
+            <Text style={styles.deviceStatusText}>
+              Profile stored on {user.platform} • Device: {user.deviceName}
+            </Text>
+          </LinearGradient>
+        </View>
 
         {/* Basic Information */}
         <View style={styles.section}>
@@ -459,8 +606,8 @@ export default function EditProfileScreen() {
               </View>
               <Text style={styles.switchDescription}>
                 {formData.isPublic 
-                  ? 'Your profile is visible to other users. They can see your achievements and progress.'
-                  : 'Your profile is private. Only you can see your data and achievements.'
+                  ? 'Your profile is visible to other users. They can see your achievements and progress from this device.'
+                  : 'Your profile is private. Only you can see your data and achievements on this device.'
                 }
               </Text>
             </View>
@@ -519,10 +666,25 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
+  },
+  deviceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  deviceInfoText: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    marginLeft: 4,
   },
   changesIndicator: {
     fontSize: 12,
@@ -534,6 +696,69 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  authRequiredContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  authRequiredTitle: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginTop: 20,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  authRequiredText: {
+    fontSize: 16,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 30,
+  },
+  backButton: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-Medium',
+  },
+  deviceStatus: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  deviceStatusGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  deviceStatusText: {
+    fontSize: 12,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 8,
   },
   errorContainer: {
     backgroundColor: '#E74C3C20',

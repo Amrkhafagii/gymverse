@@ -26,7 +26,7 @@ import {
   Info,
   ChevronRight,
 } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
 import { supabase, Exercise, ExerciseProgress } from '@/lib/supabase';
 import FormVideoPlayer from '@/components/exercise/FormVideoPlayer';
 import FormTipsModal from '@/components/exercise/FormTipsModal';
@@ -36,7 +36,7 @@ const { width } = Dimensions.get('window');
 
 export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, isAuthenticated, updateLastActive } = useDeviceAuth();
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [progress, setProgress] = useState<ExerciseProgress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,22 +64,25 @@ export default function ExerciseDetailScreen() {
       if (exerciseError) throw exerciseError;
       setExercise(exerciseData);
 
-      if (user) {
-        // Check if exercise is favorited
+      if (isAuthenticated && user) {
+        // Update last active timestamp
+        await updateLastActive();
+
+        // Check if exercise is favorited by this device
         const { data: favoriteData } = await supabase
           .from('user_favorite_exercises')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('device_id', user.deviceId)
           .eq('exercise_id', id)
           .single();
 
         setIsFavorite(!!favoriteData);
 
-        // Load progress data
+        // Load progress data for this device
         const { data: progressData, error: progressError } = await supabase
           .from('exercise_progress')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('device_id', user.deviceId)
           .eq('exercise_id', id)
           .order('recorded_at', { ascending: false })
           .limit(10);
@@ -99,21 +102,27 @@ export default function ExerciseDetailScreen() {
   };
 
   const toggleFavorite = async () => {
-    if (!user || !exercise) return;
+    if (!isAuthenticated || !user || !exercise) {
+      Alert.alert('Device Authentication Required', 'Please ensure your device is properly authenticated to favorite exercises.');
+      return;
+    }
 
     try {
+      await updateLastActive();
+
       if (isFavorite) {
         await supabase
           .from('user_favorite_exercises')
           .delete()
-          .eq('user_id', user.id)
+          .eq('device_id', user.deviceId)
           .eq('exercise_id', exercise.id);
       } else {
         await supabase
           .from('user_favorite_exercises')
           .insert({
-            user_id: user.id,
+            device_id: user.deviceId,
             exercise_id: exercise.id,
+            created_at: new Date().toISOString(),
           });
       }
       setIsFavorite(!isFavorite);
@@ -260,6 +269,9 @@ export default function ExerciseDetailScreen() {
             {progress.length > 0 ? (
               <View>
                 <Text style={styles.sectionTitle}>Recent Progress</Text>
+                <Text style={styles.progressSubtitle}>
+                  Tracked on this device ({user?.platform || 'Unknown'})
+                </Text>
                 {progress.map((record, index) => (
                   <View key={record.id} style={styles.progressItem}>
                     <View style={styles.progressHeader}>
@@ -300,6 +312,11 @@ export default function ExerciseDetailScreen() {
                 <Text style={styles.emptyText}>
                   Start tracking this exercise to see your progress here
                 </Text>
+                {user && (
+                  <Text style={styles.emptyDeviceText}>
+                    Progress will be saved to this {user.platform} device
+                  </Text>
+                )}
               </View>
             )}
           </View>
@@ -354,6 +371,13 @@ export default function ExerciseDetailScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        {user && (
+          <View style={styles.deviceInfo}>
+            <Text style={styles.deviceInfoText}>
+              {user.platform} Device • {isFavorite ? 'Favorited' : 'Not Favorited'}
+            </Text>
+          </View>
+        )}
       </LinearGradient>
 
       {/* Exercise Image/Video */}
@@ -497,6 +521,15 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
   },
+  deviceInfo: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  deviceInfoText: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+  },
   imageContainer: {
     height: 200,
     backgroundColor: '#1a1a1a',
@@ -633,6 +666,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     marginBottom: 12,
   },
+  progressSubtitle: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    marginBottom: 16,
+  },
   description: {
     fontSize: 16,
     color: '#ccc',
@@ -761,6 +800,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyDeviceText: {
+    fontSize: 12,
+    color: '#666',
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
   },
