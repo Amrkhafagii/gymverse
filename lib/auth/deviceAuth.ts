@@ -1,186 +1,296 @@
+import * as Device from 'expo-device';
+import * as Application from 'expo-application';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import * as Application from 'expo-application';
-import * as Device from 'expo-device';
 
-export interface DeviceUser {
-  id: string;
-  deviceId: string;
+export interface DeviceInfo {
   platform: string;
   deviceName: string;
-  createdAt: string;
-  lastActiveAt: string;
-  isActive: boolean;
+  model: string | null;
+  brand: string | null;
+  osVersion: string | null;
+  appVersion: string | null;
 }
 
-class DeviceAuthService {
-  private static instance: DeviceAuthService;
-  private currentUser: DeviceUser | null = null;
-  private listeners: ((user: DeviceUser | null) => void)[] = [];
+export interface DeviceProfile {
+  fullName?: string;
+  bio?: string;
+  avatarUrl?: string;
+  dateOfBirth?: string;
+  heightCm?: number;
+  weightKg?: number;
+  fitnessLevel: 'beginner' | 'intermediate' | 'advanced';
+  preferredUnits: 'metric' | 'imperial';
+  isPublic: boolean;
+  allowAnonymousSharing: boolean;
+  cloudBackupEnabled: boolean;
+}
 
-  private constructor() {}
+export interface DeviceSettings {
+  notifications: {
+    workoutReminders: boolean;
+    progressUpdates: boolean;
+    socialActivity: boolean;
+  };
+  appearance: {
+    darkMode: boolean;
+    accentColor: string;
+  };
+  workout: {
+    autoStartTimer: boolean;
+    hapticFeedback: boolean;
+    soundEffects: boolean;
+  };
+  privacy: {
+    shareProgress: boolean;
+    showInLeaderboards: boolean;
+  };
+}
 
-  static getInstance(): DeviceAuthService {
-    if (!DeviceAuthService.instance) {
-      DeviceAuthService.instance = new DeviceAuthService();
-    }
-    return DeviceAuthService.instance;
-  }
+export interface DeviceUser {
+  deviceId: string;
+  deviceFingerprint: string;
+  platform: string;
+  deviceName: string;
+  profile: DeviceProfile;
+  settings: DeviceSettings;
+  isFirstLaunch: boolean;
+  lastActiveAt: Date;
+  createdAt: Date;
+}
 
-  private async getDeviceIdentifier(): Promise<string> {
+export class DeviceAuthManager {
+  private static readonly DEVICE_ID_KEY = 'device_id';
+  private static readonly DEVICE_PROFILE_KEY = 'device_profile';
+  private static readonly DEVICE_SETTINGS_KEY = 'device_settings';
+  private static readonly FIRST_LAUNCH_KEY = 'first_launch_completed';
+
+  // Generate or retrieve persistent device ID
+  static async getOrCreateDeviceId(): Promise<string> {
     try {
-      if (Platform.OS === 'android') {
-        // Use Android ID as primary identifier
-        const androidId = Application.androidId;
-        if (androidId) {
-          return `android_${androidId}`;
-        }
-        
-        // Fallback to installation ID if Android ID is not available
-        const installationId = Application.getInstallationIdAsync ? 
-          await Application.getInstallationIdAsync() : null;
-        if (installationId) {
-          return `android_install_${installationId}`;
-        }
-      } else if (Platform.OS === 'ios') {
-        // Use identifierForVendor (IDFV) for iOS
-        const idfv = await Application.getIosIdForVendorAsync();
-        if (idfv) {
-          return `ios_${idfv}`;
-        }
+      let deviceId = await AsyncStorage.getItem(this.DEVICE_ID_KEY);
+      
+      if (!deviceId) {
+        // Create unique device ID
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        deviceId = `device_${timestamp}_${random}`;
+        await AsyncStorage.setItem(this.DEVICE_ID_KEY, deviceId);
       }
-
-      // Generate a unique device-based identifier as last resort
-      const deviceInfo = `${Platform.OS}_${Device.modelName}_${Device.osVersion}`;
-      const timestamp = Date.now().toString();
-      return `device_${Buffer.from(deviceInfo + timestamp).toString('base64').slice(0, 16)}`;
+      
+      return deviceId;
     } catch (error) {
-      console.error('Error getting device identifier:', error);
-      // Generate fallback identifier
-      const fallbackId = `fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      return fallbackId;
+      console.error('Failed to get/create device ID:', error);
+      // Fallback to session-based ID
+      return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
   }
 
-  private async createDeviceUser(deviceId: string): Promise<DeviceUser> {
-    const deviceName = Device.deviceName || `${Platform.OS} Device`;
-    const now = new Date().toISOString();
-    
-    const user: DeviceUser = {
-      id: deviceId,
-      deviceId,
-      platform: Platform.OS,
-      deviceName,
-      createdAt: now,
-      lastActiveAt: now,
-      isActive: true,
-    };
-
-    // Store user data locally
-    await AsyncStorage.setItem('device_user', JSON.stringify(user));
-    await AsyncStorage.setItem('device_session_active', 'true');
-    
-    return user;
-  }
-
-  private async loadStoredUser(): Promise<DeviceUser | null> {
+  // Generate device fingerprint for verification
+  static async generateDeviceFingerprint(): Promise<string> {
     try {
-      const storedUser = await AsyncStorage.getItem('device_user');
-      const sessionActive = await AsyncStorage.getItem('device_session_active');
+      const deviceInfo = await this.getDeviceInfo();
       
-      if (storedUser && sessionActive === 'true') {
-        const user: DeviceUser = JSON.parse(storedUser);
-        
-        // Update last active time
-        user.lastActiveAt = new Date().toISOString();
-        await AsyncStorage.setItem('device_user', JSON.stringify(user));
-        
-        return user;
-      }
+      const fingerprintData = {
+        platform: deviceInfo.platform,
+        model: deviceInfo.model,
+        brand: deviceInfo.brand,
+        osVersion: deviceInfo.osVersion,
+        appVersion: deviceInfo.appVersion,
+      };
+      
+      // Create hash of device characteristics
+      const fingerprintString = JSON.stringify(fingerprintData);
+      const fingerprint = btoa(fingerprintString).replace(/[^a-zA-Z0-9]/g, '').substr(0, 32);
+      return fingerprint;
     } catch (error) {
-      console.error('Error loading stored user:', error);
+      console.error('Failed to generate device fingerprint:', error);
+      return `fallback_${Date.now()}`;
     }
-    return null;
   }
 
-  async initialize(): Promise<DeviceUser> {
+  // Get device information
+  static async getDeviceInfo(): Promise<DeviceInfo> {
     try {
-      // First, try to load existing user session
-      let user = await this.loadStoredUser();
-      
-      if (!user) {
-        // Create new device-based user session
-        const deviceId = await this.getDeviceIdentifier();
-        user = await this.createDeviceUser(deviceId);
-      }
-
-      this.currentUser = user;
-      this.notifyListeners();
-      
-      return user;
+      return {
+        platform: Platform.OS,
+        deviceName: Device.deviceName || `${Device.brand} ${Device.modelName}` || 'Unknown Device',
+        model: Device.modelName,
+        brand: Device.brand,
+        osVersion: Device.osVersion,
+        appVersion: Application.nativeApplicationVersion,
+      };
     } catch (error) {
-      console.error('Error initializing device auth:', error);
-      throw new Error('Failed to initialize device authentication');
+      console.error('Failed to get device info:', error);
+      return {
+        platform: Platform.OS,
+        deviceName: 'Unknown Device',
+        model: null,
+        brand: null,
+        osVersion: null,
+        appVersion: null,
+      };
     }
   }
 
-  getCurrentUser(): DeviceUser | null {
-    return this.currentUser;
-  }
-
-  async updateLastActive(): Promise<void> {
-    if (this.currentUser) {
-      this.currentUser.lastActiveAt = new Date().toISOString();
-      await AsyncStorage.setItem('device_user', JSON.stringify(this.currentUser));
-    }
-  }
-
-  async clearSession(): Promise<void> {
-    this.currentUser = null;
-    await AsyncStorage.removeItem('device_user');
-    await AsyncStorage.removeItem('device_session_active');
-    this.notifyListeners();
-  }
-
-  async resetDeviceIdentity(): Promise<DeviceUser> {
-    await this.clearSession();
-    return await this.initialize();
-  }
-
-  // Subscription management for state changes
-  subscribe(listener: (user: DeviceUser | null) => void): () => void {
-    this.listeners.push(listener);
-    
-    // Return unsubscribe function
-    return () => {
-      const index = this.listeners.indexOf(listener);
-      if (index > -1) {
-        this.listeners.splice(index, 1);
-      }
-    };
-  }
-
-  private notifyListeners(): void {
-    this.listeners.forEach(listener => listener(this.currentUser));
-  }
-
-  // Utility methods for compatibility with existing useAuth pattern
-  isAuthenticated(): boolean {
-    return this.currentUser !== null && this.currentUser.isActive;
-  }
-
-  getUserId(): string | null {
-    return this.currentUser?.id || null;
-  }
-
-  getDeviceInfo(): { platform: string; deviceName: string } | null {
-    if (!this.currentUser) return null;
-    
+  // Create default profile for new devices
+  static createDefaultProfile(): DeviceProfile {
     return {
-      platform: this.currentUser.platform,
-      deviceName: this.currentUser.deviceName,
+      fitnessLevel: 'beginner',
+      preferredUnits: 'metric',
+      isPublic: false,
+      allowAnonymousSharing: false,
+      cloudBackupEnabled: false,
     };
   }
-}
 
-export default DeviceAuthService;
+  // Create default settings for new devices
+  static createDefaultSettings(): DeviceSettings {
+    return {
+      notifications: {
+        workoutReminders: true,
+        progressUpdates: true,
+        socialActivity: false,
+      },
+      appearance: {
+        darkMode: true,
+        accentColor: '#9E7FFF',
+      },
+      workout: {
+        autoStartTimer: true,
+        hapticFeedback: true,
+        soundEffects: false,
+      },
+      privacy: {
+        shareProgress: false,
+        showInLeaderboards: false,
+      },
+    };
+  }
+
+  // Check if this is the first app launch
+  static async isFirstLaunch(): Promise<boolean> {
+    try {
+      const completed = await AsyncStorage.getItem(this.FIRST_LAUNCH_KEY);
+      return completed !== 'true';
+    } catch (error) {
+      console.error('Failed to check first launch:', error);
+      return true;
+    }
+  }
+
+  // Mark first launch as completed
+  static async markFirstLaunchCompleted(): Promise<void> {
+    try {
+      await AsyncStorage.setItem(this.FIRST_LAUNCH_KEY, 'true');
+    } catch (error) {
+      console.error('Failed to mark first launch completed:', error);
+    }
+  }
+
+  // Save device profile
+  static async saveDeviceProfile(deviceId: string, profile: DeviceProfile): Promise<void> {
+    try {
+      const profileData = {
+        ...profile,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      await AsyncStorage.setItem(
+        `${this.DEVICE_PROFILE_KEY}_${deviceId}`,
+        JSON.stringify(profileData)
+      );
+    } catch (error) {
+      console.error('Failed to save device profile:', error);
+      throw new Error('Profile save failed');
+    }
+  }
+
+  // Load device profile
+  static async loadDeviceProfile(deviceId: string): Promise<DeviceProfile | null> {
+    try {
+      const stored = await AsyncStorage.getItem(`${this.DEVICE_PROFILE_KEY}_${deviceId}`);
+      if (stored) {
+        const profileData = JSON.parse(stored);
+        // Remove updatedAt from profile data
+        const { updatedAt, ...profile } = profileData;
+        return profile;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to load device profile:', error);
+      return null;
+    }
+  }
+
+  // Save device settings
+  static async saveDeviceSettings(deviceId: string, settings: DeviceSettings): Promise<void> {
+    try {
+      const settingsData = {
+        ...settings,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      await AsyncStorage.setItem(
+        `${this.DEVICE_SETTINGS_KEY}_${deviceId}`,
+        JSON.stringify(settingsData)
+      );
+    } catch (error) {
+      console.error('Failed to save device settings:', error);
+      throw new Error('Settings save failed');
+    }
+  }
+
+  // Load device settings
+  static async loadDeviceSettings(deviceId: string): Promise<DeviceSettings | null> {
+    try {
+      const stored = await AsyncStorage.getItem(`${this.DEVICE_SETTINGS_KEY}_${deviceId}`);
+      if (stored) {
+        const settingsData = JSON.parse(stored);
+        // Remove updatedAt from settings data
+        const { updatedAt, ...settings } = settingsData;
+        return settings;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to load device settings:', error);
+      return null;
+    }
+  }
+
+  // Create fallback user for error scenarios
+  static createFallbackUser(): DeviceUser {
+    const now = new Date();
+    return {
+      deviceId: `fallback_${Date.now()}`,
+      deviceFingerprint: `fallback_${Date.now()}`,
+      platform: Platform.OS,
+      deviceName: 'Unknown Device',
+      profile: this.createDefaultProfile(),
+      settings: this.createDefaultSettings(),
+      isFirstLaunch: true,
+      lastActiveAt: now,
+      createdAt: now,
+    };
+  }
+
+  // Update last active timestamp
+  static async updateLastActive(deviceId: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(`last_active_${deviceId}`, new Date().toISOString());
+    } catch (error) {
+      console.error('Failed to update last active:', error);
+    }
+  }
+
+  // Get last active timestamp
+  static async getLastActive(deviceId: string): Promise<Date> {
+    try {
+      const stored = await AsyncStorage.getItem(`last_active_${deviceId}`);
+      return stored ? new Date(stored) : new Date();
+    } catch (error) {
+      console.error('Failed to get last active:', error);
+      return new Date();
+    }
+  }
+}
