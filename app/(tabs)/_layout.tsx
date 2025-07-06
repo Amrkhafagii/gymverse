@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Home, Dumbbell, TrendingUp, Users, User } from 'lucide-react-native';
+import { Home, Dumbbell, TrendingUp, Users, MoreHorizontal } from 'lucide-react-native';
 
 export default function TabLayout() {
   const [isLayoutReady, setIsLayoutReady] = useState(false);
@@ -83,14 +83,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="more"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+          title: 'More',
+          tabBarIcon: ({ color, size }) => <MoreHorizontal size={size} color={color} />,
         }}
       />
       
       {/* Hide all other tabs by setting href to null */}
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="scanner"
         options={{
@@ -147,6 +153,42 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="workout-session"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboards"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="workout-detail"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="exercise-progress"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="workout-templates"
         options={{
           href: null,
         }}
