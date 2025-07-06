@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { DeviceAuthProvider } from '@/contexts/DeviceAuthContext';
+import { DataProvider } from '@/contexts/DataContext';
 import * as SplashScreen from 'expo-splash-screen';
 import { View } from 'react-native';
 
@@ -33,14 +34,16 @@ export default function RootLayout() {
 
   return (
     <DeviceAuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="workout-session" />
-        <Stack.Screen name="exercise-detail" />
-        <Stack.Screen name="exercise-progress" />
-        <Stack.Screen name="create-exercise" />
-        <Stack.Screen name="template-preview" />
-      </Stack>
+      <DataProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="workout-session" />
+          <Stack.Screen name="exercise-detail" />
+          <Stack.Screen name="exercise-progress" />
+          <Stack.Screen name="create-exercise" />
+          <Stack.Screen name="template-preview" />
+        </Stack>
+      </DataProvider>
     </DeviceAuthProvider>
   );
 }
