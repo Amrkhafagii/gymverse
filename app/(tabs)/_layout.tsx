@@ -59,7 +59,7 @@ export default function TabLayout() {
         tabBarAllowFontScaling: false,
       }}
     >
-      {/* Main Tab Screens - Always Visible */}
+      {/* Main Tab Screens - Only Core Navigation */}
       <Tabs.Screen
         name="index"
         options={{
@@ -98,6 +98,80 @@ export default function TabLayout() {
           title: 'More',
           tabBarIcon: ({ color, size }) => <MoreHorizontal size={size} color={color} />,
           tabBarAccessibilityLabel: 'More Tab',
+        }}
+      />
+
+      {/* Hidden Screens - Accessible via navigation but not shown in tab bar */}
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="exercises"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="achievements"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboards"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="create-workout"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="workout-detail"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="workout-session"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="exercise-library"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="exercise-progress"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="workout-templates"
+        options={{
+          href: null, // Hide from tab bar
         }}
       />
     </Tabs>
