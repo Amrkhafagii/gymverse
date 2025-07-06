@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import {
   Calendar,
   Trophy,
@@ -19,6 +20,7 @@ import {
   Flame,
   Zap,
   ChevronRight,
+  Calculator,
 } from 'lucide-react-native';
 import { useData } from '@/contexts/DataContext';
 
@@ -26,6 +28,7 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { workouts, achievements } = useData();
+  const router = useRouter();
 
   const todayWorkouts = workouts.filter(
     workout => new Date(workout.date).toDateString() === new Date().toDateString()
@@ -39,10 +42,42 @@ export default function HomeScreen() {
   };
 
   const quickActions = [
-    { icon: Zap, title: 'Quick Workout', subtitle: '15 min HIIT', color: '#FF6B35' },
-    { icon: Target, title: 'Today\'s Goal', subtitle: '3 exercises left', color: '#9E7FFF' },
-    { icon: Calendar, title: 'Schedule', subtitle: 'Plan your week', color: '#00D4AA' },
-    { icon: TrendingUp, title: 'Progress', subtitle: 'View stats', color: '#FFB800' },
+    { 
+      icon: Zap, 
+      title: 'Quick Workout', 
+      subtitle: '15 min HIIT', 
+      color: '#FF6B35',
+      onPress: () => {
+        // Navigate to quick workout
+      }
+    },
+    { 
+      icon: Calculator, 
+      title: 'TDEE Calculator', 
+      subtitle: 'Calculate daily calories', 
+      color: '#00D4AA',
+      onPress: () => {
+        router.push('/tdee-calculator');
+      }
+    },
+    { 
+      icon: Target, 
+      title: 'Today\'s Goal', 
+      subtitle: '3 exercises left', 
+      color: '#9E7FFF',
+      onPress: () => {
+        // Navigate to goals
+      }
+    },
+    { 
+      icon: Calendar, 
+      title: 'Schedule', 
+      subtitle: 'Plan your week', 
+      color: '#FFB800',
+      onPress: () => {
+        // Navigate to schedule
+      }
+    },
   ];
 
   return (
@@ -88,7 +123,11 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.quickActionsGrid}>
               {quickActions.map((action, index) => (
-                <TouchableOpacity key={index} style={styles.quickActionCard}>
+                <TouchableOpacity 
+                  key={index} 
+                  style={styles.quickActionCard}
+                  onPress={action.onPress}
+                >
                   <LinearGradient
                     colors={[`${action.color}20`, `${action.color}10`]}
                     style={styles.quickActionGradient}
