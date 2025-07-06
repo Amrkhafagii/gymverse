@@ -2,233 +2,283 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   Image,
-  TextInput,
   FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  Trophy,
+  Users,
+  Target,
   Heart,
   MessageCircle,
-  Share,
-  Search,
-  Users,
-  Trophy,
-  Target,
-  Clock,
-  MoreHorizontal,
+  Share2,
+  Award,
+  TrendingUp,
+  Calendar,
+  Flame,
+  ChevronRight,
+  Plus,
 } from 'lucide-react-native';
 
-interface Post {
-  id: string;
-  user: {
-    name: string;
-    username: string;
-    avatar: string;
-  };
-  content: string;
-  workout?: {
-    name: string;
-    duration: number;
-    exercises: number;
-  };
-  image?: string;
-  likes: number;
-  comments: number;
-  timestamp: string;
-  isLiked: boolean;
-}
-
 export default function SocialScreen() {
-  const [activeTab, setActiveTab] = useState<'feed' | 'friends'>('feed');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [posts, setPosts] = useState<Post[]>([
+  const [activeTab, setActiveTab] = useState<'feed' | 'challenges' | 'leaderboard'>('feed');
+
+  // Mock data
+  const feedPosts = [
     {
-      id: '1',
+      id: 1,
       user: {
         name: 'Sarah Johnson',
-        username: '@sarahfit',
         avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
+        username: '@sarahfits',
       },
-      content: 'Just crushed my morning workout! Feeling stronger every day 💪',
-      workout: {
-        name: 'Upper Body Strength',
-        duration: 45,
-        exercises: 8,
-      },
-      image: 'https://images.pexels.com/photos/416778/pexels-photo-416778.jpeg?auto=compress&cs=tinysrgb&w=800',
+      type: 'workout_complete',
+      content: 'Just crushed my leg day! 💪 New PR on squats - 185lbs!',
+      workout: 'Leg Day Destroyer',
+      stats: { duration: 45, calories: 320 },
       likes: 24,
-      comments: 5,
-      timestamp: '2h ago',
-      isLiked: false,
+      comments: 8,
+      timeAgo: '2h ago',
     },
     {
-      id: '2',
+      id: 2,
       user: {
         name: 'Mike Chen',
-        username: '@mikelifts',
         avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+        username: '@mikelifts',
       },
-      content: 'New PR on deadlifts today! 225lbs x 5 reps. The grind never stops! 🔥',
+      type: 'achievement',
+      content: 'Unlocked the "Consistency King" achievement! 30 days straight! 🔥',
+      achievement: 'Consistency King',
       likes: 42,
-      comments: 12,
-      timestamp: '4h ago',
-      isLiked: true,
+      comments: 15,
+      timeAgo: '4h ago',
     },
     {
-      id: '3',
+      id: 3,
       user: {
         name: 'Emma Wilson',
-        username: '@emmafitness',
         avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
+        username: '@emmawellness',
       },
-      content: 'Morning yoga session complete! Starting the day with mindfulness and movement 🧘‍♀️',
-      workout: {
-        name: 'Yoga Flow',
-        duration: 30,
-        exercises: 12,
-      },
-      image: 'https://images.pexels.com/photos/317157/pexels-photo-317157.jpeg?auto=compress&cs=tinysrgb&w=800',
-      likes: 18,
-      comments: 3,
-      timestamp: '6h ago',
-      isLiked: false,
-    },
-  ]);
-
-  const friends = [
-    {
-      id: '1',
-      name: 'Alex Rodriguez',
-      username: '@alexfitness',
-      avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=400',
-      status: 'Just finished cardio',
-      isOnline: true,
-    },
-    {
-      id: '2',
-      name: 'Jessica Lee',
-      username: '@jessicastrong',
-      avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
-      status: 'Rest day recovery',
-      isOnline: false,
-    },
-    {
-      id: '3',
-      name: 'David Kim',
-      username: '@davidlifts',
-      avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
-      status: 'Leg day complete!',
-      isOnline: true,
+      type: 'progress_photo',
+      content: '3 months transformation! Feeling stronger than ever 💪',
+      likes: 67,
+      comments: 23,
+      timeAgo: '6h ago',
     },
   ];
 
-  const handleLike = (postId: string) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { 
-            ...post, 
-            isLiked: !post.isLiked,
-            likes: post.isLiked ? post.likes - 1 : post.likes + 1
-          }
-        : post
-    ));
+  const challenges = [
+    {
+      id: 1,
+      title: '30-Day Push-Up Challenge',
+      description: 'Build upper body strength with daily push-ups',
+      participants: 1247,
+      daysLeft: 12,
+      progress: 60,
+      reward: '500 XP + Badge',
+      color: '#9E7FFF',
+    },
+    {
+      id: 2,
+      title: 'January Miles',
+      description: 'Run or walk 100 miles this month',
+      participants: 892,
+      daysLeft: 8,
+      progress: 75,
+      reward: '750 XP + Trophy',
+      color: '#00D4AA',
+    },
+    {
+      id: 3,
+      title: 'Strength Builder',
+      description: 'Complete 20 strength workouts',
+      participants: 634,
+      daysLeft: 15,
+      progress: 40,
+      reward: '1000 XP + Title',
+      color: '#FF6B35',
+    },
+  ];
+
+  const leaderboard = [
+    {
+      id: 1,
+      rank: 1,
+      user: {
+        name: 'Alex Rodriguez',
+        avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+        username: '@alexfitness',
+      },
+      points: 2847,
+      workouts: 28,
+      streak: 15,
+    },
+    {
+      id: 2,
+      rank: 2,
+      user: {
+        name: 'Jessica Park',
+        avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
+        username: '@jessicastrong',
+      },
+      points: 2634,
+      workouts: 25,
+      streak: 12,
+    },
+    {
+      id: 3,
+      rank: 3,
+      user: {
+        name: 'David Kim',
+        avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+        username: '@davidlifts',
+      },
+      points: 2521,
+      workouts: 24,
+      streak: 18,
+    },
+  ];
+
+  const renderTabButton = (tab: typeof activeTab, title: string, icon: React.ComponentType<any>) => {
+    const IconComponent = icon;
+    return (
+      <TouchableOpacity
+        style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
+        onPress={() => setActiveTab(tab)}
+      >
+        <IconComponent size={20} color={activeTab === tab ? '#FFFFFF' : '#A3A3A3'} />
+        <Text style={[
+          styles.tabButtonText,
+          activeTab === tab && styles.tabButtonTextActive
+        ]}>
+          {title}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
-  const renderPost = ({ item }: { item: Post }) => (
+  const renderFeedPost = ({ item }: { item: typeof feedPosts[0] }) => (
     <View style={styles.postCard}>
-      <LinearGradient
-        colors={['#1a1a1a', '#2a2a2a']}
-        style={styles.postGradient}
-      >
+      <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.postGradient}>
         {/* Post Header */}
         <View style={styles.postHeader}>
           <Image source={{ uri: item.user.avatar }} style={styles.userAvatar} />
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{item.user.name}</Text>
-            <Text style={styles.userHandle}>{item.user.username} • {item.timestamp}</Text>
+            <Text style={styles.userHandle}>{item.user.username} • {item.timeAgo}</Text>
           </View>
-          <TouchableOpacity style={styles.moreButton}>
-            <MoreHorizontal size={20} color="#999" />
-          </TouchableOpacity>
         </View>
 
         {/* Post Content */}
         <Text style={styles.postContent}>{item.content}</Text>
 
-        {/* Workout Info */}
-        {item.workout && (
-          <View style={styles.workoutInfo}>
-            <View style={styles.workoutHeader}>
+        {/* Post Stats */}
+        {item.type === 'workout_complete' && item.stats && (
+          <View style={styles.workoutStats}>
+            <View style={styles.workoutStat}>
               <Target size={16} color="#9E7FFF" />
-              <Text style={styles.workoutName}>{item.workout.name}</Text>
+              <Text style={styles.workoutStatText}>{item.workout}</Text>
             </View>
-            <View style={styles.workoutStats}>
-              <View style={styles.workoutStat}>
-                <Clock size={14} color="#999" />
-                <Text style={styles.workoutStatText}>{item.workout.duration} min</Text>
-              </View>
-              <View style={styles.workoutStat}>
-                <Trophy size={14} color="#999" />
-                <Text style={styles.workoutStatText}>{item.workout.exercises} exercises</Text>
-              </View>
+            <View style={styles.workoutStat}>
+              <Calendar size={16} color="#00D4AA" />
+              <Text style={styles.workoutStatText}>{item.stats.duration} min</Text>
+            </View>
+            <View style={styles.workoutStat}>
+              <Flame size={16} color="#FF6B35" />
+              <Text style={styles.workoutStatText}>{item.stats.calories} cal</Text>
             </View>
           </View>
         )}
 
-        {/* Post Image */}
-        {item.image && (
-          <Image source={{ uri: item.image }} style={styles.postImage} />
-        )}
-
         {/* Post Actions */}
         <View style={styles.postActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleLike(item.id)}
-          >
-            <Heart 
-              size={20} 
-              color={item.isLiked ? '#FF6B35' : '#999'} 
-              fill={item.isLiked ? '#FF6B35' : 'transparent'}
-            />
-            <Text style={[styles.actionText, item.isLiked && styles.likedText]}>
-              {item.likes}
-            </Text>
+          <TouchableOpacity style={styles.postAction}>
+            <Heart size={20} color="#FF6B35" />
+            <Text style={styles.postActionText}>{item.likes}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <MessageCircle size={20} color="#999" />
-            <Text style={styles.actionText}>{item.comments}</Text>
+          <TouchableOpacity style={styles.postAction}>
+            <MessageCircle size={20} color="#9E7FFF" />
+            <Text style={styles.postActionText}>{item.comments}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Share size={20} color="#999" />
+          <TouchableOpacity style={styles.postAction}>
+            <Share2 size={20} color="#00D4AA" />
           </TouchableOpacity>
         </View>
       </LinearGradient>
     </View>
   );
 
-  const renderFriend = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.friendCard}>
-      <View style={styles.friendInfo}>
-        <View style={styles.friendAvatarContainer}>
-          <Image source={{ uri: item.avatar }} style={styles.friendAvatar} />
-          {item.isOnline && <View style={styles.onlineIndicator} />}
+  const renderChallengeCard = ({ item }: { item: typeof challenges[0] }) => (
+    <TouchableOpacity style={styles.challengeCard}>
+      <LinearGradient colors={[`${item.color}20`, `${item.color}10`]} style={styles.challengeGradient}>
+        <View style={styles.challengeHeader}>
+          <View style={styles.challengeInfo}>
+            <Text style={styles.challengeTitle}>{item.title}</Text>
+            <Text style={styles.challengeDescription}>{item.description}</Text>
+          </View>
+          <View style={[styles.challengeIcon, { backgroundColor: `${item.color}30` }]}>
+            <Trophy size={24} color={item.color} />
+          </View>
         </View>
-        <View style={styles.friendDetails}>
-          <Text style={styles.friendName}>{item.name}</Text>
-          <Text style={styles.friendUsername}>{item.username}</Text>
-          <Text style={styles.friendStatus}>{item.status}</Text>
+
+        <View style={styles.challengeStats}>
+          <View style={styles.challengeStat}>
+            <Users size={16} color="#999" />
+            <Text style={styles.challengeStatText}>{item.participants.toLocaleString()} joined</Text>
+          </View>
+          <View style={styles.challengeStat}>
+            <Calendar size={16} color="#999" />
+            <Text style={styles.challengeStatText}>{item.daysLeft} days left</Text>
+          </View>
         </View>
-      </View>
-      <TouchableOpacity style={styles.messageButton}>
-        <MessageCircle size={20} color="#9E7FFF" />
-      </TouchableOpacity>
+
+        <View style={styles.challengeProgress}>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${item.progress}%`, backgroundColor: item.color }]} />
+          </View>
+          <Text style={styles.progressText}>{item.progress}% complete</Text>
+        </View>
+
+        <View style={styles.challengeReward}>
+          <Award size={16} color={item.color} />
+          <Text style={styles.rewardText}>{item.reward}</Text>
+        </View>
+      </LinearGradient>
     </TouchableOpacity>
+  );
+
+  const renderLeaderboardItem = ({ item }: { item: typeof leaderboard[0] }) => (
+    <View style={styles.leaderboardItem}>
+      <View style={styles.rankContainer}>
+        <Text style={[
+          styles.rankNumber,
+          item.rank === 1 && styles.firstPlace,
+          item.rank === 2 && styles.secondPlace,
+          item.rank === 3 && styles.thirdPlace,
+        ]}>
+          {item.rank}
+        </Text>
+      </View>
+      
+      <Image source={{ uri: item.user.avatar }} style={styles.leaderboardAvatar} />
+      
+      <View style={styles.leaderboardInfo}>
+        <Text style={styles.leaderboardName}>{item.user.name}</Text>
+        <Text style={styles.leaderboardHandle}>{item.user.username}</Text>
+      </View>
+      
+      <View style={styles.leaderboardStats}>
+        <Text style={styles.pointsText}>{item.points.toLocaleString()}</Text>
+        <Text style={styles.pointsLabel}>points</Text>
+      </View>
+    </View>
   );
 
   return (
@@ -236,65 +286,59 @@ export default function SocialScreen() {
       <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Social</Text>
-          <TouchableOpacity style={styles.searchButton}>
-            <Search size={24} color="#fff" />
+          <Text style={styles.title}>Social</Text>
+          <TouchableOpacity style={styles.addButton}>
+            <Plus size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Search size={20} color="#999" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search friends, workouts..."
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+        {/* Tab Navigation */}
+        <View style={styles.tabNavigation}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll}>
+            {renderTabButton('feed', 'Feed', Users)}
+            {renderTabButton('challenges', 'Challenges', Trophy)}
+            {renderTabButton('leaderboard', 'Leaderboard', TrendingUp)}
+          </ScrollView>
+        </View>
+
+        {/* Tab Content */}
+        <View style={styles.content}>
+          {activeTab === 'feed' && (
+            <FlatList
+              data={feedPosts}
+              renderItem={renderFeedPost}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.feedContent}
             />
-          </View>
-        </View>
+          )}
 
-        {/* Tabs */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'feed' && styles.activeTab]}
-            onPress={() => setActiveTab('feed')}
-          >
-            <Text style={[styles.tabText, activeTab === 'feed' && styles.activeTabText]}>
-              Feed
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'friends' && styles.activeTab]}
-            onPress={() => setActiveTab('friends')}
-          >
-            <Users size={16} color={activeTab === 'friends' ? '#9E7FFF' : '#999'} />
-            <Text style={[styles.tabText, activeTab === 'friends' && styles.activeTabText]}>
-              Friends
-            </Text>
-          </TouchableOpacity>
-        </View>
+          {activeTab === 'challenges' && (
+            <FlatList
+              data={challenges}
+              renderItem={renderChallengeCard}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.challengesContent}
+            />
+          )}
 
-        {/* Content */}
-        {activeTab === 'feed' ? (
-          <FlatList
-            data={posts}
-            renderItem={renderPost}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.feedContent}
-          />
-        ) : (
-          <FlatList
-            data={friends}
-            renderItem={renderFriend}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.friendsContent}
-          />
-        )}
+          {activeTab === 'leaderboard' && (
+            <View style={styles.leaderboardContainer}>
+              <View style={styles.leaderboardHeader}>
+                <Text style={styles.leaderboardTitle}>This Month's Top Performers</Text>
+                <Text style={styles.leaderboardSubtitle}>Based on workout consistency and achievements</Text>
+              </View>
+              <FlatList
+                data={leaderboard}
+                renderItem={renderLeaderboardItem}
+                keyExtractor={(item) => item.id.toString()}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.leaderboardContent}
+              />
+            </View>
+          )}
+        </View>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -315,74 +359,56 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 20,
   },
-  headerTitle: {
+  title: {
     fontSize: 28,
     color: '#fff',
     fontFamily: 'Inter-Bold',
   },
-  searchButton: {
-    padding: 8,
+  addButton: {
+    backgroundColor: '#9E7FFF',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  searchContainer: {
+  tabNavigation: {
     paddingHorizontal: 20,
     marginBottom: 20,
   },
-  searchBar: {
+  tabScroll: {
+    flexGrow: 0,
+  },
+  tabButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-Regular',
-    marginLeft: 12,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
     marginRight: 12,
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#333',
+    borderRadius: 12,
+    backgroundColor: '#262626',
   },
-  activeTab: {
-    backgroundColor: '#9E7FFF20',
-    borderColor: '#9E7FFF',
+  tabButtonActive: {
+    backgroundColor: '#9E7FFF',
   },
-  tabText: {
+  tabButtonText: {
     fontSize: 14,
-    color: '#999',
+    color: '#A3A3A3',
     fontFamily: 'Inter-Medium',
-    marginLeft: 6,
+    marginLeft: 8,
   },
-  activeTabText: {
-    color: '#9E7FFF',
+  tabButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  content: {
+    flex: 1,
   },
   feedContent: {
-    paddingBottom: 100,
-  },
-  friendsContent: {
     paddingHorizontal: 20,
     paddingBottom: 100,
   },
   postCard: {
-    marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 16,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -409,13 +435,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
   },
   userHandle: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#999',
     fontFamily: 'Inter-Regular',
-    marginTop: 2,
-  },
-  moreButton: {
-    padding: 4,
   },
   postContent: {
     fontSize: 16,
@@ -424,45 +446,20 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 16,
   },
-  workoutInfo: {
-    backgroundColor: '#9E7FFF10',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#9E7FFF20',
-  },
-  workoutHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  workoutName: {
-    fontSize: 14,
-    color: '#9E7FFF',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
-  },
   workoutStats: {
     flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 16,
   },
   workoutStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 20,
   },
   workoutStatText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#999',
-    fontFamily: 'Inter-Regular',
-    marginLeft: 4,
-  },
-  postImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 16,
+    fontFamily: 'Inter-Medium',
+    marginLeft: 6,
   },
   postActions: {
     flexDirection: 'row',
@@ -471,24 +468,125 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#333',
   },
-  actionButton: {
+  postAction: {
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 24,
   },
-  actionText: {
+  postActionText: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 6,
+  },
+  challengesContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+  challengeCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  challengeGradient: {
+    padding: 20,
+  },
+  challengeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  challengeInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  challengeTitle: {
+    fontSize: 18,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 4,
+  },
+  challengeDescription: {
     fontSize: 14,
     color: '#999',
     fontFamily: 'Inter-Regular',
-    marginLeft: 6,
   },
-  likedText: {
-    color: '#FF6B35',
+  challengeIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  friendCard: {
+  challengeStats: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  challengeStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginRight: 20,
+  },
+  challengeStatText: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 6,
+  },
+  challengeProgress: {
+    marginBottom: 16,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#333',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
+  },
+  challengeReward: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rewardText: {
+    fontSize: 14,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
+  },
+  leaderboardContainer: {
+    flex: 1,
+  },
+  leaderboardHeader: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  leaderboardTitle: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 4,
+  },
+  leaderboardSubtitle: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+  },
+  leaderboardContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+  leaderboardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#1a1a1a',
     borderRadius: 16,
     padding: 16,
@@ -496,52 +594,59 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
-  friendInfo: {
-    flexDirection: 'row',
+  rankContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#333',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  rankNumber: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+  },
+  firstPlace: {
+    color: '#FFD700',
+  },
+  secondPlace: {
+    color: '#C0C0C0',
+  },
+  thirdPlace: {
+    color: '#CD7F32',
+  },
+  leaderboardAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 16,
+  },
+  leaderboardInfo: {
     flex: 1,
   },
-  friendAvatarContainer: {
-    position: 'relative',
-    marginRight: 12,
-  },
-  friendAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#00D4AA',
-    borderWidth: 2,
-    borderColor: '#1a1a1a',
-  },
-  friendDetails: {
-    flex: 1,
-  },
-  friendName: {
+  leaderboardName: {
     fontSize: 16,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 2,
   },
-  friendUsername: {
-    fontSize: 12,
-    color: '#9E7FFF',
-    fontFamily: 'Inter-Regular',
-    marginBottom: 4,
-  },
-  friendStatus: {
-    fontSize: 12,
+  leaderboardHandle: {
+    fontSize: 14,
     color: '#999',
     fontFamily: 'Inter-Regular',
   },
-  messageButton: {
-    padding: 8,
+  leaderboardStats: {
+    alignItems: 'flex-end',
+  },
+  pointsText: {
+    fontSize: 18,
+    color: '#9E7FFF',
+    fontFamily: 'Inter-Bold',
+  },
+  pointsLabel: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
   },
 });
