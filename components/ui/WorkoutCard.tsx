@@ -1,111 +1,228 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { ChevronRight, Clock, Target, Repeat } from 'lucide-react-native';
-import { DesignTokens } from '@/design-system/tokens';
+/**
+ * WorkoutCard component with intelligent media caching
+ * Integrates with MediaCacheManager for offline-first image loading
+ */
 
-interface WorkoutCardProps {
-  workout: {
-    id: number;
-    name: string;
-    date: string;
-    duration: string;
-    exercises: number;
-    image: string;
-    difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
-    muscleGroups?: string[];
-    lastPerformed?: string;
-  };
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ViewStyle,
+  Dimensions,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { 
+  Clock, 
+  Target, 
+  TrendingUp, 
+  Play, 
+  MoreHorizontal,
+  Wifi,
+  WifiOff,
+  Download
+} from 'lucide-react-native';
+import { DesignTokens } from '@/design-system/tokens';
+import { useMediaCache } from '@/hooks/useMediaCache';
+
+const { width } = Dimensions.get('window');
+
+export interface WorkoutData {
+  id: number | string;
+  name: string;
+  date: string;
+  duration: string;
+  exercises: number;
+  image: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  muscleGroups: string[];
+  lastPerformed?: string;
+  completionRate?: number;
+  personalRecords?: number;
+}
+
+export interface WorkoutCardProps {
+  workout: WorkoutData;
   onPress: () => void;
   onQuickAction?: () => void;
-  showInsights?: boolean;
   variant?: 'default' | 'compact' | 'featured';
+  style?: ViewStyle;
+  showInsights?: boolean;
+  syncStatus?: 'synced' | 'pending' | 'failed' | 'offline';
 }
 
 export const WorkoutCard: React.FC<WorkoutCardProps> = ({
   workout,
   onPress,
   onQuickAction,
-  showInsights = false,
   variant = 'default',
+  style,
+  showInsights = false,
+  syncStatus = 'synced',
 }) => {
-  const getDifficultyColor = (difficulty?: string) => {
-    switch (difficulty) {
-      case 'Beginner': return DesignTokens.colors.success[500];
-      case 'Intermediate': return DesignTokens.colors.warning[500];
-      case 'Advanced': return DesignTokens.colors.error[500];
-      default: return DesignTokens.colors.text.secondary;
+  const { 
+    getMediaUrl, 
+    isLoading: imageLoading, 
+    error: imageError,
+    downloadProgress 
+  } = useMediaCache();
+  
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageLoadError, setImageLoadError] = useState(false);
+
+  useEffect(() => {
+    loadImage();
+  }, [workout.image]);
+
+  const loadImage = async () => {
+    try {
+      setImageLoadError(false);
+      const cachedUri = await getMediaUrl(workout.image, 2); // Medium priority
+      setImageUri(cachedUri);
+    } catch (error) {
+      console.error('Failed to load workout image:', error);
+      setImageLoadError(true);
     }
   };
 
-  if (variant === 'compact') {
-    return (
-      <TouchableOpacity
-        style={styles.compactCard}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
-        <Image source={{ uri: workout.image }} style={styles.compactImage} />
-        <View style={styles.compactContent}>
-          <Text style={styles.compactName} numberOfLines={1}>
-            {workout.name}
-          </Text>
-          <Text style={styles.compactMeta}>
-            {workout.duration} • {workout.exercises} exercises
-          </Text>
-        </View>
-        <ChevronRight size={16} color={DesignTokens.colors.text.tertiary} />
-      </TouchableOpacity>
-    );
-  }
+  const getDifficultyColor = () => {
+    switch (workout.difficulty) {
+      case 'Beginner':
+        return DesignTokens.colors.success[500];
+      case 'Intermediate':
+        return DesignTokens.colors.warning[500];
+      case 'Advanced':
+        return DesignTokens.colors.error[500];
+      default:
+        return DesignTokens.colors.primary[500];
+    }
+  };
+
+  const getSyncStatusIcon = () => {
+    switch (syncStatus) {
+      case 'offline':
+        return <WifiOff size={16} color={DesignTokens.colors.text.secondary} />;
+      case 'failed':
+        return <WifiOff size={16} color={DesignTokens.colors.error[500]} />;
+      case 'pending':
+        return <Download size={16} color={DesignTokens.colors.warning[500]} />;
+      default:
+        return <Wifi size={16} color={DesignTokens.colors.success[500]} />;
+    }
+  };
+
+  const isCompact = variant === 'compact';
+  const isFeatured = variant === 'featured';
+
+  const cardStyles = [
+    styles.card,
+    isCompact && styles.compactCard,
+    isFeatured && styles.featuredCard,
+    style,
+  ];
 
   return (
     <TouchableOpacity
-      style={[
-        styles.card,
-        variant === 'featured' && styles.featuredCard
-      ]}
+      style={cardStyles}
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: workout.image }} style={styles.image} />
-        {workout.difficulty && (
-          <View style={[
-            styles.difficultyBadge,
-            { backgroundColor: getDifficultyColor(workout.difficulty) }
-          ]}>
-            <Text style={styles.difficultyText}>{workout.difficulty}</Text>
+      {/* Image Section */}
+      <View style={[styles.imageContainer, isCompact && styles.compactImageContainer]}>
+        {imageLoading && downloadProgress && (
+          <View style={styles.downloadProgress}>
+            <View 
+              style={[
+                styles.progressBar, 
+                { width: `${downloadProgress.percentage}%` }
+              ]} 
+            />
           </View>
         )}
+        
+        {imageUri && !imageLoadError ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.image}
+            resizeMode="cover"
+            onError={() => setImageLoadError(true)}
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Target size={32} color={DesignTokens.colors.text.secondary} />
+          </View>
+        )}
+
+        {/* Image Overlay */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.7)']}
+          style={styles.imageOverlay}
+        />
+
+        {/* Difficulty Badge */}
+        <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor() }]}>
+          <Text style={styles.difficultyText}>{workout.difficulty}</Text>
+        </View>
+
+        {/* Sync Status */}
+        <View style={styles.syncStatus}>
+          {getSyncStatusIcon()}
+        </View>
+
+        {/* Quick Action Button */}
+        {onQuickAction && (
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={onQuickAction}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Play size={20} color={DesignTokens.colors.text.primary} />
+          </TouchableOpacity>
+        )}
       </View>
-      
-      <View style={styles.content}>
+
+      {/* Content Section */}
+      <View style={[styles.content, isCompact && styles.compactContent]}>
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.name} numberOfLines={2}>
-            {workout.name}
-          </Text>
-          {onQuickAction && (
-            <TouchableOpacity
-              style={styles.quickActionButton}
-              onPress={onQuickAction}
-            >
-              <Repeat size={16} color={DesignTokens.colors.primary[500]} />
-            </TouchableOpacity>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title} numberOfLines={isCompact ? 1 : 2}>
+              {workout.name}
+            </Text>
+            <Text style={styles.date}>{workout.date}</Text>
+          </View>
+          
+          <TouchableOpacity style={styles.moreButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <MoreHorizontal size={20} color={DesignTokens.colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Stats */}
+        <View style={styles.stats}>
+          <View style={styles.stat}>
+            <Clock size={16} color={DesignTokens.colors.text.secondary} />
+            <Text style={styles.statText}>{workout.duration}</Text>
+          </View>
+          
+          <View style={styles.stat}>
+            <Target size={16} color={DesignTokens.colors.text.secondary} />
+            <Text style={styles.statText}>{workout.exercises} exercises</Text>
+          </View>
+
+          {workout.personalRecords && workout.personalRecords > 0 && (
+            <View style={styles.stat}>
+              <TrendingUp size={16} color={DesignTokens.colors.success[500]} />
+              <Text style={[styles.statText, { color: DesignTokens.colors.success[500] }]}>
+                {workout.personalRecords} PR{workout.personalRecords > 1 ? 's' : ''}
+              </Text>
+            </View>
           )}
         </View>
-        
-        <View style={styles.metaContainer}>
-          <View style={styles.metaItem}>
-            <Clock size={14} color={DesignTokens.colors.text.secondary} />
-            <Text style={styles.metaText}>{workout.duration}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Target size={14} color={DesignTokens.colors.text.secondary} />
-            <Text style={styles.metaText}>{workout.exercises} exercises</Text>
-          </View>
-        </View>
-        
-        {workout.muscleGroups && (
+
+        {/* Muscle Groups */}
+        {!isCompact && (
           <View style={styles.muscleGroups}>
             {workout.muscleGroups.slice(0, 3).map((group, index) => (
               <View key={index} style={styles.muscleGroupTag}>
@@ -113,25 +230,36 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
               </View>
             ))}
             {workout.muscleGroups.length > 3 && (
-              <Text style={styles.moreText}>
+              <Text style={styles.moreGroups}>
                 +{workout.muscleGroups.length - 3} more
               </Text>
             )}
           </View>
         )}
-        
-        {showInsights && workout.lastPerformed && (
-          <View style={styles.insightContainer}>
-            <Text style={styles.insightText}>
-              Last performed {workout.lastPerformed}
-            </Text>
+
+        {/* Insights */}
+        {showInsights && !isCompact && (
+          <View style={styles.insights}>
+            {workout.lastPerformed && (
+              <Text style={styles.insightText}>
+                Last performed: {workout.lastPerformed}
+              </Text>
+            )}
+            {workout.completionRate && (
+              <Text style={styles.insightText}>
+                {workout.completionRate}% completion rate
+              </Text>
+            )}
           </View>
         )}
-        
-        <View style={styles.footer}>
-          <Text style={styles.dateText}>{workout.date}</Text>
-          <ChevronRight size={20} color={DesignTokens.colors.text.tertiary} />
-        </View>
+
+        {/* Offline Indicator */}
+        {syncStatus === 'offline' && (
+          <View style={styles.offlineIndicator}>
+            <WifiOff size={12} color={DesignTokens.colors.warning[500]} />
+            <Text style={styles.offlineText}>Offline</Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -140,137 +268,216 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: DesignTokens.colors.surface.secondary,
-    borderRadius: DesignTokens.borderRadius.lg,
-    marginBottom: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.xl,
+    marginBottom: DesignTokens.spacing[4],
     overflow: 'hidden',
-    ...DesignTokens.shadow.base,
-  },
-  featuredCard: {
-    borderWidth: 1,
-    borderColor: DesignTokens.colors.primary[500],
     ...DesignTokens.shadow.lg,
   },
   compactCard: {
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    borderRadius: DesignTokens.borderRadius.md,
-    padding: DesignTokens.spacing[3],
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[3],
   },
+  featuredCard: {
+    ...DesignTokens.shadow.xl,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.primary[500],
+  },
+
   imageContainer: {
+    height: 200,
     position: 'relative',
   },
+  compactImageContainer: {
+    width: 120,
+    height: 100,
+  },
+
   image: {
     width: '100%',
-    height: 160,
-    resizeMode: 'cover',
+    height: '100%',
   },
-  compactImage: {
-    width: 50,
-    height: 50,
-    borderRadius: DesignTokens.borderRadius.md,
-    marginRight: DesignTokens.spacing[3],
+
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: DesignTokens.colors.surface.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+  },
+
+  downloadProgress: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    zIndex: 2,
+  },
+
+  progressBar: {
+    height: '100%',
+    backgroundColor: DesignTokens.colors.primary[500],
+  },
+
   difficultyBadge: {
     position: 'absolute',
-    top: DesignTokens.spacing[2],
-    right: DesignTokens.spacing[2],
+    top: DesignTokens.spacing[3],
+    left: DesignTokens.spacing[3],
     paddingHorizontal: DesignTokens.spacing[2],
     paddingVertical: DesignTokens.spacing[1],
-    borderRadius: DesignTokens.borderRadius.sm,
+    borderRadius: DesignTokens.borderRadius.md,
   },
+
   difficultyText: {
     fontSize: DesignTokens.typography.fontSize.xs,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
     color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
   },
+
+  syncStatus: {
+    position: 'absolute',
+    top: DesignTokens.spacing[3],
+    right: DesignTokens.spacing[3],
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+
+  quickActionButton: {
+    position: 'absolute',
+    bottom: DesignTokens.spacing[3],
+    right: DesignTokens.spacing[3],
+    backgroundColor: DesignTokens.colors.primary[500],
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...DesignTokens.shadow.md,
+  },
+
   content: {
     padding: DesignTokens.spacing[4],
   },
   compactContent: {
     flex: 1,
+    padding: DesignTokens.spacing[3],
+    justifyContent: 'space-between',
   },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[3],
   },
-  name: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    color: DesignTokens.colors.text.primary,
+
+  titleContainer: {
     flex: 1,
     marginRight: DesignTokens.spacing[2],
   },
-  compactName: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+
+  title: {
+    fontSize: DesignTokens.typography.fontSize.lg,
     color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     marginBottom: DesignTokens.spacing[1],
   },
-  quickActionButton: {
-    padding: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.sm,
-    backgroundColor: `${DesignTokens.colors.primary[500]}20`,
+
+  date: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  metaContainer: {
+
+  moreButton: {
+    padding: DesignTokens.spacing[1],
+  },
+
+  stats: {
     flexDirection: 'row',
-    gap: DesignTokens.spacing[4],
+    flexWrap: 'wrap',
+    gap: DesignTokens.spacing[3],
     marginBottom: DesignTokens.spacing[3],
   },
-  metaItem: {
+
+  stat: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: DesignTokens.spacing[1],
   },
-  metaText: {
+
+  statText: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  compactMeta: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-  },
+
   muscleGroups: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: DesignTokens.spacing[1],
+    gap: DesignTokens.spacing[2],
     marginBottom: DesignTokens.spacing[3],
   },
+
   muscleGroupTag: {
-    backgroundColor: DesignTokens.colors.neutral[800],
+    backgroundColor: DesignTokens.colors.primary[500] + '20',
     paddingHorizontal: DesignTokens.spacing[2],
     paddingVertical: DesignTokens.spacing[1],
     borderRadius: DesignTokens.borderRadius.sm,
   },
+
   muscleGroupText: {
     fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
   },
-  moreText: {
+
+  moreGroups: {
     fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.tertiary,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
     alignSelf: 'center',
   },
-  insightContainer: {
-    backgroundColor: `${DesignTokens.colors.primary[500]}10`,
-    padding: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.sm,
-    marginBottom: DesignTokens.spacing[3],
+
+  insights: {
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.border.primary,
+    paddingTop: DesignTokens.spacing[3],
+    gap: DesignTokens.spacing[1],
   },
+
   insightText: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.primary[400],
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dateText: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
+    fontStyle: 'italic',
+  },
+
+  offlineIndicator: {
+    position: 'absolute',
+    bottom: DesignTokens.spacing[2],
+    right: DesignTokens.spacing[2],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+    backgroundColor: DesignTokens.colors.warning[500] + '20',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+
+  offlineText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.warning[500],
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
   },
 });

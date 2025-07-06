@@ -28,12 +28,19 @@ import { DesignTokens } from '@/design-system/tokens';
 import { StatCard } from '@/components/ui/StatCard';
 import { WorkoutCard } from '@/components/ui/WorkoutCard';
 import { Button } from '@/components/ui/Button';
+import { SyncStatusIndicator } from '@/components/ui/SyncStatusIndicator';
+import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
+import { useOffline } from '@/contexts/OfflineContext';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState('morning');
+  
+  const { isOnline, isInitialized } = useOffline();
+  const { syncStatus } = useOfflineSync();
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -74,6 +81,8 @@ export default function HomeScreen() {
     trendValue: '+3 from last week',
     icon: <Flame size={24} color="#FF6B6B" />,
     color: '#FF6B6B',
+    syncStatus: syncStatus.pendingOperations > 0 ? 'pending' as const : 'synced' as const,
+    lastUpdated: syncStatus.lastSyncTime || undefined,
   };
 
   const secondaryStats = [
@@ -84,7 +93,9 @@ export default function HomeScreen() {
       icon: <Target size={20} color="#4ECDC4" />, 
       color: '#4ECDC4',
       trend: 'up' as const,
-      trendValue: '+1'
+      trendValue: '+1',
+      syncStatus: 'synced' as const,
+      lastUpdated: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
     },
     { 
       label: 'Total Time', 
@@ -93,7 +104,9 @@ export default function HomeScreen() {
       icon: <Clock size={20} color="#45B7D1" />, 
       color: '#45B7D1',
       trend: 'up' as const,
-      trendValue: '+2.5h'
+      trendValue: '+2.5h',
+      syncStatus: isOnline ? 'synced' as const : 'offline' as const,
+      lastUpdated: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
     },
     { 
       label: 'PR Count', 
@@ -102,7 +115,9 @@ export default function HomeScreen() {
       icon: <Award size={20} color="#96CEB4" />, 
       color: '#96CEB4',
       trend: 'up' as const,
-      trendValue: '+2'
+      trendValue: '+2',
+      syncStatus: syncStatus.failedOperations > 0 ? 'failed' as const : 'synced' as const,
+      lastUpdated: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
     },
   ];
 
@@ -117,6 +132,7 @@ export default function HomeScreen() {
       difficulty: 'Intermediate' as const,
       muscleGroups: ['Chest', 'Triceps', 'Shoulders'],
       lastPerformed: '3 days ago',
+      syncStatus: isOnline ? 'synced' as const : 'offline' as const,
     },
     {
       id: 2,
@@ -128,6 +144,7 @@ export default function HomeScreen() {
       difficulty: 'Advanced' as const,
       muscleGroups: ['Back', 'Biceps', 'Rear Delts'],
       lastPerformed: '1 week ago',
+      syncStatus: syncStatus.pendingOperations > 0 ? 'pending' as const : 'synced' as const,
     },
   ];
 
@@ -154,164 +171,180 @@ export default function HomeScreen() {
   ];
 
   return (
-    <ScrollView 
-      style={styles.container} 
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Hero Section */}
-      <LinearGradient
-        colors={['#0a0a0a', '#1a1a1a', '#0a0a0a']}
-        style={styles.hero}
+    <View style={styles.container}>
+      {/* Offline Indicator */}
+      <OfflineIndicator showDetails={true} />
+      
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        <View style={styles.heroContent}>
-          <View style={styles.greetingSection}>
-            <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.userName}>Alex</Text>
-            <Text style={styles.motivationalMessage}>
-              {getMotivationalMessage()}
-            </Text>
+        {/* Hero Section */}
+        <LinearGradient
+          colors={['#0a0a0a', '#1a1a1a', '#0a0a0a']}
+          style={styles.hero}
+        >
+          <View style={styles.heroContent}>
+            <View style={styles.greetingSection}>
+              <Text style={styles.greeting}>{getGreeting()},</Text>
+              <Text style={styles.userName}>Alex</Text>
+              <Text style={styles.motivationalMessage}>
+                {getMotivationalMessage()}
+              </Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.profileButton}
+              onPress={() => router.push('/profile')}
+            >
+              <Image
+                source={{ uri: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=100' }}
+                style={styles.profileImage}
+              />
+              <View style={styles.statusIndicator} />
+            </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity 
-            style={styles.profileButton}
-            onPress={() => router.push('/profile')}
-          >
-            <Image
-              source={{ uri: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=100' }}
-              style={styles.profileImage}
+
+          {/* Sync Status */}
+          {isInitialized && (
+            <View style={styles.syncStatusContainer}>
+              <SyncStatusIndicator variant="compact" />
+            </View>
+          )}
+
+          {/* Primary CTA */}
+          <View style={styles.primaryCTA}>
+            <Button
+              title="Start Today's Workout"
+              variant="gradient"
+              size="large"
+              onPress={() => router.push('/(tabs)/workout-session')}
+              icon={<Zap size={24} color="#FFFFFF" />}
+              style={styles.startButton}
+              syncStatus={syncStatus.pendingOperations > 0 ? 'pending' : 'synced'}
             />
-            <View style={styles.statusIndicator} />
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.ctaSubtext}>Push Day • 45 min • 6 exercises</Text>
+          </View>
+        </LinearGradient>
 
-        {/* Primary CTA */}
-        <View style={styles.primaryCTA}>
-          <Button
-            title="Start Today's Workout"
-            variant="gradient"
-            size="large"
-            onPress={() => router.push('/(tabs)/workout-session')}
-            icon={<Zap size={24} color="#FFFFFF" />}
-            style={styles.startButton}
-          />
-          <Text style={styles.ctaSubtext}>Push Day • 45 min • 6 exercises</Text>
-        </View>
-      </LinearGradient>
+        <View style={styles.content}>
+          {/* Progress Overview */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Progress</Text>
+            <Text style={styles.sectionSubtitle}>Keep the momentum going</Text>
+            
+            {/* Primary Stat */}
+            <StatCard
+              {...primaryStat}
+              variant="primary"
+              onPress={() => router.push('/(tabs)/progress')}
+              showSyncIndicator={true}
+            />
+            
+            {/* Secondary Stats Grid */}
+            <View style={styles.statsGrid}>
+              {secondaryStats.map((stat, index) => (
+                <StatCard
+                  key={index}
+                  {...stat}
+                  onPress={() => router.push('/(tabs)/progress')}
+                  showSyncIndicator={true}
+                />
+              ))}
+            </View>
+          </View>
 
-      <View style={styles.content}>
-        {/* Progress Overview */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Progress</Text>
-          <Text style={styles.sectionSubtitle}>Keep the momentum going</Text>
-          
-          {/* Primary Stat */}
-          <StatCard
-            {...primaryStat}
-            variant="primary"
-            onPress={() => router.push('/(tabs)/progress')}
-          />
-          
-          {/* Secondary Stats Grid */}
-          <View style={styles.statsGrid}>
-            {secondaryStats.map((stat, index) => (
-              <StatCard
-                key={index}
-                {...stat}
-                onPress={() => router.push('/(tabs)/progress')}
+          {/* Quick Actions */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.actionsScroll}
+            >
+              {quickActions.map((action, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.actionCard,
+                    action.primary && styles.primaryActionCard
+                  ]}
+                  onPress={action.action}
+                >
+                  {action.primary ? (
+                    <LinearGradient
+                      colors={['#9E7FFF', '#7C3AED']}
+                      style={styles.actionGradient}
+                    >
+                      {action.icon}
+                      <Text style={styles.actionTitle}>{action.title}</Text>
+                      <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.actionContent}>
+                      {action.icon}
+                      <Text style={styles.secondaryActionTitle}>{action.title}</Text>
+                      <Text style={styles.secondaryActionSubtitle}>{action.subtitle}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Recent Activity */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Recent Activity</Text>
+                <Text style={styles.sectionSubtitle}>Your latest workouts</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/workout-history')}>
+                <Text style={styles.seeAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {recentWorkouts.map((workout) => (
+              <WorkoutCard
+                key={workout.id}
+                workout={workout}
+                onPress={() => router.push('/workout-detail')}
+                onQuickAction={() => router.push('/repeat-workout')}
+                showInsights={true}
+                syncStatus={workout.syncStatus}
               />
             ))}
           </View>
-        </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.actionsScroll}
-          >
-            {quickActions.map((action, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.actionCard,
-                  action.primary && styles.primaryActionCard
-                ]}
-                onPress={action.action}
+          {/* Achievement Highlight */}
+          <View style={styles.section}>
+            <TouchableOpacity 
+              style={styles.achievementCard}
+              onPress={() => router.push('/(tabs)/achievements')}
+            >
+              <LinearGradient
+                colors={['#FF6B6B', '#FF8E53']}
+                style={styles.achievementGradient}
               >
-                {action.primary ? (
-                  <LinearGradient
-                    colors={['#9E7FFF', '#7C3AED']}
-                    style={styles.actionGradient}
-                  >
-                    {action.icon}
-                    <Text style={styles.actionTitle}>{action.title}</Text>
-                    <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.actionContent}>
-                    {action.icon}
-                    <Text style={styles.secondaryActionTitle}>{action.title}</Text>
-                    <Text style={styles.secondaryActionSubtitle}>{action.subtitle}</Text>
+                <View style={styles.achievementContent}>
+                  <Award size={32} color="#FFFFFF" />
+                  <View style={styles.achievementText}>
+                    <Text style={styles.achievementTitle}>New Achievement!</Text>
+                    <Text style={styles.achievementDescription}>
+                      Consistency Champion - 7 day streak
+                    </Text>
                   </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Recent Activity</Text>
-              <Text style={styles.sectionSubtitle}>Your latest workouts</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/workout-history')}>
-              <Text style={styles.seeAllText}>View All</Text>
+                </View>
+                <ChevronRight size={20} color="#FFFFFF" />
+              </LinearGradient>
             </TouchableOpacity>
           </View>
-          
-          {recentWorkouts.map((workout) => (
-            <WorkoutCard
-              key={workout.id}
-              workout={workout}
-              onPress={() => router.push('/workout-detail')}
-              onQuickAction={() => router.push('/repeat-workout')}
-              showInsights={true}
-            />
-          ))}
         </View>
-
-        {/* Achievement Highlight */}
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.achievementCard}
-            onPress={() => router.push('/(tabs)/achievements')}
-          >
-            <LinearGradient
-              colors={['#FF6B6B', '#FF8E53']}
-              style={styles.achievementGradient}
-            >
-              <View style={styles.achievementContent}>
-                <Award size={32} color="#FFFFFF" />
-                <View style={styles.achievementText}>
-                  <Text style={styles.achievementTitle}>New Achievement!</Text>
-                  <Text style={styles.achievementDescription}>
-                    Consistency Champion - 7 day streak
-                  </Text>
-                </View>
-              </View>
-              <ChevronRight size={20} color="#FFFFFF" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -319,6 +352,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: DesignTokens.colors.surface.primary,
+  },
+  scrollView: {
+    flex: 1,
   },
   hero: {
     paddingTop: 60,
@@ -329,7 +365,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: DesignTokens.spacing[6],
+    marginBottom: DesignTokens.spacing[4],
   },
   greetingSection: {
     flex: 1,
@@ -371,6 +407,10 @@ const styles = StyleSheet.create({
     backgroundColor: DesignTokens.colors.success[500],
     borderWidth: 2,
     borderColor: DesignTokens.colors.surface.primary,
+  },
+  syncStatusContainer: {
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[4],
   },
   primaryCTA: {
     alignItems: 'center',

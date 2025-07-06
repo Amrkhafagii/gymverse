@@ -1,3 +1,8 @@
+/**
+ * Production-ready Button component with offline states
+ * Integrates with sync system for intelligent state management
+ */
+
 import React from 'react';
 import {
   TouchableOpacity,
@@ -6,20 +11,24 @@ import {
   ViewStyle,
   TextStyle,
   ActivityIndicator,
+  View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { DesignTokens } from '@/design-system/tokens';
 
-interface ButtonProps {
+export interface ButtonProps {
   title: string;
-  onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'gradient';
+  onPress: () => void | Promise<void>;
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'gradient';
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
+  icon?: React.ReactNode;
+  iconPosition?: 'left' | 'right';
   style?: ViewStyle;
   textStyle?: TextStyle;
-  icon?: React.ReactNode;
+  fullWidth?: boolean;
+  syncStatus?: 'synced' | 'pending' | 'failed' | 'offline';
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -29,46 +38,96 @@ export const Button: React.FC<ButtonProps> = ({
   size = 'medium',
   disabled = false,
   loading = false,
+  icon,
+  iconPosition = 'left',
   style,
   textStyle,
-  icon,
+  fullWidth = false,
+  syncStatus,
 }) => {
+  const [isPressed, setIsPressed] = React.useState(false);
+  const [isProcessing, setIsProcessing] = React.useState(false);
+
+  const handlePress = async () => {
+    if (disabled || loading || isProcessing) return;
+
+    try {
+      setIsProcessing(true);
+      await onPress();
+    } catch (error) {
+      console.error('Button action failed:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const isLoading = loading || isProcessing;
+  const isDisabled = disabled || isLoading;
+
   const buttonStyles = [
     styles.base,
     styles[size],
     styles[variant],
-    disabled && styles.disabled,
+    fullWidth && styles.fullWidth,
+    isDisabled && styles.disabled,
+    isPressed && styles.pressed,
+    syncStatus && styles[`sync_${syncStatus}`],
     style,
   ];
 
   const textStyles = [
     styles.text,
-    styles[`${size}Text`],
-    styles[`${variant}Text`],
-    disabled && styles.disabledText,
+    styles[`text_${size}`],
+    styles[`text_${variant}`],
+    isDisabled && styles.textDisabled,
     textStyle,
   ];
+
+  const renderContent = () => (
+    <View style={styles.content}>
+      {isLoading && (
+        <ActivityIndicator
+          size={size === 'small' ? 'small' : 'small'}
+          color={variant === 'primary' || variant === 'gradient' ? '#FFFFFF' : DesignTokens.colors.primary[500]}
+          style={styles.loader}
+        />
+      )}
+      {!isLoading && icon && iconPosition === 'left' && (
+        <View style={styles.iconLeft}>{icon}</View>
+      )}
+      <Text style={textStyles} numberOfLines={1}>
+        {isLoading ? 'Processing...' : title}
+      </Text>
+      {!isLoading && icon && iconPosition === 'right' && (
+        <View style={styles.iconRight}>{icon}</View>
+      )}
+      {syncStatus && !isLoading && (
+        <View style={[styles.syncIndicator, styles[`syncIndicator_${syncStatus}`]]} />
+      )}
+    </View>
+  );
 
   if (variant === 'gradient') {
     return (
       <TouchableOpacity
-        style={[styles.base, styles[size], style]}
-        onPress={onPress}
-        disabled={disabled || loading}
+        style={[styles.base, styles[size], fullWidth && styles.fullWidth, style]}
+        onPress={handlePress}
+        onPressIn={() => setIsPressed(true)}
+        onPressOut={() => setIsPressed(false)}
+        disabled={isDisabled}
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={disabled ? ['#404040', '#262626'] : ['#9E7FFF', '#7C3AED']}
-          style={styles.gradientContainer}
+          colors={
+            isDisabled
+              ? ['#666666', '#555555']
+              : isPressed
+              ? ['#7C3AED', '#6D28D9']
+              : ['#9E7FFF', '#7C3AED']
+          }
+          style={[styles.gradient, isPressed && styles.gradientPressed]}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <>
-              {icon}
-              <Text style={textStyles}>{title}</Text>
-            </>
-          )}
+          {renderContent()}
         </LinearGradient>
       </TouchableOpacity>
     );
@@ -77,32 +136,24 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <TouchableOpacity
       style={buttonStyles}
-      onPress={onPress}
-      disabled={disabled || loading}
+      onPress={handlePress}
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+      disabled={isDisabled}
       activeOpacity={0.8}
     >
-      {loading ? (
-        <ActivityIndicator 
-          color={variant === 'primary' ? '#FFFFFF' : '#9E7FFF'} 
-          size="small" 
-        />
-      ) : (
-        <>
-          {icon}
-          <Text style={textStyles}>{title}</Text>
-        </>
-      )}
+      {renderContent()}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: DesignTokens.borderRadius.md,
-    flexDirection: 'row',
+    borderRadius: DesignTokens.borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: DesignTokens.spacing[2],
+    flexDirection: 'row',
+    ...DesignTokens.shadow.sm,
   },
   
   // Sizes
@@ -121,7 +172,7 @@ const styles = StyleSheet.create({
     paddingVertical: DesignTokens.spacing[4],
     minHeight: 52,
   },
-  
+
   // Variants
   primary: {
     backgroundColor: DesignTokens.colors.primary[500],
@@ -129,7 +180,12 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: DesignTokens.colors.surface.secondary,
     borderWidth: 1,
-    borderColor: DesignTokens.colors.neutral[700],
+    borderColor: DesignTokens.colors.border.primary,
+  },
+  outline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: DesignTokens.colors.primary[500],
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -137,53 +193,122 @@ const styles = StyleSheet.create({
   gradient: {
     backgroundColor: 'transparent',
   },
-  
-  // States
-  disabled: {
-    backgroundColor: DesignTokens.colors.neutral[800],
-    borderColor: DesignTokens.colors.neutral[700],
-  },
-  
+
   // Text styles
   text: {
-    fontFamily: DesignTokens.typography.fontFamily.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    textAlign: 'center',
   },
-  smallText: {
+  text_small: {
     fontSize: DesignTokens.typography.fontSize.sm,
   },
-  mediumText: {
+  text_medium: {
     fontSize: DesignTokens.typography.fontSize.base,
   },
-  largeText: {
+  text_large: {
     fontSize: DesignTokens.typography.fontSize.lg,
   },
-  
-  // Text variants
-  primaryText: {
+  text_primary: {
     color: DesignTokens.colors.text.primary,
   },
-  secondaryText: {
+  text_secondary: {
     color: DesignTokens.colors.text.primary,
   },
-  ghostText: {
+  text_outline: {
     color: DesignTokens.colors.primary[500],
   },
-  gradientText: {
+  text_ghost: {
+    color: DesignTokens.colors.primary[500],
+  },
+  text_gradient: {
     color: DesignTokens.colors.text.primary,
   },
-  disabledText: {
-    color: DesignTokens.colors.text.disabled,
+
+  // States
+  disabled: {
+    opacity: 0.5,
+    ...DesignTokens.shadow.none,
   },
-  
-  gradientContainer: {
-    flex: 1,
+  pressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
+  },
+  textDisabled: {
+    opacity: 0.7,
+  },
+
+  // Sync status indicators
+  sync_synced: {
+    borderLeftWidth: 3,
+    borderLeftColor: DesignTokens.colors.success[500],
+  },
+  sync_pending: {
+    borderLeftWidth: 3,
+    borderLeftColor: DesignTokens.colors.warning[500],
+  },
+  sync_failed: {
+    borderLeftWidth: 3,
+    borderLeftColor: DesignTokens.colors.error[500],
+  },
+  sync_offline: {
+    borderLeftWidth: 3,
+    borderLeftColor: DesignTokens.colors.text.secondary,
+  },
+
+  // Layout
+  fullWidth: {
+    width: '100%',
+  },
+  content: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
+    position: 'relative',
+  },
+  
+  // Icons
+  iconLeft: {
+    marginRight: DesignTokens.spacing[2],
+  },
+  iconRight: {
+    marginLeft: DesignTokens.spacing[2],
+  },
+  loader: {
+    marginRight: DesignTokens.spacing[2],
+  },
+
+  // Gradient
+  gradient: {
+    flex: 1,
+    borderRadius: DesignTokens.borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: DesignTokens.spacing[4],
     paddingVertical: DesignTokens.spacing[3],
+  },
+  gradientPressed: {
+    opacity: 0.9,
+  },
+
+  // Sync indicators
+  syncIndicator: {
+    position: 'absolute',
+    right: -2,
+    top: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  syncIndicator_synced: {
+    backgroundColor: DesignTokens.colors.success[500],
+  },
+  syncIndicator_pending: {
+    backgroundColor: DesignTokens.colors.warning[500],
+  },
+  syncIndicator_failed: {
+    backgroundColor: DesignTokens.colors.error[500],
+  },
+  syncIndicator_offline: {
+    backgroundColor: DesignTokens.colors.text.secondary,
   },
 });
