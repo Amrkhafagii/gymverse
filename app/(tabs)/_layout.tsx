@@ -89,6 +89,68 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />
+      
+      {/* Hide all other tabs by setting href to null */}
+      <Tabs.Screen
+        name="scanner"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="exercises"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="achievements"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="education"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboard"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="create-workout"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="workout-history"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="exercise-library"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="exercise-details"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="workout-session"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
