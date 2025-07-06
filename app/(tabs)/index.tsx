@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   Image,
   Dimensions,
-  Modal,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,6 +39,9 @@ import {
   Search,
 } from 'lucide-react-native';
 import { useData } from '@/contexts/DataContext';
+import TouchableCard from '@/components/TouchableCard';
+import OptimizedScrollView from '@/components/OptimizedScrollView';
+import InteractiveModal from '@/components/InteractiveModal';
 
 const { width } = Dimensions.get('window');
 
@@ -47,6 +49,7 @@ export default function HomeScreen() {
   const { workouts, achievements } = useData();
   const router = useRouter();
   const [showAllActions, setShowAllActions] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const todayWorkouts = workouts.filter(
     workout => new Date(workout.date).toDateString() === new Date().toDateString()
@@ -59,6 +62,52 @@ export default function HomeScreen() {
     streak: 7,
   };
 
+  // Navigation handlers with error handling
+  const handleNavigation = (route: string, params?: any) => {
+    try {
+      if (params) {
+        router.push({ pathname: route as any, params });
+      } else {
+        router.push(route as any);
+      }
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Unable to navigate to the requested screen.');
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Simulate refresh delay
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
+
+  const handleQuickWorkout = () => {
+    handleNavigation('/workout-session', { type: 'quick', duration: 15 });
+  };
+
+  const handleTodaysGoal = () => {
+    handleNavigation('/progress', { tab: 'goals' });
+  };
+
+  const handlePlanWorkout = () => {
+    handleNavigation('/create-workout');
+  };
+
+  const handleViewAllWorkouts = () => {
+    router.push('/(tabs)/workouts');
+  };
+
+  const handleViewAllAchievements = () => {
+    handleNavigation('/achievements');
+  };
+
+  const handleWorkoutPress = (workoutId: string) => {
+    handleNavigation('/workout-detail', { id: workoutId });
+  };
+
   // Primary Quick Actions (Most Used)
   const primaryActions = [
     { 
@@ -66,27 +115,21 @@ export default function HomeScreen() {
       title: 'Quick Workout', 
       subtitle: '15 min HIIT', 
       color: '#FF6B35',
-      onPress: () => {
-        // Navigate to quick workout
-      }
+      onPress: handleQuickWorkout
     },
     { 
       icon: Calculator, 
       title: 'TDEE Calculator', 
       subtitle: 'Calculate daily calories', 
       color: '#00D4AA',
-      onPress: () => {
-        router.push('/tdee-calculator');
-      }
+      onPress: () => handleNavigation('/tdee-calculator')
     },
     { 
       icon: Target, 
       title: 'Today\'s Goal', 
       subtitle: '3 exercises left', 
       color: '#9E7FFF',
-      onPress: () => {
-        // Navigate to goals
-      }
+      onPress: handleTodaysGoal
     },
     { 
       icon: Plus, 
@@ -97,90 +140,203 @@ export default function HomeScreen() {
     },
   ];
 
-  // Categorized Secondary Actions
+  // Categorized Secondary Actions with proper navigation
   const secondaryActions = {
     'Workout & Training': [
-      { icon: Dumbbell, title: 'Custom Workout', subtitle: 'Create your own', color: '#FF6B35' },
-      { icon: Timer, title: 'Rest Timer', subtitle: 'Track your breaks', color: '#FFB800' },
-      { icon: BookOpen, title: 'Exercise Library', subtitle: 'Browse exercises', color: '#00D4AA' },
-      { icon: Calendar, title: 'Schedule Workout', subtitle: 'Plan ahead', color: '#9E7FFF' },
+      { 
+        icon: Dumbbell, 
+        title: 'Custom Workout', 
+        subtitle: 'Create your own', 
+        color: '#FF6B35',
+        onPress: () => handleNavigation('/create-workout')
+      },
+      { 
+        icon: Timer, 
+        title: 'Rest Timer', 
+        subtitle: 'Track your breaks', 
+        color: '#FFB800',
+        onPress: () => {
+          Alert.alert('Rest Timer', 'Timer feature coming soon!');
+        }
+      },
+      { 
+        icon: BookOpen, 
+        title: 'Exercise Library', 
+        subtitle: 'Browse exercises', 
+        color: '#00D4AA',
+        onPress: () => router.push('/(tabs)/exercises')
+      },
+      { 
+        icon: Calendar, 
+        title: 'Schedule Workout', 
+        subtitle: 'Plan ahead', 
+        color: '#9E7FFF',
+        onPress: () => handleNavigation('/schedule')
+      },
     ],
     'Progress & Analytics': [
-      { icon: TrendingUp, title: 'Progress Charts', subtitle: 'View your growth', color: '#00D4AA' },
-      { icon: BarChart3, title: 'Detailed Stats', subtitle: 'Advanced metrics', color: '#9E7FFF' },
-      { icon: Award, title: 'Achievements', subtitle: 'Your milestones', color: '#FFB800' },
-      { icon: Camera, title: 'Progress Photos', subtitle: 'Visual tracking', color: '#FF6B35' },
+      { 
+        icon: TrendingUp, 
+        title: 'Progress Charts', 
+        subtitle: 'View your growth', 
+        color: '#00D4AA',
+        onPress: () => router.push('/(tabs)/progress')
+      },
+      { 
+        icon: BarChart3, 
+        title: 'Detailed Stats', 
+        subtitle: 'Advanced metrics', 
+        color: '#9E7FFF',
+        onPress: () => handleNavigation('/exercise-progress')
+      },
+      { 
+        icon: Award, 
+        title: 'Achievements', 
+        subtitle: 'Your milestones', 
+        color: '#FFB800',
+        onPress: () => handleNavigation('/achievements')
+      },
+      { 
+        icon: Camera, 
+        title: 'Progress Photos', 
+        subtitle: 'Visual tracking', 
+        color: '#FF6B35',
+        onPress: () => {
+          Alert.alert('Progress Photos', 'Photo tracking feature coming soon!');
+        }
+      },
     ],
     'Social & Community': [
-      { icon: Users, title: 'Find Friends', subtitle: 'Connect with others', color: '#9E7FFF' },
-      { icon: Share2, title: 'Share Progress', subtitle: 'Post achievements', color: '#00D4AA' },
-      { icon: Trophy, title: 'Leaderboards', subtitle: 'See rankings', color: '#FFB800' },
-      { icon: Heart, title: 'Challenges', subtitle: 'Join competitions', color: '#FF6B35' },
+      { 
+        icon: Users, 
+        title: 'Find Friends', 
+        subtitle: 'Connect with others', 
+        color: '#9E7FFF',
+        onPress: () => router.push('/(tabs)/social')
+      },
+      { 
+        icon: Share2, 
+        title: 'Share Progress', 
+        subtitle: 'Post achievements', 
+        color: '#00D4AA',
+        onPress: () => {
+          Alert.alert('Share Progress', 'Sharing feature coming soon!');
+        }
+      },
+      { 
+        icon: Trophy, 
+        title: 'Leaderboards', 
+        subtitle: 'See rankings', 
+        color: '#FFB800',
+        onPress: () => handleNavigation('/leaderboards')
+      },
+      { 
+        icon: Heart, 
+        title: 'Challenges', 
+        subtitle: 'Join competitions', 
+        color: '#FF6B35',
+        onPress: () => {
+          Alert.alert('Challenges', 'Challenge feature coming soon!');
+        }
+      },
     ],
     'Tools & Settings': [
-      { icon: Settings, title: 'Settings', subtitle: 'App preferences', color: '#666' },
-      { icon: Bell, title: 'Notifications', subtitle: 'Manage alerts', color: '#9E7FFF' },
-      { icon: MapPin, title: 'Gym Locator', subtitle: 'Find nearby gyms', color: '#00D4AA' },
-      { icon: Search, title: 'Search', subtitle: 'Find anything', color: '#FFB800' },
+      { 
+        icon: Settings, 
+        title: 'Settings', 
+        subtitle: 'App preferences', 
+        color: '#666',
+        onPress: () => {
+          Alert.alert('Settings', 'Settings feature coming soon!');
+        }
+      },
+      { 
+        icon: Bell, 
+        title: 'Notifications', 
+        subtitle: 'Manage alerts', 
+        color: '#9E7FFF',
+        onPress: () => {
+          Alert.alert('Notifications', 'Notification settings coming soon!');
+        }
+      },
+      { 
+        icon: MapPin, 
+        title: 'Gym Locator', 
+        subtitle: 'Find nearby gyms', 
+        color: '#00D4AA',
+        onPress: () => {
+          Alert.alert('Gym Locator', 'Gym locator feature coming soon!');
+        }
+      },
+      { 
+        icon: Search, 
+        title: 'Search', 
+        subtitle: 'Find anything', 
+        color: '#FFB800',
+        onPress: () => {
+          Alert.alert('Search', 'Global search feature coming soon!');
+        }
+      },
     ],
   };
 
   const renderActionModal = () => (
-    <Modal
+    <InteractiveModal
       visible={showAllActions}
+      onClose={() => setShowAllActions(false)}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={() => setShowAllActions(false)}
     >
-      <View style={styles.modalContainer}>
-        <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.modalGradient}>
-          <SafeAreaView style={styles.modalSafeArea}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>All Features</Text>
-              <TouchableOpacity 
-                onPress={() => setShowAllActions(false)}
-                style={styles.closeButton}
-              >
-                <X size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalContent}>
-              {Object.entries(secondaryActions).map(([category, actions]) => (
-                <View key={category} style={styles.categorySection}>
-                  <Text style={styles.categoryTitle}>{category}</Text>
-                  <View style={styles.categoryGrid}>
-                    {actions.map((action, index) => (
-                      <TouchableOpacity 
-                        key={index} 
-                        style={styles.modalActionCard}
-                        onPress={() => {
-                          setShowAllActions(false);
-                          action.onPress?.();
-                        }}
-                      >
-                        <View style={[styles.modalActionIcon, { backgroundColor: `${action.color}20` }]}>
-                          <action.icon size={20} color={action.color} />
-                        </View>
-                        <Text style={styles.modalActionTitle}>{action.title}</Text>
-                        <Text style={styles.modalActionSubtitle}>{action.subtitle}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          </SafeAreaView>
-        </LinearGradient>
+      {/* Modal Header */}
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>All Features</Text>
+        <TouchableCard 
+          onPress={() => setShowAllActions(false)}
+          style={styles.closeButton}
+        >
+          <X size={24} color="#fff" />
+        </TouchableCard>
       </View>
-    </Modal>
+
+      <OptimizedScrollView style={styles.modalContent}>
+        {Object.entries(secondaryActions).map(([category, actions]) => (
+          <View key={category} style={styles.categorySection}>
+            <Text style={styles.categoryTitle}>{category}</Text>
+            <View style={styles.categoryGrid}>
+              {actions.map((action, index) => (
+                <TouchableCard 
+                  key={index} 
+                  style={styles.modalActionCard}
+                  onPress={() => {
+                    setShowAllActions(false);
+                    setTimeout(() => {
+                      action.onPress?.();
+                    }, 300);
+                  }}
+                >
+                  <View style={[styles.modalActionIcon, { backgroundColor: `${action.color}20` }]}>
+                    <action.icon size={20} color={action.color} />
+                  </View>
+                  <Text style={styles.modalActionTitle}>{action.title}</Text>
+                  <Text style={styles.modalActionSubtitle}>{action.subtitle}</Text>
+                </TouchableCard>
+              ))}
+            </View>
+          </View>
+        ))}
+      </OptimizedScrollView>
+    </InteractiveModal>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <OptimizedScrollView 
+          contentContainerStyle={styles.scrollContent}
+          enableRefresh={true}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        >
           {/* Header */}
           <View style={styles.header}>
             <View>
@@ -197,21 +353,30 @@ export default function HomeScreen() {
           <View style={styles.statsContainer}>
             <Text style={styles.sectionTitle}>This Week</Text>
             <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
+              <TouchableCard 
+                style={styles.statCard}
+                onPress={() => router.push('/(tabs)/progress')}
+              >
                 <Trophy size={20} color="#FFB800" />
                 <Text style={styles.statNumber}>{weeklyStats.workoutsCompleted}</Text>
                 <Text style={styles.statLabel}>Workouts</Text>
-              </View>
-              <View style={styles.statCard}>
+              </TouchableCard>
+              <TouchableCard 
+                style={styles.statCard}
+                onPress={() => router.push('/(tabs)/progress')}
+              >
                 <Clock size={20} color="#9E7FFF" />
                 <Text style={styles.statNumber}>{weeklyStats.totalMinutes}</Text>
                 <Text style={styles.statLabel}>Minutes</Text>
-              </View>
-              <View style={styles.statCard}>
+              </TouchableCard>
+              <TouchableCard 
+                style={styles.statCard}
+                onPress={() => router.push('/(tabs)/progress')}
+              >
                 <Flame size={20} color="#FF6B35" />
                 <Text style={styles.statNumber}>{weeklyStats.caloriesBurned}</Text>
                 <Text style={styles.statLabel}>Calories</Text>
-              </View>
+              </TouchableCard>
             </View>
           </View>
 
@@ -220,7 +385,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.quickActionsGrid}>
               {primaryActions.map((action, index) => (
-                <TouchableOpacity 
+                <TouchableCard 
                   key={index} 
                   style={styles.quickActionCard}
                   onPress={action.onPress}
@@ -238,7 +403,7 @@ export default function HomeScreen() {
                       </View>
                     )}
                   </LinearGradient>
-                </TouchableOpacity>
+                </TouchableCard>
               ))}
             </View>
           </View>
@@ -247,15 +412,22 @@ export default function HomeScreen() {
           <View style={styles.todayContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today's Workouts</Text>
-              <TouchableOpacity style={styles.seeAllButton}>
+              <TouchableCard 
+                style={styles.seeAllButton}
+                onPress={handleViewAllWorkouts}
+              >
                 <Text style={styles.seeAllText}>See All</Text>
                 <ChevronRight size={16} color="#9E7FFF" />
-              </TouchableOpacity>
+              </TouchableCard>
             </View>
             
             {todayWorkouts.length > 0 ? (
               todayWorkouts.slice(0, 1).map((workout) => (
-                <TouchableOpacity key={workout.id} style={styles.workoutCard}>
+                <TouchableCard 
+                  key={workout.id} 
+                  style={styles.workoutCard}
+                  onPress={() => handleWorkoutPress(workout.id)}
+                >
                   <LinearGradient
                     colors={['#1a1a1a', '#2a2a2a']}
                     style={styles.workoutCardGradient}
@@ -278,21 +450,24 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   </LinearGradient>
-                </TouchableOpacity>
+                </TouchableCard>
               ))
             ) : (
               <View style={styles.emptyState}>
                 <Calendar size={48} color="#666" />
                 <Text style={styles.emptyStateTitle}>No workouts scheduled</Text>
                 <Text style={styles.emptyStateText}>Plan your first workout to get started</Text>
-                <TouchableOpacity style={styles.planWorkoutButton}>
+                <TouchableCard 
+                  style={styles.planWorkoutButton}
+                  onPress={handlePlanWorkout}
+                >
                   <LinearGradient
                     colors={['#9E7FFF', '#7C3AED']}
                     style={styles.planWorkoutGradient}
                   >
                     <Text style={styles.planWorkoutText}>Plan Workout</Text>
                   </LinearGradient>
-                </TouchableOpacity>
+                </TouchableCard>
               </View>
             )}
           </View>
@@ -301,13 +476,20 @@ export default function HomeScreen() {
           <View style={styles.achievementsContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recent Achievements</Text>
-              <TouchableOpacity style={styles.seeAllButton}>
+              <TouchableCard 
+                style={styles.seeAllButton}
+                onPress={handleViewAllAchievements}
+              >
                 <Text style={styles.seeAllText}>View All</Text>
                 <ChevronRight size={16} color="#9E7FFF" />
-              </TouchableOpacity>
+              </TouchableCard>
             </View>
             {achievements.slice(0, 2).map((achievement) => (
-              <View key={achievement.id} style={styles.achievementCard}>
+              <TouchableCard
+                key={achievement.id} 
+                style={styles.achievementCard}
+                onPress={() => handleNavigation('/achievements', { id: achievement.id })}
+              >
                 <View style={styles.achievementIcon}>
                   <Trophy size={20} color="#FFB800" />
                 </View>
@@ -318,10 +500,10 @@ export default function HomeScreen() {
                 <Text style={styles.achievementDate}>
                   {new Date(achievement.unlockedAt).toLocaleDateString()}
                 </Text>
-              </View>
+              </TouchableCard>
             ))}
           </View>
-        </ScrollView>
+        </OptimizedScrollView>
 
         {/* Action Modal */}
         {renderActionModal()}
@@ -423,13 +605,12 @@ const styles = StyleSheet.create({
   quickActionCard: {
     width: (width - 52) / 2,
     marginBottom: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
   },
   quickActionGradient: {
     padding: 20,
     alignItems: 'center',
     position: 'relative',
+    borderRadius: 16,
   },
   quickActionTitle: {
     fontSize: 16,
@@ -475,11 +656,10 @@ const styles = StyleSheet.create({
   },
   workoutCard: {
     marginBottom: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
   },
   workoutCardGradient: {
     padding: 20,
+    borderRadius: 16,
   },
   workoutHeader: {
     flexDirection: 'row',
@@ -544,12 +724,11 @@ const styles = StyleSheet.create({
   },
   planWorkoutButton: {
     marginTop: 20,
-    borderRadius: 12,
-    overflow: 'hidden',
   },
   planWorkoutGradient: {
     paddingHorizontal: 24,
     paddingVertical: 12,
+    borderRadius: 12,
   },
   planWorkoutText: {
     color: '#fff',
@@ -598,15 +777,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
   },
   // Modal Styles
-  modalContainer: {
-    flex: 1,
-  },
-  modalGradient: {
-    flex: 1,
-  },
-  modalSafeArea: {
-    flex: 1,
-  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

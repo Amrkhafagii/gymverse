@@ -6,19 +6,36 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import AIWorkoutSuggestions from '@/components/ai/AIWorkoutSuggestions';
 import RestDayRecommendations from '@/components/ai/RestDayRecommendations';
 import { AIWorkoutSuggestion, WorkoutHistory } from '@/lib/services/aiService';
 import { useRestDayRecommendations } from '@/hooks/useRestDayRecommendations';
 
 export default function WorkoutsScreen() {
+  const router = useRouter();
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [showRestRecommendations, setShowRestRecommendations] = useState(false);
   const { recommendation, loading, error, generateRecommendation } = useRestDayRecommendations();
+
+  // Navigation helper with error handling
+  const handleNavigation = (route: string, params?: any) => {
+    try {
+      if (params) {
+        router.push({ pathname: route as any, params });
+      } else {
+        router.push(route as any);
+      }
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Unable to navigate to the requested screen.');
+    }
+  };
 
   // Mock workout history - in real app, this would come from your data context
   const mockWorkoutHistory: WorkoutHistory[] = [
@@ -103,16 +120,43 @@ export default function WorkoutsScreen() {
     },
   ];
 
+  const handleQuickStart = () => {
+    // Navigate to quick workout selection or start immediate workout
+    handleNavigation('/workout-session', { type: 'quick' });
+  };
+
+  const handleCreateWorkout = () => {
+    // Navigate to workout creation screen
+    handleNavigation('/create-workout');
+  };
+
+  const handleWorkoutTemplatePress = (templateId: number) => {
+    // Navigate to template preview or start workout
+    handleNavigation('/template-preview', { id: templateId });
+  };
+
+  const handleStartWorkout = (templateId: number) => {
+    // Start workout session with selected template
+    handleNavigation('/workout-session', { templateId });
+  };
+
   const handleAIWorkoutSelect = (workout: AIWorkoutSuggestion) => {
-    // Handle the selected AI workout - could navigate to workout screen
+    // Handle the selected AI workout - navigate to workout screen
     console.log('Selected AI workout:', workout);
-    // In a real app, you might navigate to a workout execution screen
-    // or save the workout to the user's library
+    handleNavigation('/workout-session', { 
+      type: 'ai-generated',
+      workout: workout 
+    });
   };
 
   const handleRestDayAnalysis = async () => {
-    await generateRecommendation(mockWorkoutHistory);
-    setShowRestRecommendations(true);
+    try {
+      await generateRecommendation(mockWorkoutHistory);
+      setShowRestRecommendations(true);
+    } catch (error) {
+      console.error('Rest day analysis error:', error);
+      Alert.alert('Error', 'Unable to generate rest day recommendations. Please try again.');
+    }
   };
 
   return (
@@ -121,7 +165,11 @@ export default function WorkoutsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Workouts</Text>
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={handleCreateWorkout}
+            activeOpacity={0.7}
+          >
             <Ionicons name="add" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -129,7 +177,11 @@ export default function WorkoutsScreen() {
         {/* Quick Actions */}
         <View style={styles.section}>
           <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickAction}>
+            <TouchableOpacity 
+              style={styles.quickAction}
+              onPress={handleQuickStart}
+              activeOpacity={0.7}
+            >
               <LinearGradient
                 colors={['#9E7FFF', '#7C3AED']}
                 style={styles.quickActionGradient}
@@ -142,6 +194,7 @@ export default function WorkoutsScreen() {
             <TouchableOpacity 
               style={styles.quickAction}
               onPress={() => setShowAISuggestions(true)}
+              activeOpacity={0.7}
             >
               <LinearGradient
                 colors={['#f472b6', '#ec4899']}
@@ -155,6 +208,7 @@ export default function WorkoutsScreen() {
             <TouchableOpacity 
               style={styles.quickAction}
               onPress={handleRestDayAnalysis}
+              activeOpacity={0.7}
             >
               <LinearGradient
                 colors={['#38bdf8', '#0ea5e9']}
@@ -171,7 +225,12 @@ export default function WorkoutsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Workout Templates</Text>
           {workoutTemplates.map((workout) => (
-            <TouchableOpacity key={workout.id} style={styles.workoutCard}>
+            <TouchableOpacity 
+              key={workout.id} 
+              style={styles.workoutCard}
+              onPress={() => handleWorkoutTemplatePress(workout.id)}
+              activeOpacity={0.7}
+            >
               <LinearGradient
                 colors={['#1f2937', '#111827']}
                 style={styles.workoutGradient}
@@ -196,7 +255,14 @@ export default function WorkoutsScreen() {
                     </View>
                   </View>
                 </View>
-                <TouchableOpacity style={styles.startButton}>
+                <TouchableOpacity 
+                  style={styles.startButton}
+                  onPress={(e) => {
+                    e.stopPropagation(); // Prevent parent onPress
+                    handleStartWorkout(workout.id);
+                  }}
+                  activeOpacity={0.7}
+                >
                   <Ionicons name="play" size={20} color="#FFFFFF" />
                 </TouchableOpacity>
               </LinearGradient>
@@ -207,7 +273,11 @@ export default function WorkoutsScreen() {
         {/* Recent Workouts */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Workouts</Text>
-          <View style={styles.emptyState}>
+          <TouchableOpacity 
+            style={styles.emptyState}
+            onPress={() => handleNavigation('/workout-history')}
+            activeOpacity={0.7}
+          >
             <LinearGradient
               colors={['#1f2937', '#111827']}
               style={styles.emptyStateGradient}
@@ -218,7 +288,7 @@ export default function WorkoutsScreen() {
                 Start your first workout to see your history here
               </Text>
             </LinearGradient>
-          </View>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 

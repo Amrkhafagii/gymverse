@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -38,7 +39,7 @@ const actionItems: ActionItem[] = [
     title: 'Profile',
     subtitle: 'View and edit your profile',
     icon: User,
-    route: '/profile',
+    route: '/(tabs)/profile',
     color: '#9E7FFF',
   },
   {
@@ -108,8 +109,19 @@ const actionItems: ActionItem[] = [
 ];
 
 export default function MoreScreen() {
+  // Navigation helper with error handling
   const handleActionPress = (route: string) => {
-    router.push(route as any);
+    try {
+      router.push(route as any);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'This feature is coming soon!');
+    }
+  };
+
+  const handleSettingsPress = () => {
+    // Handle settings navigation or show settings modal
+    Alert.alert('Settings', 'Settings feature coming soon!');
   };
 
   const renderActionItem = (item: ActionItem) => (
@@ -158,7 +170,11 @@ export default function MoreScreen() {
 
           {/* Settings Section */}
           <View style={styles.settingsSection}>
-            <TouchableOpacity style={styles.settingsItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.settingsItem} 
+              activeOpacity={0.7}
+              onPress={handleSettingsPress}
+            >
               <View style={[styles.iconContainer, { backgroundColor: '#64748B20' }]}>
                 <Settings size={24} color="#64748B" />
               </View>

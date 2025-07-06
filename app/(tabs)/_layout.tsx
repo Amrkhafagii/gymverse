@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Home, Dumbbell, TrendingUp, Users, MoreHorizontal } from 'lucide-react-native';
+import { HapticTab } from '@/components/HapticTab';
 
 export default function TabLayout() {
   const [isLayoutReady, setIsLayoutReady] = useState(false);
@@ -24,6 +25,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarButton: HapticTab,
         tabBarStyle: {
           position: 'absolute',
           bottom: 0,
@@ -33,6 +35,7 @@ export default function TabLayout() {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
           elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarBackground: () => (
           <View style={styles.tabBarBackground}>
@@ -52,13 +55,17 @@ export default function TabLayout() {
         tabBarIconStyle: {
           marginTop: 8,
         },
+        tabBarHideOnKeyboard: true,
+        tabBarAllowFontScaling: false,
       }}
     >
+      {/* Main Tab Screens - Always Visible */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Home Tab',
         }}
       />
       <Tabs.Screen
@@ -66,6 +73,7 @@ export default function TabLayout() {
         options={{
           title: 'Workouts',
           tabBarIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Workouts Tab',
         }}
       />
       <Tabs.Screen
@@ -73,6 +81,7 @@ export default function TabLayout() {
         options={{
           title: 'Progress',
           tabBarIcon: ({ color, size }) => <TrendingUp size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Progress Tab',
         }}
       />
       <Tabs.Screen
@@ -80,6 +89,7 @@ export default function TabLayout() {
         options={{
           title: 'Social',
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Social Tab',
         }}
       />
       <Tabs.Screen
@@ -87,99 +97,7 @@ export default function TabLayout() {
         options={{
           title: 'More',
           tabBarIcon: ({ color, size }) => <MoreHorizontal size={size} color={color} />,
-        }}
-      />
-      
-      {/* Hide all other tabs by setting href to null */}
-      <Tabs.Screen
-        name="profile"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="scanner"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="exercises"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="achievements"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="education"
-        options={{
-          href: null,
-        }}
-      />
-    
-      <Tabs.Screen
-        name="create-workout"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="workout-history"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="exercise-library"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="workout-session"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="schedule"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="edit-profile"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="leaderboards"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="workout-detail"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="exercise-progress"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="workout-templates"
-        options={{
-          href: null,
+          tabBarAccessibilityLabel: 'More Tab',
         }}
       />
     </Tabs>
