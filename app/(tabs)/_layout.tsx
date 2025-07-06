@@ -1,9 +1,25 @@
+import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Home, Dumbbell, TrendingUp, Users, User } from 'lucide-react-native';
 
 export default function TabLayout() {
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
+
+  useEffect(() => {
+    // Ensure tabs are ready before rendering
+    const timer = setTimeout(() => {
+      setIsLayoutReady(true);
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isLayoutReady) {
+    return <View style={{ flex: 1, backgroundColor: '#0a0a0a' }} />;
+  }
+
   return (
     <Tabs
       screenOptions={{

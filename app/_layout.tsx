@@ -1,16 +1,35 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { DeviceAuthProvider } from '@/contexts/DeviceAuthContext';
 import * as SplashScreen from 'expo-splash-screen';
+import { View } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const [isReady, setIsReady] = useState(false);
+
   useEffect(() => {
-    // Hide splash screen immediately since we're not loading custom fonts
-    SplashScreen.hideAsync();
+    async function prepare() {
+      try {
+        // Ensure the app is ready before hiding splash screen
+        await new Promise(resolve => setTimeout(resolve, 100));
+        setIsReady(true);
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        // Hide splash screen after setup is complete
+        await SplashScreen.hideAsync();
+      }
+    }
+
+    prepare();
   }, []);
+
+  if (!isReady) {
+    return <View style={{ flex: 1, backgroundColor: '#0a0a0a' }} />;
+  }
 
   return (
     <DeviceAuthProvider>
