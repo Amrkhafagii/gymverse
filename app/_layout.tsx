@@ -39,7 +39,6 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="workout-session" />
           <Stack.Screen name="exercise-detail" />
-          <Stack.Screen name="exercise-progress" />
           <Stack.Screen name="create-exercise" />
           <Stack.Screen name="template-preview" />
           <Stack.Screen name="tdee-calculator" />

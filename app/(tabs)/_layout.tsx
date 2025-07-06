@@ -141,12 +141,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="exercise-details"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
         name="workout-session"
         options={{
           href: null,
