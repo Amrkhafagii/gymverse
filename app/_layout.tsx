@@ -38,20 +38,16 @@ export default function RootLayout() {
         <Stack 
           screenOptions={{ 
             headerShown: false,
-            // Ensure proper gesture handling for stack navigation
             gestureEnabled: true,
             animation: 'slide_from_right',
           }}
         >
-          {/* Tab Navigator */}
           <Stack.Screen 
             name="(tabs)" 
             options={{
-              gestureEnabled: false, // Disable gesture for tab navigator
+              gestureEnabled: false,
             }}
           />
-          
-          {/* Modal/Overlay Screens */}
           <Stack.Screen 
             name="workout-session" 
             options={{
@@ -87,8 +83,6 @@ export default function RootLayout() {
               gestureEnabled: true,
             }}
           />
-          
-          {/* Additional Stack Screens - Properly Configured */}
           <Stack.Screen 
             name="profile" 
             options={{

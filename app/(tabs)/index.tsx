@@ -1,642 +1,225 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   Image,
   Dimensions,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import {
-  Calendar,
-  Trophy,
-  Target,
-  TrendingUp,
+import { 
+  Calendar, 
+  TrendingUp, 
+  Target, 
   Clock,
   Flame,
-  Zap,
-  ChevronRight,
-  Calculator,
-  Plus,
-  Grid3X3,
-  X,
-  Dumbbell,
-  Users,
-  Settings,
-  BookOpen,
-  Camera,
-  Share2,
   Award,
-  BarChart3,
-  Timer,
-  Heart,
-  MapPin,
-  Bell,
-  Search,
+  ChevronRight,
+  Play
 } from 'lucide-react-native';
-import { useData } from '@/contexts/DataContext';
-import TouchableCard from '@/components/TouchableCard';
-import OptimizedScrollView from '@/components/OptimizedScrollView';
-import InteractiveModal from '@/components/InteractiveModal';
+import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const { workouts, achievements } = useData();
-  const router = useRouter();
-  const [showAllActions, setShowAllActions] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const quickStats = [
+    { label: 'Streak', value: '12', unit: 'days', icon: Flame, color: '#FF6B6B' },
+    { label: 'This Week', value: '4', unit: 'workouts', icon: Target, color: '#4ECDC4' },
+    { label: 'Total Time', value: '8.5', unit: 'hours', icon: Clock, color: '#45B7D1' },
+    { label: 'PR Count', value: '23', unit: 'records', icon: Award, color: '#96CEB4' },
+  ];
 
-  const todayWorkouts = workouts.filter(
-    workout => new Date(workout.date).toDateString() === new Date().toDateString()
-  );
-
-  const weeklyStats = {
-    workoutsCompleted: 4,
-    totalMinutes: 240,
-    caloriesBurned: 1200,
-    streak: 7,
-  };
-
-  // Navigation handlers with error handling
-  const handleNavigation = (route: string, params?: any) => {
-    try {
-      if (params) {
-        router.push({ pathname: route as any, params });
-      } else {
-        router.push(route as any);
-      }
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Unable to navigate to the requested screen.');
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    // Simulate refresh delay
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  };
-
-  const handleQuickWorkout = () => {
-    handleNavigation('/workout-session', { type: 'quick', duration: 15 });
-  };
-
-  const handleTodaysGoal = () => {
-    handleNavigation('/progress', { tab: 'goals' });
-  };
-
-  const handlePlanWorkout = () => {
-    handleNavigation('/create-workout');
-  };
-
-  const handleViewAllWorkouts = () => {
-    router.push('/(tabs)/workouts');
-  };
-
-  const handleViewAllAchievements = () => {
-    handleNavigation('/achievements');
-  };
-
-  const handleWorkoutPress = (workoutId: string) => {
-    handleNavigation('/workout-detail', { id: workoutId });
-  };
-
-  // Primary Quick Actions (Most Used)
-  const primaryActions = [
-    { 
-      icon: Zap, 
-      title: 'Quick Workout', 
-      subtitle: '15 min HIIT', 
-      color: '#FF6B35',
-      onPress: handleQuickWorkout
+  const recentWorkouts = [
+    {
+      id: 1,
+      name: 'Push Day - Chest & Triceps',
+      date: 'Today',
+      duration: '45 min',
+      exercises: 6,
+      image: 'https://images.pexels.com/photos/1552252/pexels-photo-1552252.jpeg?auto=compress&cs=tinysrgb&w=400',
     },
-    { 
-      icon: Calculator, 
-      title: 'TDEE Calculator', 
-      subtitle: 'Calculate daily calories', 
-      color: '#00D4AA',
-      onPress: () => handleNavigation('/tdee-calculator')
-    },
-    { 
-      icon: Target, 
-      title: 'Today\'s Goal', 
-      subtitle: '3 exercises left', 
-      color: '#9E7FFF',
-      onPress: handleTodaysGoal
-    },
-    { 
-      icon: Plus, 
-      title: 'More Actions', 
-      subtitle: 'View all features', 
-      color: '#666',
-      onPress: () => setShowAllActions(true)
+    {
+      id: 2,
+      name: 'Pull Day - Back & Biceps',
+      date: 'Yesterday',
+      duration: '52 min',
+      exercises: 7,
+      image: 'https://images.pexels.com/photos/1431282/pexels-photo-1431282.jpeg?auto=compress&cs=tinysrgb&w=400',
     },
   ];
 
-  // Categorized Secondary Actions with proper navigation
-  const secondaryActions = {
-    'Workout & Training': [
-      { 
-        icon: Dumbbell, 
-        title: 'Custom Workout', 
-        subtitle: 'Create your own', 
-        color: '#FF6B35',
-        onPress: () => handleNavigation('/create-workout')
-      },
-      { 
-        icon: Timer, 
-        title: 'Rest Timer', 
-        subtitle: 'Track your breaks', 
-        color: '#FFB800',
-        onPress: () => {
-          Alert.alert('Rest Timer', 'Timer feature coming soon!');
-        }
-      },
-      { 
-        icon: BookOpen, 
-        title: 'Exercise Library', 
-        subtitle: 'Browse exercises', 
-        color: '#00D4AA',
-        onPress: () => router.push('/(tabs)/exercises')
-      },
-      { 
-        icon: Calendar, 
-        title: 'Schedule Workout', 
-        subtitle: 'Plan ahead', 
-        color: '#9E7FFF',
-        onPress: () => handleNavigation('/schedule')
-      },
-    ],
-    'Progress & Analytics': [
-      { 
-        icon: TrendingUp, 
-        title: 'Progress Charts', 
-        subtitle: 'View your growth', 
-        color: '#00D4AA',
-        onPress: () => router.push('/(tabs)/progress')
-      },
-      { 
-        icon: BarChart3, 
-        title: 'Detailed Stats', 
-        subtitle: 'Advanced metrics', 
-        color: '#9E7FFF',
-        onPress: () => handleNavigation('/exercise-progress')
-      },
-      { 
-        icon: Award, 
-        title: 'Achievements', 
-        subtitle: 'Your milestones', 
-        color: '#FFB800',
-        onPress: () => handleNavigation('/achievements')
-      },
-      { 
-        icon: Camera, 
-        title: 'Progress Photos', 
-        subtitle: 'Visual tracking', 
-        color: '#FF6B35',
-        onPress: () => {
-          Alert.alert('Progress Photos', 'Photo tracking feature coming soon!');
-        }
-      },
-    ],
-    'Social & Community': [
-      { 
-        icon: Users, 
-        title: 'Find Friends', 
-        subtitle: 'Connect with others', 
-        color: '#9E7FFF',
-        onPress: () => router.push('/(tabs)/social')
-      },
-      { 
-        icon: Share2, 
-        title: 'Share Progress', 
-        subtitle: 'Post achievements', 
-        color: '#00D4AA',
-        onPress: () => {
-          Alert.alert('Share Progress', 'Sharing feature coming soon!');
-        }
-      },
-      { 
-        icon: Trophy, 
-        title: 'Leaderboards', 
-        subtitle: 'See rankings', 
-        color: '#FFB800',
-        onPress: () => handleNavigation('/leaderboards')
-      },
-      { 
-        icon: Heart, 
-        title: 'Challenges', 
-        subtitle: 'Join competitions', 
-        color: '#FF6B35',
-        onPress: () => {
-          Alert.alert('Challenges', 'Challenge feature coming soon!');
-        }
-      },
-    ],
-    'Tools & Settings': [
-      { 
-        icon: Settings, 
-        title: 'Settings', 
-        subtitle: 'App preferences', 
-        color: '#666',
-        onPress: () => {
-          Alert.alert('Settings', 'Settings feature coming soon!');
-        }
-      },
-      { 
-        icon: Bell, 
-        title: 'Notifications', 
-        subtitle: 'Manage alerts', 
-        color: '#9E7FFF',
-        onPress: () => {
-          Alert.alert('Notifications', 'Notification settings coming soon!');
-        }
-      },
-      { 
-        icon: MapPin, 
-        title: 'Gym Locator', 
-        subtitle: 'Find nearby gyms', 
-        color: '#00D4AA',
-        onPress: () => {
-          Alert.alert('Gym Locator', 'Gym locator feature coming soon!');
-        }
-      },
-      { 
-        icon: Search, 
-        title: 'Search', 
-        subtitle: 'Find anything', 
-        color: '#FFB800',
-        onPress: () => {
-          Alert.alert('Search', 'Global search feature coming soon!');
-        }
-      },
-    ],
-  };
-
-  const renderActionModal = () => (
-    <InteractiveModal
-      visible={showAllActions}
-      onClose={() => setShowAllActions(false)}
-      animationType="slide"
-      presentationStyle="pageSheet"
-    >
-      {/* Modal Header */}
-      <View style={styles.modalHeader}>
-        <Text style={styles.modalTitle}>All Features</Text>
-        <TouchableCard 
-          onPress={() => setShowAllActions(false)}
-          style={styles.closeButton}
-        >
-          <X size={24} color="#fff" />
-        </TouchableCard>
-      </View>
-
-      <OptimizedScrollView style={styles.modalContent}>
-        {Object.entries(secondaryActions).map(([category, actions]) => (
-          <View key={category} style={styles.categorySection}>
-            <Text style={styles.categoryTitle}>{category}</Text>
-            <View style={styles.categoryGrid}>
-              {actions.map((action, index) => (
-                <TouchableCard 
-                  key={index} 
-                  style={styles.modalActionCard}
-                  onPress={() => {
-                    setShowAllActions(false);
-                    setTimeout(() => {
-                      action.onPress?.();
-                    }, 300);
-                  }}
-                >
-                  <View style={[styles.modalActionIcon, { backgroundColor: `${action.color}20` }]}>
-                    <action.icon size={20} color={action.color} />
-                  </View>
-                  <Text style={styles.modalActionTitle}>{action.title}</Text>
-                  <Text style={styles.modalActionSubtitle}>{action.subtitle}</Text>
-                </TouchableCard>
-              ))}
-            </View>
-          </View>
-        ))}
-      </OptimizedScrollView>
-    </InteractiveModal>
-  );
+  const quickActions = [
+    { title: 'Start Workout', icon: Play, action: () => router.push('/workout-session') },
+    { title: 'View Progress', icon: TrendingUp, action: () => router.push('/(tabs)/progress') },
+    { title: 'Schedule', icon: Calendar, action: () => router.push('/schedule') },
+  ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
-        <OptimizedScrollView 
-          contentContainerStyle={styles.scrollContent}
-          enableRefresh={true}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting}>Good morning!</Text>
-              <Text style={styles.username}>Ready to crush your goals?</Text>
-            </View>
-            <View style={styles.streakContainer}>
-              <Flame size={20} color="#FF6B35" />
-              <Text style={styles.streakText}>{weeklyStats.streak} day streak</Text>
-            </View>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <LinearGradient
+        colors={['#0a0a0a', '#1a1a1a']}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.greeting}>Good morning,</Text>
+            <Text style={styles.userName}>Alex</Text>
           </View>
+          <TouchableOpacity 
+            style={styles.profileButton}
+            onPress={() => router.push('/profile')}
+          >
+            <Image
+              source={{ uri: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=100' }}
+              style={styles.profileImage}
+            />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
-          {/* Weekly Stats - Condensed */}
-          <View style={styles.statsContainer}>
-            <Text style={styles.sectionTitle}>This Week</Text>
-            <View style={styles.statsGrid}>
-              <TouchableCard 
-                style={styles.statCard}
-                onPress={() => router.push('/(tabs)/progress')}
-              >
-                <Trophy size={20} color="#FFB800" />
-                <Text style={styles.statNumber}>{weeklyStats.workoutsCompleted}</Text>
-                <Text style={styles.statLabel}>Workouts</Text>
-              </TouchableCard>
-              <TouchableCard 
-                style={styles.statCard}
-                onPress={() => router.push('/(tabs)/progress')}
-              >
-                <Clock size={20} color="#9E7FFF" />
-                <Text style={styles.statNumber}>{weeklyStats.totalMinutes}</Text>
-                <Text style={styles.statLabel}>Minutes</Text>
-              </TouchableCard>
-              <TouchableCard 
-                style={styles.statCard}
-                onPress={() => router.push('/(tabs)/progress')}
-              >
-                <Flame size={20} color="#FF6B35" />
-                <Text style={styles.statNumber}>{weeklyStats.caloriesBurned}</Text>
-                <Text style={styles.statLabel}>Calories</Text>
-              </TouchableCard>
-            </View>
+      <View style={styles.content}>
+        {/* Quick Stats */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your Stats</Text>
+          <View style={styles.statsGrid}>
+            {quickStats.map((stat, index) => {
+              const IconComponent = stat.icon;
+              return (
+                <View key={index} style={styles.statCard}>
+                  <View style={[styles.statIcon, { backgroundColor: `${stat.color}20` }]}>
+                    <IconComponent size={20} color={stat.color} />
+                  </View>
+                  <Text style={styles.statValue}>{stat.value}</Text>
+                  <Text style={styles.statUnit}>{stat.unit}</Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                </View>
+              );
+            })}
           </View>
+        </View>
 
-          {/* Primary Quick Actions - Reorganized */}
-          <View style={styles.quickActionsContainer}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <View style={styles.quickActionsGrid}>
-              {primaryActions.map((action, index) => (
-                <TouchableCard 
-                  key={index} 
-                  style={styles.quickActionCard}
-                  onPress={action.onPress}
-                >
-                  <LinearGradient
-                    colors={[`${action.color}20`, `${action.color}10`]}
-                    style={styles.quickActionGradient}
-                  >
-                    <action.icon size={24} color={action.color} />
-                    <Text style={styles.quickActionTitle}>{action.title}</Text>
-                    <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
-                    {action.title === 'More Actions' && (
-                      <View style={styles.moreActionsBadge}>
-                        <Grid3X3 size={12} color="#666" />
-                      </View>
-                    )}
-                  </LinearGradient>
-                </TouchableCard>
-              ))}
-            </View>
-          </View>
-
-          {/* Today's Workouts - Streamlined */}
-          <View style={styles.todayContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Today's Workouts</Text>
-              <TouchableCard 
-                style={styles.seeAllButton}
-                onPress={handleViewAllWorkouts}
-              >
-                <Text style={styles.seeAllText}>See All</Text>
-                <ChevronRight size={16} color="#9E7FFF" />
-              </TouchableCard>
-            </View>
-            
-            {todayWorkouts.length > 0 ? (
-              todayWorkouts.slice(0, 1).map((workout) => (
-                <TouchableCard 
-                  key={workout.id} 
-                  style={styles.workoutCard}
-                  onPress={() => handleWorkoutPress(workout.id)}
-                >
-                  <LinearGradient
-                    colors={['#1a1a1a', '#2a2a2a']}
-                    style={styles.workoutCardGradient}
-                  >
-                    <View style={styles.workoutHeader}>
-                      <Text style={styles.workoutName}>{workout.name}</Text>
-                      <View style={styles.workoutBadge}>
-                        <Text style={styles.workoutBadgeText}>{workout.exercises.length} exercises</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.workoutDescription}>{workout.description}</Text>
-                    <View style={styles.workoutStats}>
-                      <View style={styles.workoutStat}>
-                        <Clock size={16} color="#999" />
-                        <Text style={styles.workoutStatText}>{workout.duration} min</Text>
-                      </View>
-                      <View style={styles.workoutStat}>
-                        <Target size={16} color="#999" />
-                        <Text style={styles.workoutStatText}>{workout.targetMuscles.join(', ')}</Text>
-                      </View>
-                    </View>
-                  </LinearGradient>
-                </TouchableCard>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Calendar size={48} color="#666" />
-                <Text style={styles.emptyStateTitle}>No workouts scheduled</Text>
-                <Text style={styles.emptyStateText}>Plan your first workout to get started</Text>
-                <TouchableCard 
-                  style={styles.planWorkoutButton}
-                  onPress={handlePlanWorkout}
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.actionsRow}>
+            {quickActions.map((action, index) => {
+              const IconComponent = action.icon;
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.actionButton}
+                  onPress={action.action}
                 >
                   <LinearGradient
                     colors={['#9E7FFF', '#7C3AED']}
-                    style={styles.planWorkoutGradient}
+                    style={styles.actionGradient}
                   >
-                    <Text style={styles.planWorkoutText}>Plan Workout</Text>
+                    <IconComponent size={24} color="#FFFFFF" />
+                    <Text style={styles.actionText}>{action.title}</Text>
                   </LinearGradient>
-                </TouchableCard>
-              </View>
-            )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
+        </View>
 
-          {/* Recent Achievements - Condensed */}
-          <View style={styles.achievementsContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Achievements</Text>
-              <TouchableCard 
-                style={styles.seeAllButton}
-                onPress={handleViewAllAchievements}
-              >
-                <Text style={styles.seeAllText}>View All</Text>
-                <ChevronRight size={16} color="#9E7FFF" />
-              </TouchableCard>
-            </View>
-            {achievements.slice(0, 2).map((achievement) => (
-              <TouchableCard
-                key={achievement.id} 
-                style={styles.achievementCard}
-                onPress={() => handleNavigation('/achievements', { id: achievement.id })}
-              >
-                <View style={styles.achievementIcon}>
-                  <Trophy size={20} color="#FFB800" />
-                </View>
-                <View style={styles.achievementContent}>
-                  <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                  <Text style={styles.achievementDescription}>{achievement.description}</Text>
-                </View>
-                <Text style={styles.achievementDate}>
-                  {new Date(achievement.unlockedAt).toLocaleDateString()}
+        {/* Recent Workouts */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Workouts</Text>
+            <TouchableOpacity onPress={() => router.push('/workout-history')}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          {recentWorkouts.map((workout) => (
+            <TouchableOpacity
+              key={workout.id}
+              style={styles.workoutCard}
+              onPress={() => router.push('/workout-detail')}
+            >
+              <Image source={{ uri: workout.image }} style={styles.workoutImage} />
+              <View style={styles.workoutInfo}>
+                <Text style={styles.workoutName}>{workout.name}</Text>
+                <Text style={styles.workoutMeta}>
+                  {workout.date} • {workout.duration} • {workout.exercises} exercises
                 </Text>
-              </TouchableCard>
-            ))}
-          </View>
-        </OptimizedScrollView>
+              </View>
+              <ChevronRight size={20} color="#666" />
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        {/* Action Modal */}
-        {renderActionModal()}
-      </LinearGradient>
-    </SafeAreaView>
+        {/* Today's Goal */}
+        <View style={styles.section}>
+          <View style={styles.goalCard}>
+            <LinearGradient
+              colors={['#FF6B6B', '#FF8E53']}
+              style={styles.goalGradient}
+            >
+              <View style={styles.goalContent}>
+                <Target size={32} color="#FFFFFF" />
+                <View style={styles.goalText}>
+                  <Text style={styles.goalTitle}>Today's Goal</Text>
+                  <Text style={styles.goalDescription}>Complete your Push Day workout</Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={styles.goalButton}
+                onPress={() => router.push('/workout-session')}
+              >
+                <Text style={styles.goalButtonText}>Start Now</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
+    backgroundColor: '#0a0a0a',
   },
   header: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
   },
   greeting: {
-    fontSize: 24,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-  },
-  username: {
     fontSize: 16,
-    color: '#999',
+    color: '#A3A3A3',
     fontFamily: 'Inter-Regular',
+  },
+  userName: {
+    fontSize: 28,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
     marginTop: 4,
   },
-  streakContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#333',
+  profileButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
   },
-  streakText: {
-    color: '#FF6B35',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 14,
-    marginLeft: 6,
+  profileImage: {
+    width: '100%',
+    height: '100%',
   },
-  statsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  statNumber: {
-    fontSize: 20,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-    marginTop: 4,
-  },
-  quickActionsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  quickActionCard: {
-    width: (width - 52) / 2,
-    marginBottom: 12,
-  },
-  quickActionGradient: {
+  content: {
     padding: 20,
-    alignItems: 'center',
-    position: 'relative',
-    borderRadius: 16,
   },
-  quickActionTitle: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  quickActionSubtitle: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  moreActionsBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#333',
-    borderRadius: 8,
-    padding: 4,
-  },
-  todayContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
+  section: {
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -644,205 +227,138 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  seeAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  sectionTitle: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
   },
   seeAllText: {
-    color: '#9E7FFF',
-    fontFamily: 'Inter-SemiBold',
     fontSize: 14,
-    marginRight: 4,
-  },
-  workoutCard: {
-    marginBottom: 12,
-  },
-  workoutCardGradient: {
-    padding: 20,
-    borderRadius: 16,
-  },
-  workoutHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  workoutName: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    flex: 1,
-  },
-  workoutBadge: {
-    backgroundColor: '#9E7FFF20',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  workoutBadgeText: {
     color: '#9E7FFF',
-    fontSize: 12,
     fontFamily: 'Inter-Medium',
   },
-  workoutDescription: {
-    fontSize: 14,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-    marginBottom: 12,
-  },
-  workoutStats: {
+  statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  workoutStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  workoutStatText: {
-    color: '#999',
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    marginLeft: 6,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginTop: 16,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  planWorkoutButton: {
-    marginTop: 20,
-  },
-  planWorkoutGradient: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  planWorkoutText: {
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 14,
-  },
-  achievementsContainer: {
-    paddingHorizontal: 20,
-  },
-  achievementCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  statCard: {
     backgroundColor: '#1a1a1a',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#333',
+    width: (width - 56) / 2,
+    alignItems: 'center',
   },
-  achievementIcon: {
+  statIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFB80020',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  achievementContent: {
-    flex: 1,
+  statValue: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
   },
-  achievementTitle: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-  },
-  achievementDescription: {
+  statUnit: {
     fontSize: 12,
-    color: '#999',
+    color: '#A3A3A3',
     fontFamily: 'Inter-Regular',
     marginTop: 2,
   },
-  achievementDate: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Inter-Regular',
-  },
-  // Modal Styles
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  modalTitle: {
-    fontSize: 24,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-  },
-  closeButton: {
-    padding: 8,
-    backgroundColor: '#333',
-    borderRadius: 20,
-  },
-  modalContent: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  categorySection: {
-    marginVertical: 20,
-  },
-  categoryTitle: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 16,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  modalActionCard: {
-    width: (width - 52) / 2,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  modalActionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  modalActionTitle: {
+  statLabel: {
     fontSize: 14,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    textAlign: 'center',
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Medium',
+    marginTop: 4,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  actionGradient: {
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Medium',
+  },
+  workoutCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  workoutImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    marginRight: 16,
+  },
+  workoutInfo: {
+    flex: 1,
+  },
+  workoutName: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Medium',
     marginBottom: 4,
   },
-  modalActionSubtitle: {
-    fontSize: 12,
-    color: '#999',
+  workoutMeta: {
+    fontSize: 14,
+    color: '#A3A3A3',
     fontFamily: 'Inter-Regular',
-    textAlign: 'center',
+  },
+  goalCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  goalGradient: {
+    padding: 20,
+  },
+  goalContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  goalText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  goalTitle: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
+  },
+  goalDescription: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Regular',
+    opacity: 0.9,
+    marginTop: 4,
+  },
+  goalButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignSelf: 'flex-start',
+  },
+  goalButtonText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Bold',
   },
 });
