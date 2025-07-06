@@ -42,6 +42,7 @@ export default function RootLayout() {
           <Stack.Screen name="exercise-progress" />
           <Stack.Screen name="create-exercise" />
           <Stack.Screen name="template-preview" />
+          <Stack.Screen name="tdee-calculator" />
         </Stack>
       </DataProvider>
     </DeviceAuthProvider>
