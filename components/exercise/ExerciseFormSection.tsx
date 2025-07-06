@@ -2,493 +2,534 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Alert,
+  TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
-  Play, 
-  Eye, 
-  BookOpen, 
-  Target,
+  CheckCircle, 
+  XCircle, 
+  Target, 
+  Brain,
+  AlertTriangle,
   Lightbulb,
-  Video
+  Play,
+  BookOpen,
 } from 'lucide-react-native';
-import FormVideoPlayer from './FormVideoPlayer';
-import FormAnimationGuide from './FormAnimationGuide';
-import FormTipsModal from './FormTipsModal';
-import { useFormTips } from '@/hooks/useFormTips';
-import { ExerciseData } from '@/lib/data/exerciseDatabase';
+import { DesignTokens } from '@/design-system/tokens';
+import { Exercise } from '@/lib/supabase';
+import { FormVideoPlayer } from './FormVideoPlayer';
+import * as Haptics from 'expo-haptics';
 
 interface ExerciseFormSectionProps {
-  exercise: ExerciseData;
-  showVideoByDefault?: boolean;
-  compact?: boolean;
+  exercise: Exercise;
 }
 
-export default function ExerciseFormSection({
+interface FormPoint {
+  id: string;
+  type: 'correct' | 'incorrect' | 'tip' | 'focus';
+  title: string;
+  description: string;
+}
+
+export const ExerciseFormSection: React.FC<ExerciseFormSectionProps> = ({
   exercise,
-  showVideoByDefault = false,
-  compact = false,
-}: ExerciseFormSectionProps) {
-  const [activeView, setActiveView] = useState<'video' | 'animation' | 'none'>(
-    showVideoByDefault ? 'video' : 'none'
-  );
-  const [showFormTips, setShowFormTips] = useState(false);
-  
-  const { formGuidance, loading, error, generateFormGuidance } = useFormTips();
+}) => {
+  const [activeSection, setActiveSection] = useState<'video' | 'form' | 'cues'>('video');
 
-  const handleShowFormTips = async () => {
-    await generateFormGuidance(exercise.id);
-    setShowFormTips(true);
+  const handleSectionChange = async (section: 'video' | 'form' | 'cues') => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveSection(section);
   };
 
-  const handleVideoPlayback = (timestamp?: number) => {
-    if (activeView !== 'video') {
-      setActiveView('video');
-    }
-    // Video player will handle timestamp seeking
-  };
-
-  // Generate form steps for animation guide
-  const generateFormSteps = () => {
-    const baseSteps = [
+  // Generate form guidance based on exercise
+  const generateFormPoints = (exercise: Exercise): FormPoint[] => {
+    const basePoints: FormPoint[] = [
       {
-        id: 'setup',
-        title: 'Setup Position',
-        description: 'Get into the starting position with proper alignment',
-        duration: 3,
-        keyPoints: exercise.tips?.slice(0, 2) || ['Maintain proper posture', 'Engage core muscles'],
-        commonMistakes: exercise.common_mistakes?.slice(0, 2) || ['Poor starting position'],
-        muscleActivation: {
-          primary: exercise.muscle_groups.slice(0, 2),
-          secondary: exercise.muscle_groups.slice(2, 4),
-        },
+        id: '1',
+        type: 'correct',
+        title: 'Controlled Movement',
+        description: 'Move through the full range of motion with control, taking 2-3 seconds for each phase.',
       },
       {
-        id: 'execution',
-        title: 'Execute Movement',
-        description: 'Perform the main movement with control',
-        duration: 4,
-        keyPoints: exercise.tips?.slice(2, 4) || ['Control the movement', 'Focus on target muscles'],
-        commonMistakes: exercise.common_mistakes?.slice(2, 4) || ['Moving too fast'],
-        muscleActivation: {
-          primary: exercise.muscle_groups.slice(0, 3),
-          secondary: exercise.muscle_groups.slice(3, 5),
-        },
+        id: '2',
+        type: 'correct',
+        title: 'Proper Breathing',
+        description: 'Exhale during the exertion phase and inhale during the return phase.',
       },
       {
-        id: 'return',
-        title: 'Return to Start',
-        description: 'Return to starting position with control',
-        duration: 3,
-        keyPoints: ['Controlled return', 'Maintain tension'],
-        commonMistakes: ['Dropping weight too quickly'],
-        muscleActivation: {
-          primary: exercise.muscle_groups.slice(0, 2),
-          secondary: exercise.muscle_groups.slice(2, 4),
-        },
+        id: '3',
+        type: 'incorrect',
+        title: 'Rushing the Movement',
+        description: 'Avoid using momentum or bouncing at the bottom of the movement.',
+      },
+      {
+        id: '4',
+        type: 'focus',
+        title: 'Mind-Muscle Connection',
+        description: `Focus on feeling the ${exercise.primary_muscle_group} muscles working throughout the movement.`,
+      },
+      {
+        id: '5',
+        type: 'tip',
+        title: 'Progressive Overload',
+        description: 'Gradually increase weight, reps, or sets to continue making progress.',
       },
     ];
 
-    return baseSteps;
+    // Add exercise-specific points
+    const specificPoints: FormPoint[] = [];
+
+    if (exercise.primary_muscle_group === 'chest') {
+      specificPoints.push({
+        id: 'chest-1',
+        type: 'correct',
+        title: 'Shoulder Blade Position',
+        description: 'Retract and depress your shoulder blades to create a stable base.',
+      });
+    }
+
+    if (exercise.primary_muscle_group === 'legs') {
+      specificPoints.push({
+        id: 'legs-1',
+        type: 'correct',
+        title: 'Knee Tracking',
+        description: 'Keep your knees aligned with your toes throughout the movement.',
+      });
+    }
+
+    if (exercise.exercise_type === 'cardio') {
+      specificPoints.push({
+        id: 'cardio-1',
+        type: 'tip',
+        title: 'Heart Rate Zone',
+        description: 'Maintain 70-85% of your maximum heart rate for optimal cardiovascular benefits.',
+      });
+    }
+
+    return [...basePoints, ...specificPoints];
   };
 
-  if (compact) {
-    return (
-      <View style={styles.compactContainer}>
-        <View style={styles.compactHeader}>
-          <Target size={16} color="#FF6B35" />
-          <Text style={styles.compactTitle}>Form Guide</Text>
-        </View>
-        
-        <View style={styles.compactActions}>
-          <TouchableOpacity
-            style={styles.compactButton}
-            onPress={() => setActiveView(activeView === 'video' ? 'none' : 'video')}
-          >
-            <Video size={14} color="#4A90E2" />
-            <Text style={styles.compactButtonText}>Video</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.compactButton}
-            onPress={() => setActiveView(activeView === 'animation' ? 'none' : 'animation')}
-          >
-            <Play size={14} color="#2ECC71" />
-            <Text style={styles.compactButtonText}>Guide</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.compactButton}
-            onPress={handleShowFormTips}
-          >
-            <Lightbulb size={14} color="#F39C12" />
-            <Text style={styles.compactButtonText}>Tips</Text>
-          </TouchableOpacity>
-        </View>
+  const formPoints = generateFormPoints(exercise);
 
-        {activeView === 'video' && (
-          <FormVideoPlayer
-            videoUrl={exercise.demo_image_url} // Using demo_image_url as video URL
-            exerciseName={exercise.name}
-            compact={true}
-            autoPlay={false}
-            loopVideo={true}
-          />
-        )}
+  const getPointIcon = (type: FormPoint['type']) => {
+    switch (type) {
+      case 'correct':
+        return <CheckCircle size={20} color={DesignTokens.colors.success[500]} />;
+      case 'incorrect':
+        return <XCircle size={20} color={DesignTokens.colors.error[500]} />;
+      case 'tip':
+        return <Lightbulb size={20} color={DesignTokens.colors.warning[500]} />;
+      case 'focus':
+        return <Target size={20} color={DesignTokens.colors.primary[500]} />;
+      default:
+        return <Brain size={20} color={DesignTokens.colors.text.secondary} />;
+    }
+  };
 
-        {activeView === 'animation' && (
-          <FormAnimationGuide
-            exerciseName={exercise.name}
-            steps={generateFormSteps()}
-            autoPlay={false}
-            showMuscleActivation={false}
-          />
-        )}
+  const getPointColor = (type: FormPoint['type']) => {
+    switch (type) {
+      case 'correct':
+        return DesignTokens.colors.success[500];
+      case 'incorrect':
+        return DesignTokens.colors.error[500];
+      case 'tip':
+        return DesignTokens.colors.warning[500];
+      case 'focus':
+        return DesignTokens.colors.primary[500];
+      default:
+        return DesignTokens.colors.text.secondary;
+    }
+  };
 
-        <FormTipsModal
-          visible={showFormTips}
-          onClose={() => setShowFormTips(false)}
-          formGuidance={formGuidance}
-          loading={loading}
-          error={error}
-          exerciseName={exercise.name}
-          onPlayVideo={handleVideoPlayback}
+  const renderVideoSection = () => (
+    <View style={styles.videoSection}>
+      {exercise.video_url ? (
+        <FormVideoPlayer 
+          videoUrl={exercise.video_url}
+          title={`${exercise.name} - Proper Form`}
         />
+      ) : (
+        <View style={styles.noVideoContainer}>
+          <Play size={48} color={DesignTokens.colors.text.tertiary} />
+          <Text style={styles.noVideoTitle}>No Video Available</Text>
+          <Text style={styles.noVideoText}>
+            Form demonstration video coming soon
+          </Text>
+        </View>
+      )}
+      
+      <View style={styles.videoInfo}>
+        <Text style={styles.videoInfoTitle}>Form Demonstration</Text>
+        <Text style={styles.videoInfoText}>
+          Watch the proper form and technique for {exercise.name}. 
+          Pay attention to the movement pattern, breathing, and muscle activation.
+        </Text>
       </View>
-    );
-  }
+    </View>
+  );
+
+  const renderFormSection = () => (
+    <View style={styles.formSection}>
+      <Text style={styles.formTitle}>Form Guidelines</Text>
+      <Text style={styles.formSubtitle}>
+        Key points for proper execution and safety
+      </Text>
+      
+      {formPoints.map((point) => (
+        <View key={point.id} style={styles.formPoint}>
+          <View style={styles.formPointHeader}>
+            <View style={styles.formPointIcon}>
+              {getPointIcon(point.type)}
+            </View>
+            <View style={styles.formPointContent}>
+              <Text style={styles.formPointTitle}>{point.title}</Text>
+              <View style={[
+                styles.formPointTypeBadge,
+                { backgroundColor: `${getPointColor(point.type)}20` }
+              ]}>
+                <Text style={[
+                  styles.formPointTypeText,
+                  { color: getPointColor(point.type) }
+                ]}>
+                  {point.type.toUpperCase()}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <Text style={styles.formPointDescription}>{point.description}</Text>
+        </View>
+      ))}
+    </View>
+  );
+
+  const renderCuesSection = () => (
+    <View style={styles.cuesSection}>
+      <Text style={styles.cuesTitle}>Coaching Cues</Text>
+      <Text style={styles.cuesSubtitle}>
+        Mental reminders to maintain perfect form
+      </Text>
+      
+      <View style={styles.cuesList}>
+        <View style={styles.cueItem}>
+          <View style={styles.cueNumber}>
+            <Text style={styles.cueNumberText}>1</Text>
+          </View>
+          <View style={styles.cueContent}>
+            <Text style={styles.cueTitle}>Setup</Text>
+            <Text style={styles.cueDescription}>
+              Position yourself correctly and engage your core before starting
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.cueItem}>
+          <View style={styles.cueNumber}>
+            <Text style={styles.cueNumberText}>2</Text>
+          </View>
+          <View style={styles.cueContent}>
+            <Text style={styles.cueTitle}>Initiate</Text>
+            <Text style={styles.cueDescription}>
+              Begin the movement from the target muscle, not momentum
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.cueItem}>
+          <View style={styles.cueNumber}>
+            <Text style={styles.cueNumberText}>3</Text>
+          </View>
+          <View style={styles.cueContent}>
+            <Text style={styles.cueTitle}>Control</Text>
+            <Text style={styles.cueDescription}>
+              Maintain tension and control throughout the entire range of motion
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.cueItem}>
+          <View style={styles.cueNumber}>
+            <Text style={styles.cueNumberText}>4</Text>
+          </View>
+          <View style={styles.cueContent}>
+            <Text style={styles.cueTitle}>Reset</Text>
+            <Text style={styles.cueDescription}>
+              Return to starting position with control, ready for the next rep
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.mentalCues}>
+        <Brain size={24} color={DesignTokens.colors.primary[500]} />
+        <View style={styles.mentalCuesContent}>
+          <Text style={styles.mentalCuesTitle}>Mental Focus</Text>
+          <Text style={styles.mentalCuesText}>
+            Visualize the {exercise.primary_muscle_group} muscles contracting and lengthening. 
+            Think "squeeze and control" rather than "lift and drop."
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#1a1a1a', '#2a2a2a']}
-        style={styles.gradient}
+      {/* Section Tabs */}
+      <View style={styles.tabs}>
+        <TouchableOpacity
+          style={[styles.tab, activeSection === 'video' && styles.activeTab]}
+          onPress={() => handleSectionChange('video')}
+        >
+          <Play size={16} color={activeSection === 'video' ? '#FFFFFF' : DesignTokens.colors.text.secondary} />
+          <Text style={[styles.tabText, activeSection === 'video' && styles.activeTabText]}>
+            Video
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeSection === 'form' && styles.activeTab]}
+          onPress={() => handleSectionChange('form')}
+        >
+          <CheckCircle size={16} color={activeSection === 'form' ? '#FFFFFF' : DesignTokens.colors.text.secondary} />
+          <Text style={[styles.tabText, activeSection === 'form' && styles.activeTabText]}>
+            Form
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeSection === 'cues' && styles.activeTab]}
+          onPress={() => handleSectionChange('cues')}
+        >
+          <BookOpen size={16} color={activeSection === 'cues' ? '#FFFFFF' : DesignTokens.colors.text.secondary} />
+          <Text style={[styles.tabText, activeSection === 'cues' && styles.activeTabText]}>
+            Cues
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Content */}
+      <ScrollView 
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Target size={24} color="#FF6B35" />
-            <Text style={styles.title}>Exercise Form Guide</Text>
-          </View>
-        </View>
-
-        {/* View Toggle */}
-        <View style={styles.viewToggle}>
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              activeView === 'video' && styles.toggleButtonActive
-            ]}
-            onPress={() => setActiveView(activeView === 'video' ? 'none' : 'video')}
-          >
-            <Video size={18} color={activeView === 'video' ? "#fff" : "#999"} />
-            <Text style={[
-              styles.toggleButtonText,
-              activeView === 'video' && styles.toggleButtonTextActive
-            ]}>
-              Video Demo
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              activeView === 'animation' && styles.toggleButtonActive
-            ]}
-            onPress={() => setActiveView(activeView === 'animation' ? 'none' : 'animation')}
-          >
-            <Play size={18} color={activeView === 'animation' ? "#fff" : "#999"} />
-            <Text style={[
-              styles.toggleButtonText,
-              activeView === 'animation' && styles.toggleButtonTextActive
-            ]}>
-              Step Guide
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tipsButton}
-            onPress={handleShowFormTips}
-          >
-            <Lightbulb size={18} color="#F39C12" />
-            <Text style={styles.tipsButtonText}>Form Tips</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Content */}
-        {activeView === 'video' && (
-          <FormVideoPlayer
-            videoUrl={exercise.demo_image_url} // Using demo_image_url as video URL
-            exerciseName={exercise.name}
-            autoPlay={false}
-            loopVideo={true}
-            showControls={true}
-          />
-        )}
-
-        {activeView === 'animation' && (
-          <FormAnimationGuide
-            exerciseName={exercise.name}
-            steps={generateFormSteps()}
-            autoPlay={false}
-            showMuscleActivation={true}
-          />
-        )}
-
-        {activeView === 'none' && (
-          <View style={styles.placeholderContainer}>
-            <Eye size={48} color="#666" />
-            <Text style={styles.placeholderTitle}>Visual Form Guide</Text>
-            <Text style={styles.placeholderText}>
-              Choose video demo or step-by-step animation guide to learn proper form for {exercise.name}
-            </Text>
-            
-            <View style={styles.placeholderActions}>
-              <TouchableOpacity
-                style={styles.placeholderButton}
-                onPress={() => setActiveView('video')}
-              >
-                <LinearGradient
-                  colors={['#4A90E2', '#357ABD']}
-                  style={styles.placeholderButtonGradient}
-                >
-                  <Video size={20} color="#fff" />
-                  <Text style={styles.placeholderButtonText}>Watch Video</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.placeholderButton}
-                onPress={() => setActiveView('animation')}
-              >
-                <LinearGradient
-                  colors={['#2ECC71', '#27AE60']}
-                  style={styles.placeholderButtonGradient}
-                >
-                  <Play size={20} color="#fff" />
-                  <Text style={styles.placeholderButtonText}>Step Guide</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Quick Stats */}
-        <View style={styles.quickStats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Difficulty</Text>
-            <Text style={[
-              styles.statValue,
-              { color: exercise.difficulty_level === 'beginner' ? '#2ECC71' : 
-                       exercise.difficulty_level === 'intermediate' ? '#F39C12' : '#E74C3C' }
-            ]}>
-              {exercise.difficulty_level}
-            </Text>
-          </View>
-          
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Safety</Text>
-            <Text style={[
-              styles.statValue,
-              { color: exercise.safety_rating >= 4 ? '#2ECC71' : 
-                       exercise.safety_rating >= 3 ? '#F39C12' : '#E74C3C' }
-            ]}>
-              {exercise.safety_rating}/5
-            </Text>
-          </View>
-          
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Type</Text>
-            <Text style={styles.statValue}>
-              {exercise.is_compound ? 'Compound' : 'Isolation'}
-            </Text>
-          </View>
-        </View>
-      </LinearGradient>
-
-      <FormTipsModal
-        visible={showFormTips}
-        onClose={() => setShowFormTips(false)}
-        formGuidance={formGuidance}
-        loading={loading}
-        error={error}
-        exerciseName={exercise.name}
-        onPlayVideo={handleVideoPlayback}
-      />
+        {activeSection === 'video' && renderVideoSection()}
+        {activeSection === 'form' && renderFormSection()}
+        {activeSection === 'cues' && renderCuesSection()}
+      </ScrollView>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16,
+    flex: 1,
   },
-  gradient: {
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  header: {
+  tabs: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[1],
+    marginHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[4],
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginLeft: 12,
-  },
-  viewToggle: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    backgroundColor: '#333',
-    borderRadius: 12,
-    padding: 4,
-  },
-  toggleButton: {
+  tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: DesignTokens.spacing[2],
+    paddingHorizontal: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
+    gap: DesignTokens.spacing[1],
   },
-  toggleButtonActive: {
-    backgroundColor: '#FF6B35',
+  activeTab: {
+    backgroundColor: DesignTokens.colors.primary[500],
   },
-  toggleButtonText: {
-    fontSize: 14,
-    color: '#999',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
+  tabText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  toggleButtonTextActive: {
-    color: '#fff',
+  activeTabText: {
+    color: '#FFFFFF',
   },
-  tipsButton: {
-    flexDirection: 'row',
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: DesignTokens.spacing[8],
+  },
+  videoSection: {
+    paddingHorizontal: DesignTokens.spacing[5],
+  },
+  noVideoContainer: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[8],
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#F39C1220',
-    borderRadius: 8,
-    marginLeft: 8,
+    marginBottom: DesignTokens.spacing[4],
   },
-  tipsButtonText: {
-    fontSize: 14,
-    color: '#F39C12',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
+  noVideoTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginTop: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[1],
   },
-  placeholderContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  placeholderTitle: {
-    fontSize: 20,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
+  noVideoText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
   },
-  placeholderActions: {
-    flexDirection: 'row',
-    gap: 12,
+  videoInfo: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    marginTop: DesignTokens.spacing[4],
   },
-  placeholderButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
+  videoInfoTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginBottom: DesignTokens.spacing[2],
   },
-  placeholderButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  videoInfoText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 22,
   },
-  placeholderButtonText: {
-    fontSize: 14,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
+  formSection: {
+    paddingHorizontal: DesignTokens.spacing[5],
   },
-  quickStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
+  formTitle: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginBottom: DesignTokens.spacing[2],
   },
-  statItem: {
-    alignItems: 'center',
+  formSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 24,
+    marginBottom: DesignTokens.spacing[6],
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Medium',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 14,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    textTransform: 'capitalize',
-  },
-  // Compact styles
-  compactContainer: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 12,
+  formPoint: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[3],
     borderWidth: 1,
-    borderColor: '#333',
-    marginVertical: 8,
+    borderColor: DesignTokens.colors.neutral[800],
   },
-  compactHeader: {
+  formPointHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[2],
+  },
+  formPointIcon: {
+    marginRight: DesignTokens.spacing[3],
+    marginTop: DesignTokens.spacing[1],
+  },
+  formPointContent: {
+    flex: 1,
+  },
+  formPointTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  formPointTypeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+  formPointTypeText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  formPointDescription: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 20,
+    marginLeft: DesignTokens.spacing[8],
+  },
+  cuesSection: {
+    paddingHorizontal: DesignTokens.spacing[5],
+  },
+  cuesTitle: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginBottom: DesignTokens.spacing[2],
+  },
+  cuesSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 24,
+    marginBottom: DesignTokens.spacing[6],
+  },
+  cuesList: {
+    marginBottom: DesignTokens.spacing[6],
+  },
+  cueItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[4],
+  },
+  cueNumber: {
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginRight: DesignTokens.spacing[3],
   },
-  compactTitle: {
-    fontSize: 14,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
+  cueNumberText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: '#FFFFFF',
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
-  compactActions: {
+  cueContent: {
+    flex: 1,
+  },
+  cueTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  cueDescription: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 20,
+  },
+  mentalCues: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 8,
+    backgroundColor: `${DesignTokens.colors.primary[500]}10`,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    borderWidth: 1,
+    borderColor: `${DesignTokens.colors.primary[500]}30`,
   },
-  compactButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
+  mentalCuesContent: {
+    flex: 1,
+    marginLeft: DesignTokens.spacing[3],
   },
-  compactButtonText: {
-    fontSize: 11,
-    color: '#999',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 4,
+  mentalCuesTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  mentalCuesText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 20,
   },
 });

@@ -174,6 +174,18 @@ export default function TabLayout() {
           href: null, // Hide from tab bar
         }}
       />
+      <Tabs.Screen
+        name="timer"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="sleep"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
     </Tabs>
   );
 }

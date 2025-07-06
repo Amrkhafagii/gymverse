@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   Modal,
   ScrollView,
-  Animated,
+  TouchableOpacity,
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,591 +14,526 @@ import {
   CheckCircle, 
   AlertTriangle, 
   Target, 
-  Eye,
-  Play,
-  BookOpen,
+  Brain,
   Lightbulb,
   Shield,
-  Zap
+  TrendingUp,
 } from 'lucide-react-native';
+import { DesignTokens } from '@/design-system/tokens';
+import { Exercise } from '@/lib/supabase';
+import * as Haptics from 'expo-haptics';
 
-interface FormTip {
-  id: string;
-  type: 'technique' | 'safety' | 'common_mistake' | 'progression';
-  title: string;
-  description: string;
-  importance: 'low' | 'medium' | 'high' | 'critical';
-  videoTimestamp?: number;
-}
-
-interface FormGuidance {
-  exerciseId: string;
-  exerciseName: string;
-  tips: FormTip[];
-  keyMuscles: string[];
-  safetyNotes: string[];
-  progressionTips: string[];
-  commonMistakes: string[];
-}
+const { height } = Dimensions.get('window');
 
 interface FormTipsModalProps {
   visible: boolean;
   onClose: () => void;
-  formGuidance: FormGuidance | null;
-  loading: boolean;
-  error: string | null;
-  exerciseName?: string;
-  onPlayVideo?: (timestamp?: number) => void;
+  exercise: Exercise;
 }
 
-const { width, height } = Dimensions.get('window');
+interface FormTip {
+  id: string;
+  type: 'do' | 'dont' | 'focus' | 'safety' | 'progression';
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+}
 
-export default function FormTipsModal({
+export const FormTipsModal: React.FC<FormTipsModalProps> = ({
   visible,
   onClose,
-  formGuidance,
-  loading,
-  error,
-  exerciseName,
-  onPlayVideo,
-}: FormTipsModalProps) {
-  const [selectedTab, setSelectedTab] = useState<'tips' | 'safety' | 'mistakes' | 'progression'>('tips');
-  const [expandedTip, setExpandedTip] = useState<string | null>(null);
+  exercise,
+}) => {
+  const [activeTab, setActiveTab] = useState<'tips' | 'muscles' | 'variations'>('tips');
 
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(height);
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 100,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: height,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible]);
-
-  const getImportanceColor = (importance: string) => {
-    switch (importance) {
-      case 'critical': return '#E74C3C';
-      case 'high': return '#F39C12';
-      case 'medium': return '#3498DB';
-      case 'low': return '#95A5A6';
-      default: return '#95A5A6';
-    }
+  const handleClose = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onClose();
   };
 
-  const getTypeIcon = (type: string) => {
+  const handleTabChange = async (tab: 'tips' | 'muscles' | 'variations') => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveTab(tab);
+  };
+
+  // Generate AI-powered form tips based on exercise
+  const generateFormTips = (exercise: Exercise): FormTip[] => {
+    const baseTips: FormTip[] = [
+      {
+        id: '1',
+        type: 'do',
+        title: 'Maintain Proper Posture',
+        description: 'Keep your spine neutral and core engaged throughout the movement. This protects your back and ensures optimal muscle activation.',
+        icon: <CheckCircle size={20} color={DesignTokens.colors.success[500]} />,
+      },
+      {
+        id: '2',
+        type: 'dont',
+        title: 'Avoid Rushing the Movement',
+        description: 'Control both the lifting and lowering phases. Quick, jerky movements reduce effectiveness and increase injury risk.',
+        icon: <AlertTriangle size={20} color={DesignTokens.colors.warning[500]} />,
+      },
+      {
+        id: '3',
+        type: 'focus',
+        title: 'Mind-Muscle Connection',
+        description: 'Focus on feeling the target muscles working. Visualize the muscle contracting and lengthening with each rep.',
+        icon: <Brain size={20} color={DesignTokens.colors.primary[500]} />,
+      },
+      {
+        id: '4',
+        type: 'safety',
+        title: 'Warm Up Properly',
+        description: 'Always perform dynamic warm-up exercises before starting. This prepares your muscles and joints for the workout.',
+        icon: <Shield size={20} color={DesignTokens.colors.error[500]} />,
+      },
+      {
+        id: '5',
+        type: 'progression',
+        title: 'Progressive Overload',
+        description: 'Gradually increase weight, reps, or sets over time. This ensures continuous improvement and muscle growth.',
+        icon: <TrendingUp size={20} color={DesignTokens.colors.info[500]} />,
+      },
+    ];
+
+    // Add exercise-specific tips based on type and muscle groups
+    const specificTips: FormTip[] = [];
+
+    if (exercise.exercise_type === 'strength') {
+      specificTips.push({
+        id: 'strength-1',
+        type: 'focus',
+        title: 'Breathing Pattern',
+        description: 'Exhale during the exertion phase (lifting) and inhale during the lowering phase. This helps maintain core stability.',
+        icon: <Target size={20} color={DesignTokens.colors.primary[500]} />,
+      });
+    }
+
+    if (exercise.primary_muscle_group === 'chest') {
+      specificTips.push({
+        id: 'chest-1',
+        type: 'do',
+        title: 'Retract Shoulder Blades',
+        description: 'Pull your shoulder blades back and down to create a stable base and protect your shoulders during chest exercises.',
+        icon: <CheckCircle size={20} color={DesignTokens.colors.success[500]} />,
+      });
+    }
+
+    if (exercise.primary_muscle_group === 'legs') {
+      specificTips.push({
+        id: 'legs-1',
+        type: 'safety',
+        title: 'Knee Alignment',
+        description: 'Keep your knees aligned with your toes. Avoid letting them cave inward, which can cause injury.',
+        icon: <Shield size={20} color={DesignTokens.colors.error[500]} />,
+      });
+    }
+
+    return [...baseTips, ...specificTips];
+  };
+
+  const formTips = generateFormTips(exercise);
+
+  const getTipColor = (type: FormTip['type']) => {
     switch (type) {
-      case 'technique': return <Target size={16} color="#3498DB" />;
-      case 'safety': return <Shield size={16} color="#E74C3C" />;
-      case 'common_mistake': return <AlertTriangle size={16} color="#F39C12" />;
-      case 'progression': return <Zap size={16} color="#2ECC71" />;
-      default: return <Lightbulb size={16} color="#95A5A6" />;
+      case 'do':
+        return DesignTokens.colors.success[500];
+      case 'dont':
+        return DesignTokens.colors.warning[500];
+      case 'focus':
+        return DesignTokens.colors.primary[500];
+      case 'safety':
+        return DesignTokens.colors.error[500];
+      case 'progression':
+        return DesignTokens.colors.info[500];
+      default:
+        return DesignTokens.colors.text.secondary;
     }
   };
 
-  const renderTipCard = (tip: FormTip) => {
-    const isExpanded = expandedTip === tip.id;
-    
-    return (
-      <TouchableOpacity
-        key={tip.id}
-        style={styles.tipCard}
-        onPress={() => setExpandedTip(isExpanded ? null : tip.id)}
-      >
-        <LinearGradient
-          colors={['#1a1a1a', '#2a2a2a']}
-          style={styles.tipCardGradient}
+  const getTipBackgroundColor = (type: FormTip['type']) => {
+    return getTipColor(type) + '20';
+  };
+
+  const renderTipsContent = () => (
+    <View style={styles.tipsContent}>
+      <Text style={styles.sectionTitle}>Form & Technique Tips</Text>
+      <Text style={styles.sectionSubtitle}>
+        AI-powered guidance for perfect form and maximum results
+      </Text>
+      
+      {formTips.map((tip) => (
+        <View 
+          key={tip.id} 
+          style={[
+            styles.tipCard,
+            { backgroundColor: getTipBackgroundColor(tip.type) }
+          ]}
         >
           <View style={styles.tipHeader}>
-            <View style={styles.tipTypeContainer}>
-              {getTypeIcon(tip.type)}
-              <Text style={styles.tipType}>{tip.type.replace('_', ' ')}</Text>
+            <View style={styles.tipIcon}>
+              {tip.icon}
             </View>
-            <View style={[
-              styles.importanceBadge,
-              { backgroundColor: getImportanceColor(tip.importance) + '20' }
-            ]}>
-              <Text style={[
-                styles.importanceText,
-                { color: getImportanceColor(tip.importance) }
+            <View style={styles.tipTitleContainer}>
+              <Text style={styles.tipTitle}>{tip.title}</Text>
+              <View style={[
+                styles.tipTypeBadge,
+                { backgroundColor: getTipColor(tip.type) }
               ]}>
-                {tip.importance}
-              </Text>
+                <Text style={styles.tipTypeText}>
+                  {tip.type.toUpperCase()}
+                </Text>
+              </View>
             </View>
           </View>
-
-          <Text style={styles.tipTitle}>{tip.title}</Text>
-          
-          {isExpanded && (
-            <View style={styles.tipContent}>
-              <Text style={styles.tipDescription}>{tip.description}</Text>
-              
-              {tip.videoTimestamp && onPlayVideo && (
-                <TouchableOpacity
-                  style={styles.videoButton}
-                  onPress={() => onPlayVideo(tip.videoTimestamp)}
-                >
-                  <Play size={16} color="#FF6B35" />
-                  <Text style={styles.videoButtonText}>
-                    Watch at {Math.floor(tip.videoTimestamp / 60)}:{(tip.videoTimestamp % 60).toString().padStart(2, '0')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderTabContent = () => {
-    if (loading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Generating form guidance...</Text>
+          <Text style={styles.tipDescription}>{tip.description}</Text>
         </View>
-      );
-    }
+      ))}
+    </View>
+  );
 
-    if (error) {
-      return (
-        <View style={styles.errorContainer}>
-          <AlertTriangle size={48} color="#E74C3C" />
-          <Text style={styles.errorTitle}>Unable to load form guidance</Text>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      );
-    }
+  const renderMusclesContent = () => (
+    <View style={styles.musclesContent}>
+      <Text style={styles.sectionTitle}>Muscle Activation</Text>
+      <Text style={styles.sectionSubtitle}>
+        Understanding which muscles are working during this exercise
+      </Text>
 
-    if (!formGuidance) {
-      return (
-        <View style={styles.emptyContainer}>
-          <BookOpen size={48} color="#666" />
-          <Text style={styles.emptyTitle}>No form guidance available</Text>
-          <Text style={styles.emptyText}>
-            Form tips for {exerciseName || 'this exercise'} are not available at the moment.
+      <View style={styles.muscleSection}>
+        <Text style={styles.muscleGroupTitle}>Primary Muscles</Text>
+        <View style={styles.primaryMuscle}>
+          <Text style={styles.primaryMuscleText}>
+            {exercise.primary_muscle_group}
           </Text>
         </View>
-      );
-    }
+      </View>
 
-    switch (selectedTab) {
-      case 'tips':
-        const techniqueTips = formGuidance.tips.filter(tip => tip.type === 'technique');
-        return (
-          <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-            {techniqueTips.length > 0 ? (
-              techniqueTips.map(renderTipCard)
-            ) : (
-              <Text style={styles.noContentText}>No technique tips available</Text>
-            )}
-          </ScrollView>
-        );
-
-      case 'safety':
-        return (
-          <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-            {formGuidance.safetyNotes.map((note, index) => (
-              <View key={index} style={styles.safetyItem}>
-                <Shield size={16} color="#E74C3C" />
-                <Text style={styles.safetyText}>{note}</Text>
+      {exercise.secondary_muscle_groups && exercise.secondary_muscle_groups.length > 0 && (
+        <View style={styles.muscleSection}>
+          <Text style={styles.muscleGroupTitle}>Secondary Muscles</Text>
+          <View style={styles.secondaryMuscles}>
+            {exercise.secondary_muscle_groups.map((muscle, index) => (
+              <View key={index} style={styles.secondaryMuscle}>
+                <Text style={styles.secondaryMuscleText}>{muscle}</Text>
               </View>
             ))}
-            
-            {formGuidance.tips.filter(tip => tip.type === 'safety').map(renderTipCard)}
-          </ScrollView>
-        );
+          </View>
+        </View>
+      )}
 
-      case 'mistakes':
-        return (
-          <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-            {formGuidance.commonMistakes.map((mistake, index) => (
-              <View key={index} style={styles.mistakeItem}>
-                <AlertTriangle size={16} color="#F39C12" />
-                <Text style={styles.mistakeText}>{mistake}</Text>
-              </View>
-            ))}
-            
-            {formGuidance.tips.filter(tip => tip.type === 'common_mistake').map(renderTipCard)}
-          </ScrollView>
-        );
+      <View style={styles.activationTips}>
+        <Lightbulb size={24} color={DesignTokens.colors.warning[500]} />
+        <View style={styles.activationTipsContent}>
+          <Text style={styles.activationTipsTitle}>Activation Tips</Text>
+          <Text style={styles.activationTipsText}>
+            Focus on squeezing and controlling the primary muscle group. 
+            You should feel the burn in the {exercise.primary_muscle_group} muscles first.
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
 
-      case 'progression':
-        return (
-          <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-            {formGuidance.progressionTips.map((tip, index) => (
-              <View key={index} style={styles.progressionItem}>
-                <Zap size={16} color="#2ECC71" />
-                <Text style={styles.progressionText}>{tip}</Text>
-              </View>
-            ))}
-            
-            {formGuidance.tips.filter(tip => tip.type === 'progression').map(renderTipCard)}
-          </ScrollView>
-        );
+  const renderVariationsContent = () => (
+    <View style={styles.variationsContent}>
+      <Text style={styles.sectionTitle}>Exercise Variations</Text>
+      <Text style={styles.sectionSubtitle}>
+        Different ways to perform this exercise for progression or modification
+      </Text>
 
-      default:
-        return null;
-    }
-  };
+      <View style={styles.variationCard}>
+        <Text style={styles.variationTitle}>Beginner Modification</Text>
+        <Text style={styles.variationDescription}>
+          Reduce the range of motion or use lighter weight to master the basic movement pattern.
+        </Text>
+      </View>
+
+      <View style={styles.variationCard}>
+        <Text style={styles.variationTitle}>Advanced Progression</Text>
+        <Text style={styles.variationDescription}>
+          Add pause reps, increase time under tension, or incorporate unilateral movements.
+        </Text>
+      </View>
+
+      <View style={styles.variationCard}>
+        <Text style={styles.variationTitle}>Equipment Alternative</Text>
+        <Text style={styles.variationDescription}>
+          Bodyweight or resistance band variations when gym equipment isn't available.
+        </Text>
+      </View>
+    </View>
+  );
 
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={handleClose}
     >
-      <Animated.View 
-        style={[
-          styles.overlay,
-          { opacity: fadeAnim }
-        ]}
-      >
-        <Animated.View 
-          style={[
-            styles.modal,
-            { transform: [{ translateY: slideAnim }] }
-          ]}
+      <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.title} numberOfLines={2}>
+              {exercise.name}
+            </Text>
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+              <X size={24} color={DesignTokens.colors.text.primary} />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Tabs */}
+          <View style={styles.tabs}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'tips' && styles.activeTab]}
+              onPress={() => handleTabChange('tips')}
+            >
+              <Text style={[styles.tabText, activeTab === 'tips' && styles.activeTabText]}>
+                Form Tips
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'muscles' && styles.activeTab]}
+              onPress={() => handleTabChange('muscles')}
+            >
+              <Text style={[styles.tabText, activeTab === 'muscles' && styles.activeTabText]}>
+                Muscles
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'variations' && styles.activeTab]}
+              onPress={() => handleTabChange('variations')}
+            >
+              <Text style={[styles.tabText, activeTab === 'variations' && styles.activeTabText]}>
+                Variations
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Content */}
+        <ScrollView 
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          <LinearGradient
-            colors={['#0a0a0a', '#1a1a1a']}
-            style={styles.modalGradient}
-          >
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <Eye size={24} color="#FF6B35" />
-                <Text style={styles.headerTitle}>Form Guide</Text>
-              </View>
-              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                <X size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            {formGuidance && (
-              <Text style={styles.exerciseTitle}>{formGuidance.exerciseName}</Text>
-            )}
-
-            {/* Tabs */}
-            <View style={styles.tabContainer}>
-              {[
-                { key: 'tips', label: 'Technique', icon: <Target size={16} color="#fff" /> },
-                { key: 'safety', label: 'Safety', icon: <Shield size={16} color="#fff" /> },
-                { key: 'mistakes', label: 'Mistakes', icon: <AlertTriangle size={16} color="#fff" /> },
-                { key: 'progression', label: 'Progress', icon: <Zap size={16} color="#fff" /> },
-              ].map((tab) => (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[
-                    styles.tab,
-                    selectedTab === tab.key && styles.tabActive
-                  ]}
-                  onPress={() => setSelectedTab(tab.key as any)}
-                >
-                  {tab.icon}
-                  <Text style={[
-                    styles.tabText,
-                    selectedTab === tab.key && styles.tabTextActive
-                  ]}>
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Content */}
-            <View style={styles.content}>
-              {renderTabContent()}
-            </View>
-          </LinearGradient>
-        </Animated.View>
-      </Animated.View>
+          {activeTab === 'tips' && renderTipsContent()}
+          {activeTab === 'muscles' && renderMusclesContent()}
+          {activeTab === 'variations' && renderVariationsContent()}
+        </ScrollView>
+      </LinearGradient>
     </Modal>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-end',
-  },
-  modal: {
-    height: height * 0.85,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-  },
-  modalGradient: {
+  container: {
     flex: 1,
   },
   header: {
+    paddingTop: DesignTokens.spacing[12],
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingBottom: DesignTokens.spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: DesignTokens.colors.neutral[800],
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 16,
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[4],
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginLeft: 12,
+  title: {
+    flex: 1,
+    fontSize: DesignTokens.typography.fontSize['2xl'],
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginRight: DesignTokens.spacing[4],
+    lineHeight: 28,
   },
   closeButton: {
-    backgroundColor: '#333',
+    backgroundColor: DesignTokens.colors.surface.secondary,
     borderRadius: 20,
-    padding: 8,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  exerciseTitle: {
-    fontSize: 16,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Medium',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  tabContainer: {
+  tabs: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[1],
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
+    paddingVertical: DesignTokens.spacing[2],
+    paddingHorizontal: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#333',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginHorizontal: 2,
   },
-  tabActive: {
-    backgroundColor: '#FF6B35',
+  activeTab: {
+    backgroundColor: DesignTokens.colors.primary[500],
   },
   tabText: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  tabTextActive: {
-    color: '#fff',
+  activeTabText: {
+    color: DesignTokens.colors.text.primary,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
   },
-  tabContent: {
-    flex: 1,
+  scrollContent: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingBottom: DesignTokens.spacing[8],
+  },
+  tipsContent: {
+    paddingTop: DesignTokens.spacing[6],
+  },
+  sectionTitle: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginBottom: DesignTokens.spacing[2],
+  },
+  sectionSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 24,
+    marginBottom: DesignTokens.spacing[6],
   },
   tipCard: {
-    marginBottom: 12,
-  },
-  tipCardGradient: {
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[4],
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: DesignTokens.colors.neutral[800],
   },
   tipHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[3],
   },
-  tipTypeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  tipIcon: {
+    marginRight: DesignTokens.spacing[3],
+    marginTop: DesignTokens.spacing[1],
   },
-  tipType: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
-    textTransform: 'capitalize',
-  },
-  importanceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  importanceText: {
-    fontSize: 10,
-    fontFamily: 'Inter-SemiBold',
-    textTransform: 'uppercase',
+  tipTitleContainer: {
+    flex: 1,
   },
   tipTitle: {
-    fontSize: 14,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 4,
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginBottom: DesignTokens.spacing[1],
   },
-  tipContent: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
+  tipTypeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+  tipTypeText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
   tipDescription: {
-    fontSize: 13,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    lineHeight: 18,
-    marginBottom: 8,
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 22,
   },
-  videoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF6B3520',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
+  musclesContent: {
+    paddingTop: DesignTokens.spacing[6],
   },
-  videoButtonText: {
-    fontSize: 12,
-    color: '#FF6B35',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
+  muscleSection: {
+    marginBottom: DesignTokens.spacing[6],
   },
-  safetyItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#E74C3C10',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#E74C3C',
+  muscleGroupTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginBottom: DesignTokens.spacing[3],
   },
-  safetyText: {
-    fontSize: 13,
-    color: '#fff',
-    fontFamily: 'Inter-Regular',
-    marginLeft: 12,
-    flex: 1,
-    lineHeight: 18,
+  primaryMuscle: {
+    backgroundColor: `${DesignTokens.colors.primary[500]}20`,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    borderWidth: 2,
+    borderColor: DesignTokens.colors.primary[500],
   },
-  mistakeItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#F39C1210',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#F39C12',
-  },
-  mistakeText: {
-    fontSize: 13,
-    color: '#fff',
-    fontFamily: 'Inter-Regular',
-    marginLeft: 12,
-    flex: 1,
-    lineHeight: 18,
-  },
-  progressionItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#2ECC7110',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#2ECC71',
-  },
-  progressionText: {
-    fontSize: 13,
-    color: '#fff',
-    fontFamily: 'Inter-Regular',
-    marginLeft: 12,
-    flex: 1,
-    lineHeight: 18,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  errorTitle: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
+  primaryMuscleText: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     textAlign: 'center',
+    textTransform: 'capitalize',
+  },
+  secondaryMuscles: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: DesignTokens.spacing[2],
+  },
+  secondaryMuscle: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+  },
+  secondaryMuscleText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    textTransform: 'capitalize',
+  },
+  activationTips: {
+    flexDirection: 'row',
+    backgroundColor: `${DesignTokens.colors.warning[500]}10`,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    borderWidth: 1,
+    borderColor: `${DesignTokens.colors.warning[500]}30`,
+  },
+  activationTipsContent: {
+    flex: 1,
+    marginLeft: DesignTokens.spacing[3],
+  },
+  activationTipsTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  activationTipsText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
     lineHeight: 20,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
+  variationsContent: {
+    paddingTop: DesignTokens.spacing[6],
   },
-  emptyTitle: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginTop: 16,
-    marginBottom: 8,
+  variationCard: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[4],
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[800],
   },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-    lineHeight: 20,
+  variationTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginBottom: DesignTokens.spacing[2],
   },
-  noContentText: {
-    fontSize: 14,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-    paddingVertical: 40,
+  variationDescription: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 22,
   },
 });

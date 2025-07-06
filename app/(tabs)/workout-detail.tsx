@@ -7,18 +7,31 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  RefreshControl,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
-  Play,
+  ArrowLeft,
   Clock,
   Target,
   TrendingUp,
-  ArrowLeft,
-  Dumbbell,
+  Users,
+  Star,
+  Play,
+  Share2,
+  MoreVertical,
+  CheckCircle,
+  AlertCircle,
 } from 'lucide-react-native';
 import { supabase, Workout, Exercise } from '@/lib/supabase';
+import { DesignTokens } from '@/design-system/tokens';
+import { ExercisePreviewCard } from '@/components/ui/ExercisePreviewCard';
+import { WorkoutStatsCard } from '@/components/ui/WorkoutStatsCard';
+import { WorkoutActionBar } from '@/components/ui/WorkoutActionBar';
+import * as Haptics from 'expo-haptics';
 
 interface WorkoutExercise {
   id: number;
@@ -39,6 +52,10 @@ export default function WorkoutDetailScreen() {
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [scrollY] = useState(new Animated.Value(0));
 
   useEffect(() => {
     if (workoutId) {
@@ -100,8 +117,17 @@ export default function WorkoutDetailScreen() {
     }
   };
 
-  const startWorkout = () => {
-    if (!workout) return;
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await loadWorkoutDetails();
+    setRefreshing(false);
+  };
+
+  const startWorkout = async () => {
+    if (!workout || exercises.length === 0) return;
+    
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     router.push({
       pathname: '/(tabs)/workout-session',
@@ -112,16 +138,77 @@ export default function WorkoutDetailScreen() {
     });
   };
 
+  const handleToggleFavorite = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsFavorited(!isFavorited);
+    // TODO: Implement favorite functionality
+  };
+
+  const handleSave = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsSaved(!isSaved);
+    // TODO: Implement save functionality
+  };
+
+  const handleShare = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert('Share Workout', 'Share this workout with friends!');
+  };
+
+  const handleExercisePress = (exerciseId: number) => {
+    router.push({
+      pathname: '/exercise-detail',
+      params: { exerciseId: exerciseId.toString() }
+    });
+  };
+
+  const handleExercisePreview = (exerciseId: number) => {
+    // TODO: Show exercise preview modal
+    Alert.alert('Exercise Preview', 'Show exercise demonstration video');
+  };
+
+  // Calculate workout stats
+  const workoutStats = React.useMemo(() => {
+    if (!exercises.length) return null;
+
+    const totalSets = exercises.reduce((sum, ex) => sum + ex.target_sets, 0);
+    const averageRest = Math.round(
+      exercises.reduce((sum, ex) => sum + ex.rest_seconds, 0) / exercises.length
+    );
+    
+    const allMuscleGroups = exercises.flatMap(ex => ex.exercise?.muscle_groups || []);
+    const uniqueMuscleGroups = [...new Set(allMuscleGroups)];
+    
+    const allEquipment = exercises.flatMap(ex => ex.exercise?.equipment || []);
+    const uniqueEquipment = [...new Set(allEquipment)];
+
+    // Estimate calories (rough calculation)
+    const estimatedCalories = Math.round(
+      (workout?.estimated_duration_minutes || 0) * 8 // ~8 calories per minute
+    );
+
+    return {
+      totalExercises: exercises.length,
+      totalSets,
+      estimatedDuration: workout?.estimated_duration_minutes || 0,
+      averageRest,
+      muscleGroups: uniqueMuscleGroups,
+      equipment: uniqueEquipment,
+      difficulty: workout?.difficulty_level || 'beginner',
+      calories: estimatedCalories,
+    };
+  }, [exercises, workout]);
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'beginner':
-        return '#27AE60';
+        return '#10B981';
       case 'intermediate':
-        return '#F39C12';
+        return '#F59E0B';
       case 'advanced':
-        return '#E74C3C';
+        return '#EF4444';
       default:
-        return '#999';
+        return '#6B7280';
     }
   };
 
@@ -130,446 +217,436 @@ export default function WorkoutDetailScreen() {
       case 'strength':
         return '#FF6B35';
       case 'cardio':
-        return '#E74C3C';
+        return '#EF4444';
       case 'hiit':
         return '#9B59B6';
       case 'flexibility':
-        return '#27AE60';
+        return '#10B981';
       case 'mixed':
         return '#4A90E2';
       default:
-        return '#999';
+        return '#6B7280';
     }
   };
+
+  // Header animation
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 200],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   // Error state
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Error</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
+          <View style={styles.errorContainer}>
+            <AlertCircle size={64} color={DesignTokens.colors.error[500]} />
+            <Text style={styles.errorTitle}>Workout Not Found</Text>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
   // Loading state
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Dumbbell size={48} color="#FF6B35" />
-        <Text style={styles.loadingText}>Loading workout...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
+          <View style={styles.loadingContainer}>
+            <Target size={48} color={DesignTokens.colors.primary[500]} />
+            <Text style={styles.loadingText}>Loading workout...</Text>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
   // No workout found
   if (!workout) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Workout Not Found</Text>
-        <Text style={styles.errorText}>The requested workout could not be found.</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
+          <View style={styles.errorContainer}>
+            <AlertCircle size={64} color={DesignTokens.colors.error[500]} />
+            <Text style={styles.errorTitle}>Workout Not Found</Text>
+            <Text style={styles.errorText}>The requested workout could not be found.</Text>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
-  // Main content - only render when workout is not null
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#fff" />
-        </TouchableOpacity>
-        
-        <Text style={styles.workoutTitle}>{workout?.name || 'Untitled Workout'}</Text>
-        {workout?.description && (
-          <Text style={styles.workoutDescription}>{workout.description}</Text>
-        )}
-        
-        <View style={styles.workoutMeta}>
-          <View style={styles.metaItem}>
-            <Clock size={16} color="#FF6B35" />
-            <Text style={styles.metaText}>{workout?.estimated_duration_minutes || 0} min</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Target size={16} color={getDifficultyColor(workout?.difficulty_level || 'beginner')} />
-            <Text style={[styles.metaText, { color: getDifficultyColor(workout?.difficulty_level || 'beginner') }]}>
-              {workout?.difficulty_level || 'beginner'}
+    <SafeAreaView style={styles.container}>
+      <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
+        {/* Animated Header */}
+        <Animated.View style={[styles.animatedHeader, { opacity: headerOpacity }]}>
+          <LinearGradient
+            colors={['rgba(10, 10, 10, 0.95)', 'rgba(26, 26, 26, 0.95)']}
+            style={styles.headerGradient}
+          >
+            <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
+              <ArrowLeft size={24} color={DesignTokens.colors.text.primary} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {workout.name}
             </Text>
-          </View>
-          <View style={styles.metaItem}>
-            <TrendingUp size={16} color={getWorkoutTypeColor(workout?.workout_type || 'strength')} />
-            <Text style={[styles.metaText, { color: getWorkoutTypeColor(workout?.workout_type || 'strength') }]}>
-              {workout?.workout_type || 'strength'}
-            </Text>
-          </View>
-        </View>
-      </LinearGradient>
+            <TouchableOpacity style={styles.headerMenuButton}>
+              <MoreVertical size={24} color={DesignTokens.colors.text.primary} />
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
 
-      <View style={styles.content}>
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{exercises.length}</Text>
-            <Text style={styles.statLabel}>Exercises</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {exercises.reduce((total, ex) => total + ex.target_sets, 0)}
-            </Text>
-            <Text style={styles.statLabel}>Total Sets</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {exercises.length > 0 
-                ? Math.round(exercises.reduce((total, ex) => total + ex.rest_seconds, 0) / exercises.length)
-                : 0}s
-            </Text>
-            <Text style={styles.statLabel}>Avg Rest</Text>
-          </View>
-        </View>
+        <Animated.ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+        >
+          {/* Hero Section */}
+          <View style={styles.heroSection}>
+            <LinearGradient
+              colors={['#1a1a1a', '#2a2a2a']}
+              style={styles.heroCard}
+            >
+              {/* Back Button */}
+              <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <ArrowLeft size={24} color={DesignTokens.colors.text.primary} />
+              </TouchableOpacity>
 
-        {exercises.length > 0 ? (
-          <View style={styles.exercisesSection}>
-            <Text style={styles.sectionTitle}>Exercises</Text>
-            {exercises.map((workoutExercise, index) => (
-              <View key={workoutExercise.id} style={styles.exerciseCard}>
-                <View style={styles.exerciseHeader}>
-                  <View style={styles.exerciseNumber}>
-                    <Text style={styles.exerciseNumberText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.exerciseInfo}>
-                    <Text style={styles.exerciseName}>
-                      {workoutExercise.exercise?.name || 'Unknown Exercise'}
-                    </Text>
-                    {workoutExercise.exercise?.description && (
-                      <Text style={styles.exerciseDescription}>
-                        {workoutExercise.exercise.description}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-
-                {workoutExercise.exercise?.demo_image_url && (
-                  <Image
-                    source={{ uri: workoutExercise.exercise.demo_image_url }}
-                    style={styles.exerciseImage}
-                  />
+              {/* Workout Title & Meta */}
+              <View style={styles.workoutHeader}>
+                <Text style={styles.workoutTitle}>{workout.name}</Text>
+                {workout.description && (
+                  <Text style={styles.workoutDescription}>{workout.description}</Text>
                 )}
-
-                <View style={styles.exerciseDetails}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Sets</Text>
-                    <Text style={styles.detailValue}>{workoutExercise.target_sets}</Text>
+                
+                <View style={styles.workoutMeta}>
+                  <View style={styles.metaItem}>
+                    <Clock size={16} color={DesignTokens.colors.primary[500]} />
+                    <Text style={styles.metaText}>
+                      {workout.estimated_duration_minutes || 0} min
+                    </Text>
                   </View>
-                  {workoutExercise.target_reps && workoutExercise.target_reps.length > 0 && (
-                    <View style={styles.detailItem}>
-                      <Text style={styles.detailLabel}>Reps</Text>
-                      <Text style={styles.detailValue}>
-                        {workoutExercise.target_reps.join('-')}
-                      </Text>
-                    </View>
-                  )}
-                  {workoutExercise.target_duration_seconds && (
-                    <View style={styles.detailItem}>
-                      <Text style={styles.detailLabel}>Duration</Text>
-                      <Text style={styles.detailValue}>
-                        {workoutExercise.target_duration_seconds}s
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Rest</Text>
-                    <Text style={styles.detailValue}>{workoutExercise.rest_seconds}s</Text>
+                  
+                  <View style={styles.metaItem}>
+                    <Target size={16} color={getDifficultyColor(workout.difficulty_level || 'beginner')} />
+                    <Text style={[
+                      styles.metaText,
+                      { color: getDifficultyColor(workout.difficulty_level || 'beginner') }
+                    ]}>
+                      {workout.difficulty_level || 'beginner'}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.metaItem}>
+                    <TrendingUp size={16} color={getWorkoutTypeColor(workout.workout_type || 'strength')} />
+                    <Text style={[
+                      styles.metaText,
+                      { color: getWorkoutTypeColor(workout.workout_type || 'strength') }
+                    ]}>
+                      {workout.workout_type || 'strength'}
+                    </Text>
                   </View>
                 </View>
 
-                <View style={styles.muscleGroups}>
-                  {(workoutExercise.exercise?.muscle_groups || []).map((muscle, muscleIndex) => (
-                    <View key={muscleIndex} style={styles.muscleTag}>
-                      <Text style={styles.muscleTagText}>{muscle}</Text>
-                    </View>
-                  ))}
+                {/* Rating & Users */}
+                <View style={styles.socialMeta}>
+                  <View style={styles.rating}>
+                    <Star size={16} color="#F59E0B" fill="#F59E0B" />
+                    <Text style={styles.ratingText}>4.8</Text>
+                    <Text style={styles.ratingCount}>(247 reviews)</Text>
+                  </View>
+                  
+                  <View style={styles.users}>
+                    <Users size={16} color={DesignTokens.colors.text.secondary} />
+                    <Text style={styles.usersText}>1.2k completed</Text>
+                  </View>
                 </View>
               </View>
-            ))}
+            </LinearGradient>
           </View>
-        ) : (
-          <View style={styles.noExercisesContainer}>
-            <Dumbbell size={48} color="#666" />
-            <Text style={styles.noExercisesTitle}>No Exercises</Text>
-            <Text style={styles.noExercisesText}>
-              This workout doesn't have any exercises yet.
-            </Text>
-          </View>
-        )}
 
-        <TouchableOpacity 
-          style={[styles.startWorkoutButton, exercises.length === 0 && styles.disabledButton]} 
-          onPress={startWorkout}
+          {/* Workout Stats */}
+          {workoutStats && (
+            <WorkoutStatsCard stats={workoutStats} />
+          )}
+
+          {/* Exercises Section */}
+          <View style={styles.exercisesSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Exercises ({exercises.length})</Text>
+              {exercises.length > 0 && (
+                <View style={styles.readyIndicator}>
+                  <CheckCircle size={16} color={DesignTokens.colors.success[500]} />
+                  <Text style={styles.readyText}>Ready to start</Text>
+                </View>
+              )}
+            </View>
+
+            {exercises.length > 0 ? (
+              exercises.map((workoutExercise, index) => (
+                <ExercisePreviewCard
+                  key={workoutExercise.id}
+                  exercise={workoutExercise.exercise}
+                  workoutExercise={workoutExercise}
+                  onPress={() => handleExercisePress(workoutExercise.exercise.id)}
+                  onPreview={() => handleExercisePreview(workoutExercise.exercise.id)}
+                />
+              ))
+            ) : (
+              <View style={styles.noExercisesContainer}>
+                <AlertCircle size={48} color={DesignTokens.colors.text.tertiary} />
+                <Text style={styles.noExercisesTitle}>No Exercises</Text>
+                <Text style={styles.noExercisesText}>
+                  This workout doesn't have any exercises yet.
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Bottom Spacing for Action Bar */}
+          <View style={styles.bottomSpacing} />
+        </Animated.ScrollView>
+
+        {/* Action Bar */}
+        <WorkoutActionBar
+          onStartWorkout={startWorkout}
+          onToggleFavorite={handleToggleFavorite}
+          onShare={handleShare}
+          onSave={handleSave}
+          isFavorited={isFavorited}
+          isSaved={isSaved}
           disabled={exercises.length === 0}
-        >
-          <LinearGradient 
-            colors={exercises.length > 0 ? ['#FF6B35', '#FF8C42'] : ['#666', '#666']} 
-            style={styles.startWorkoutGradient}
-          >
-            <Play size={24} color="#fff" />
-            <Text style={styles.startWorkoutText}>Start Workout</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        />
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+  },
+  gradient: {
+    flex: 1,
+  },
+  animatedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+  },
+  headerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingTop: DesignTokens.spacing[12],
+    paddingBottom: DesignTokens.spacing[4],
+  },
+  headerBackButton: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginHorizontal: DesignTokens.spacing[4],
+  },
+  headerMenuButton: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContent: {
+    paddingBottom: 200,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
   },
   loadingText: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-Regular',
-    marginTop: 16,
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[4],
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
-    paddingHorizontal: 20,
+    paddingHorizontal: DesignTokens.spacing[5],
   },
   errorTitle: {
-    fontSize: 24,
-    color: '#E74C3C',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 12,
+    fontSize: DesignTokens.typography.fontSize['2xl'],
+    color: DesignTokens.colors.error[500],
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginTop: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[2],
   },
   errorText: {
-    fontSize: 16,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 24,
     lineHeight: 24,
+    marginBottom: DesignTokens.spacing[6],
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 30,
+  heroSection: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingTop: DesignTokens.spacing[16],
+    marginBottom: DesignTokens.spacing[6],
+  },
+  heroCard: {
+    borderRadius: DesignTokens.borderRadius.xl,
+    padding: DesignTokens.spacing[5],
+    ...DesignTokens.shadow.lg,
   },
   backButton: {
-    marginBottom: 20,
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[4],
     alignSelf: 'flex-start',
   },
   backButtonText: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  workoutHeader: {
+    marginBottom: DesignTokens.spacing[4],
   },
   workoutTitle: {
-    fontSize: 32,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 8,
+    fontSize: DesignTokens.typography.fontSize['4xl'],
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginBottom: DesignTokens.spacing[2],
+    lineHeight: 36,
   },
   workoutDescription: {
-    fontSize: 16,
-    color: '#ccc',
-    fontFamily: 'Inter-Regular',
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
     lineHeight: 24,
-    marginBottom: 20,
+    marginBottom: DesignTokens.spacing[4],
   },
   workoutMeta: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[3],
+    gap: DesignTokens.spacing[4],
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: DesignTokens.spacing[1],
   },
   metaText: {
-    fontSize: 14,
-    color: '#fff',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
     textTransform: 'capitalize',
   },
-  content: {
-    paddingHorizontal: 20,
-  },
-  statsContainer: {
+  socialMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  statCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
     alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#333',
   },
-  statValue: {
-    fontSize: 24,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 4,
+  rating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Medium',
+  ratingText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  ratingCount: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+  },
+  users: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+  usersText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
   },
   exercisesSection: {
-    marginBottom: 30,
+    marginBottom: DesignTokens.spacing[6],
   },
-  sectionTitle: {
-    fontSize: 22,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 16,
-  },
-  exerciseCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  exerciseHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  exerciseNumber: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  exerciseNumberText: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-  },
-  exerciseInfo: {
-    flex: 1,
-  },
-  exerciseName: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 4,
-  },
-  exerciseDescription: {
-    fontSize: 14,
-    color: '#ccc',
-    fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-  },
-  exerciseImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  exerciseDetails: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  detailItem: {
     alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[4],
   },
-  detailLabel: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Medium',
-    marginBottom: 4,
+  sectionTitle: {
+    fontSize: DesignTokens.typography.fontSize['2xl'],
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
-  detailValue: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-  },
-  muscleGroups: {
+  readyIndicator: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
   },
-  muscleTag: {
-    backgroundColor: '#333',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginRight: 8,
-    marginBottom: 4,
-  },
-  muscleTagText: {
-    fontSize: 12,
-    color: '#fff',
-    fontFamily: 'Inter-Medium',
-    textTransform: 'capitalize',
+  readyText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.success[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
   noExercisesContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: DesignTokens.spacing[12],
+    paddingHorizontal: DesignTokens.spacing[5],
   },
   noExercisesTitle: {
-    fontSize: 20,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: DesignTokens.typography.fontSize.xl,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginTop: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[2],
   },
   noExercisesText: {
-    fontSize: 16,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
     textAlign: 'center',
+    lineHeight: 24,
   },
-  startWorkoutButton: {
-    marginBottom: 100,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  startWorkoutGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-  },
-  startWorkoutText: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
+  bottomSpacing: {
+    height: 120,
   },
 });

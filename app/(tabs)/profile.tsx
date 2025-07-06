@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Switch,
+  Alert,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,65 +21,310 @@ import {
   Shield,
   HelpCircle,
   Star,
-  ChevronRight,
   Edit3,
+  Camera,
+  Share2,
+  Award,
+  Flame,
+  TrendingUp,
+  Zap,
+  Heart,
+  Users,
+  BookOpen,
+  Moon,
+  Volume2,
+  Smartphone,
+  Lock,
+  CreditCard,
+  LogOut,
+  Download,
+  Globe,
 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { DesignTokens } from '@/design-system/tokens';
+import { ProfileStatCard } from '@/components/ui/ProfileStatCard';
+import { AchievementBadge } from '@/components/ui/AchievementBadge';
+import { SettingsGroup } from '@/components/ui/SettingsGroup';
+import { Button } from '@/components/ui/Button';
+import * as Haptics from 'expo-haptics';
 
 export default function ProfileScreen() {
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = React.useState(true);
+  const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [darkModeEnabled, setDarkModeEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [biometricsEnabled, setBiometricsEnabled] = useState(false);
 
   // Mock user data
   const userData = {
-    name: 'Fitness Enthusiast',
-    username: '@fitnesslover',
-    email: 'user@example.com',
+    id: '1',
+    name: 'Alex Johnson',
+    username: '@alexfitness',
+    email: 'alex@example.com',
     joinDate: 'January 2024',
     avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+    coverImage: 'https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=800',
+    isVerified: true,
+    level: 25,
+    xp: 12847,
+    xpToNext: 2153,
     stats: {
-      workoutsCompleted: 127,
-      totalMinutes: 3420,
-      achievements: 23,
+      workoutsCompleted: 247,
+      totalMinutes: 8420,
+      achievements: 34,
       streak: 15,
+      followers: 1247,
+      following: 892,
+      posts: 156,
+    },
+    weeklyStats: {
+      workouts: 6,
+      minutes: 420,
+      calories: 2840,
+      avgHeartRate: 142,
+    },
+    goals: {
+      weeklyWorkouts: { current: 6, target: 5 },
+      monthlyMinutes: { current: 1680, target: 2000 },
+      yearlyGoal: { current: 247, target: 365 },
     },
   };
 
-  const menuSections = [
+  const achievements = [
+    {
+      id: '1',
+      name: 'Consistency King',
+      description: '30 days workout streak',
+      icon: '👑',
+      rarity: 'legendary' as const,
+      unlockedAt: '2024-05-15',
+    },
+    {
+      id: '2',
+      name: 'Strength Master',
+      description: 'Complete 100 strength workouts',
+      icon: '💪',
+      rarity: 'epic' as const,
+      unlockedAt: '2024-05-10',
+    },
+    {
+      id: '3',
+      name: 'Cardio Champion',
+      description: 'Burn 10,000 calories',
+      icon: '🔥',
+      rarity: 'rare' as const,
+      unlockedAt: '2024-05-05',
+    },
+    {
+      id: '4',
+      name: 'Early Bird',
+      description: 'Complete 20 morning workouts',
+      icon: '🌅',
+      rarity: 'common' as const,
+      unlockedAt: '2024-04-28',
+    },
+    {
+      id: '5',
+      name: 'Marathon Runner',
+      description: 'Run 100 miles total',
+      icon: '🏃',
+      rarity: 'epic' as const,
+      progress: { current: 75, target: 100 },
+    },
+    {
+      id: '6',
+      name: 'Social Butterfly',
+      description: 'Get 100 likes on posts',
+      icon: '🦋',
+      rarity: 'rare' as const,
+      progress: { current: 67, target: 100 },
+    },
+  ];
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTimeout(() => setRefreshing(false), 1000);
+  };
+
+  const handleEditProfile = () => {
+    router.push('/edit-profile');
+  };
+
+  const handleShareProfile = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert('Share Profile', 'Share your profile with friends!');
+  };
+
+  const handleAchievementPress = (achievementId: string) => {
+    router.push({
+      pathname: '/achievement-detail',
+      params: { achievementId }
+    });
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Sign Out', 
+          style: 'destructive',
+          onPress: () => {
+            // Handle logout
+            Alert.alert('Signed Out', 'You have been signed out successfully.');
+          }
+        },
+      ]
+    );
+  };
+
+  const settingsGroups = [
     {
       title: 'Account',
       items: [
-        { icon: Edit3, title: 'Edit Profile', subtitle: 'Update your information' },
-        { icon: Target, title: 'Goals & Preferences', subtitle: 'Set your fitness goals' },
-        { icon: Trophy, title: 'Achievements', subtitle: 'View your progress' },
+        {
+          id: 'edit-profile',
+          title: 'Edit Profile',
+          subtitle: 'Update your personal information',
+          icon: <Edit3 size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: handleEditProfile,
+        },
+        {
+          id: 'goals',
+          title: 'Goals & Preferences',
+          subtitle: 'Set your fitness goals and preferences',
+          icon: <Target size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/goals-settings'),
+        },
+        {
+          id: 'achievements',
+          title: 'Achievements',
+          subtitle: 'View all your fitness milestones',
+          icon: <Trophy size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          badge: '34',
+          onPress: () => router.push('/achievements'),
+        },
       ],
     },
     {
-      title: 'Settings',
+      title: 'Preferences',
       items: [
-        { 
-          icon: Bell, 
-          title: 'Notifications', 
-          subtitle: 'Workout reminders',
-          hasSwitch: true,
-          switchValue: notificationsEnabled,
-          onSwitchChange: setNotificationsEnabled,
+        {
+          id: 'notifications',
+          title: 'Push Notifications',
+          subtitle: 'Workout reminders and updates',
+          icon: <Bell size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'switch' as const,
+          value: notificationsEnabled,
+          onToggle: setNotificationsEnabled,
         },
-        { 
-          icon: Shield, 
-          title: 'Dark Mode', 
-          subtitle: 'App appearance',
-          hasSwitch: true,
-          switchValue: darkModeEnabled,
-          onSwitchChange: setDarkModeEnabled,
+        {
+          id: 'dark-mode',
+          title: 'Dark Mode',
+          subtitle: 'App appearance theme',
+          icon: <Moon size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'switch' as const,
+          value: darkModeEnabled,
+          onToggle: setDarkModeEnabled,
         },
-        { icon: Calendar, title: 'Workout Schedule', subtitle: 'Manage your routine' },
+        {
+          id: 'sound',
+          title: 'Sound Effects',
+          subtitle: 'Audio feedback and alerts',
+          icon: <Volume2 size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'switch' as const,
+          value: soundEnabled,
+          onToggle: setSoundEnabled,
+        },
+        {
+          id: 'units',
+          title: 'Units & Measurements',
+          subtitle: 'Metric or Imperial units',
+          icon: <Globe size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/units-settings'),
+        },
+      ],
+    },
+    {
+      title: 'Privacy & Security',
+      items: [
+        {
+          id: 'privacy',
+          title: 'Privacy Settings',
+          subtitle: 'Control your data and visibility',
+          icon: <Shield size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/privacy-settings'),
+        },
+        {
+          id: 'biometrics',
+          title: 'Biometric Authentication',
+          subtitle: 'Use Face ID or Touch ID',
+          icon: <Lock size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'switch' as const,
+          value: biometricsEnabled,
+          onToggle: setBiometricsEnabled,
+        },
+        {
+          id: 'data',
+          title: 'Data & Storage',
+          subtitle: 'Manage your workout data',
+          icon: <Download size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/data-settings'),
+        },
       ],
     },
     {
       title: 'Support',
       items: [
-        { icon: HelpCircle, title: 'Help & Support', subtitle: 'Get assistance' },
-        { icon: Star, title: 'Rate App', subtitle: 'Share your feedback' },
+        {
+          id: 'help',
+          title: 'Help & Support',
+          subtitle: 'Get assistance and tutorials',
+          icon: <HelpCircle size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/help-support'),
+        },
+        {
+          id: 'feedback',
+          title: 'Send Feedback',
+          subtitle: 'Help us improve the app',
+          icon: <Star size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/feedback'),
+        },
+        {
+          id: 'premium',
+          title: 'Upgrade to Premium',
+          subtitle: 'Unlock advanced features',
+          icon: <CreditCard size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          badge: 'NEW',
+          onPress: () => router.push('/premium'),
+        },
+      ],
+    },
+    {
+      title: 'Account Actions',
+      items: [
+        {
+          id: 'logout',
+          title: 'Sign Out',
+          subtitle: 'Sign out of your account',
+          icon: <LogOut size={20} color={DesignTokens.colors.error[500]} />,
+          type: 'action' as const,
+          destructive: true,
+          onPress: handleLogout,
+        },
       ],
     },
   ];
@@ -86,101 +332,257 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Profile</Text>
-            <TouchableOpacity style={styles.settingsButton}>
-              <Settings size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Profile Card */}
-          <View style={styles.profileCard}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Profile Header */}
+          <View style={styles.profileHeader}>
             <LinearGradient
               colors={['#1a1a1a', '#2a2a2a']}
-              style={styles.profileCardGradient}
+              style={styles.profileCard}
             >
-              <View style={styles.profileHeader}>
-                <Image source={{ uri: userData.avatar }} style={styles.avatar} />
-                <View style={styles.profileInfo}>
-                  <Text style={styles.name}>{userData.name}</Text>
+              {/* Cover Image */}
+              <View style={styles.coverContainer}>
+                <Image source={{ uri: userData.coverImage }} style={styles.coverImage} />
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.6)']}
+                  style={styles.coverOverlay}
+                />
+              </View>
+
+              {/* Profile Info */}
+              <View style={styles.profileInfo}>
+                <View style={styles.avatarContainer}>
+                  <Image source={{ uri: userData.avatar }} style={styles.avatar} />
+                  <TouchableOpacity style={styles.cameraButton}>
+                    <Camera size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  <View style={styles.levelBadge}>
+                    <Text style={styles.levelText}>{userData.level}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.userInfo}>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.name}>{userData.name}</Text>
+                    {userData.isVerified && (
+                      <View style={styles.verifiedBadge}>
+                        <Text style={styles.verifiedIcon}>✓</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.username}>{userData.username}</Text>
                   <Text style={styles.joinDate}>Member since {userData.joinDate}</Text>
                 </View>
-                <TouchableOpacity style={styles.editButton}>
-                  <Edit3 size={20} color="#9E7FFF" />
-                </TouchableOpacity>
+
+                <View style={styles.profileActions}>
+                  <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
+                    <Edit3 size={20} color={DesignTokens.colors.primary[500]} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.shareButton} onPress={handleShareProfile}>
+                    <Share2 size={20} color={DesignTokens.colors.text.secondary} />
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              {/* Stats */}
-              <View style={styles.statsContainer}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{userData.stats.workoutsCompleted}</Text>
-                  <Text style={styles.statLabel}>Workouts</Text>
+              {/* XP Progress */}
+              <View style={styles.xpContainer}>
+                <View style={styles.xpHeader}>
+                  <Text style={styles.xpLabel}>Level {userData.level}</Text>
+                  <Text style={styles.xpText}>
+                    {userData.xp.toLocaleString()} XP
+                  </Text>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{Math.floor(userData.stats.totalMinutes / 60)}h</Text>
-                  <Text style={styles.statLabel}>Total Time</Text>
+                <View style={styles.xpBar}>
+                  <View 
+                    style={[
+                      styles.xpFill,
+                      { width: `${(userData.xp / (userData.xp + userData.xpToNext)) * 100}%` }
+                    ]} 
+                  />
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{userData.stats.achievements}</Text>
-                  <Text style={styles.statLabel}>Achievements</Text>
+                <Text style={styles.xpNext}>
+                  {userData.xpToNext.toLocaleString()} XP to level {userData.level + 1}
+                </Text>
+              </View>
+
+              {/* Social Stats */}
+              <View style={styles.socialStats}>
+                <TouchableOpacity style={styles.socialStat}>
+                  <Text style={styles.socialStatValue}>{userData.stats.posts}</Text>
+                  <Text style={styles.socialStatLabel}>Posts</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.socialStat}>
+                  <Text style={styles.socialStatValue}>{userData.stats.followers.toLocaleString()}</Text>
+                  <Text style={styles.socialStatLabel}>Followers</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.socialStat}>
+                  <Text style={styles.socialStatValue}>{userData.stats.following}</Text>
+                  <Text style={styles.socialStatLabel}>Following</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* Weekly Stats */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>This Week</Text>
+            <View style={styles.statsGrid}>
+              <ProfileStatCard
+                title="Workouts"
+                value={userData.weeklyStats.workouts}
+                subtitle="This week"
+                icon={<Target size={20} color="#00D4AA" />}
+                color="#00D4AA"
+                trend={{ value: 20, isPositive: true }}
+                onPress={() => router.push('/workout-history')}
+              />
+              <ProfileStatCard
+                title="Minutes"
+                value={userData.weeklyStats.minutes}
+                subtitle="Active time"
+                icon={<Calendar size={20} color="#9E7FFF" />}
+                color="#9E7FFF"
+                trend={{ value: 15, isPositive: true }}
+                onPress={() => router.push('/time-stats')}
+              />
+            </View>
+            <View style={styles.statsGrid}>
+              <ProfileStatCard
+                title="Calories"
+                value={userData.weeklyStats.calories}
+                subtitle="Burned"
+                icon={<Flame size={20} color="#FF6B35" />}
+                color="#FF6B35"
+                trend={{ value: 8, isPositive: true }}
+                onPress={() => router.push('/calorie-stats')}
+              />
+              <ProfileStatCard
+                title="Avg HR"
+                value={`${userData.weeklyStats.avgHeartRate} bpm`}
+                subtitle="Heart rate"
+                icon={<Heart size={20} color="#E74C3C" />}
+                color="#E74C3C"
+                trend={{ value: 3, isPositive: false }}
+                onPress={() => router.push('/heart-rate-stats')}
+              />
+            </View>
+          </View>
+
+          {/* Goals Progress */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Goals Progress</Text>
+              <TouchableOpacity onPress={() => router.push('/goals-settings')}>
+                <Text style={styles.sectionAction}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <LinearGradient
+              colors={['#1a1a1a', '#2a2a2a']}
+              style={styles.goalsCard}
+            >
+              <View style={styles.goalItem}>
+                <View style={styles.goalHeader}>
+                  <Text style={styles.goalTitle}>Weekly Workouts</Text>
+                  <Text style={styles.goalValue}>
+                    {userData.goals.weeklyWorkouts.current}/{userData.goals.weeklyWorkouts.target}
+                  </Text>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{userData.stats.streak}</Text>
-                  <Text style={styles.statLabel}>Day Streak</Text>
+                <View style={styles.goalBar}>
+                  <View 
+                    style={[
+                      styles.goalFill,
+                      { 
+                        width: `${Math.min((userData.goals.weeklyWorkouts.current / userData.goals.weeklyWorkouts.target) * 100, 100)}%`,
+                        backgroundColor: userData.goals.weeklyWorkouts.current >= userData.goals.weeklyWorkouts.target ? '#10B981' : '#9E7FFF'
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+
+              <View style={styles.goalItem}>
+                <View style={styles.goalHeader}>
+                  <Text style={styles.goalTitle}>Monthly Minutes</Text>
+                  <Text style={styles.goalValue}>
+                    {userData.goals.monthlyMinutes.current}/{userData.goals.monthlyMinutes.target}
+                  </Text>
+                </View>
+                <View style={styles.goalBar}>
+                  <View 
+                    style={[
+                      styles.goalFill,
+                      { 
+                        width: `${(userData.goals.monthlyMinutes.current / userData.goals.monthlyMinutes.target) * 100}%`,
+                        backgroundColor: '#FF6B35'
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+
+              <View style={styles.goalItem}>
+                <View style={styles.goalHeader}>
+                  <Text style={styles.goalTitle}>Yearly Goal</Text>
+                  <Text style={styles.goalValue}>
+                    {userData.goals.yearlyGoal.current}/{userData.goals.yearlyGoal.target}
+                  </Text>
+                </View>
+                <View style={styles.goalBar}>
+                  <View 
+                    style={[
+                      styles.goalFill,
+                      { 
+                        width: `${(userData.goals.yearlyGoal.current / userData.goals.yearlyGoal.target) * 100}%`,
+                        backgroundColor: '#00D4AA'
+                      }
+                    ]} 
+                  />
                 </View>
               </View>
             </LinearGradient>
           </View>
 
-          {/* Menu Sections */}
-          {menuSections.map((section, sectionIndex) => (
-            <View key={sectionIndex} style={styles.menuSection}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-              <View style={styles.menuItems}>
-                {section.items.map((item, itemIndex) => (
-                  <TouchableOpacity
-                    key={itemIndex}
-                    style={[
-                      styles.menuItem,
-                      itemIndex === section.items.length - 1 && styles.lastMenuItem,
-                    ]}
-                  >
-                    <View style={styles.menuItemLeft}>
-                      <View style={styles.menuItemIcon}>
-                        <item.icon size={20} color="#9E7FFF" />
-                      </View>
-                      <View style={styles.menuItemContent}>
-                        <Text style={styles.menuItemTitle}>{item.title}</Text>
-                        <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.menuItemRight}>
-                      {item.hasSwitch ? (
-                        <Switch
-                          value={item.switchValue}
-                          onValueChange={item.onSwitchChange}
-                          trackColor={{ false: '#333', true: '#9E7FFF40' }}
-                          thumbColor={item.switchValue ? '#9E7FFF' : '#666'}
-                        />
-                      ) : (
-                        <ChevronRight size={20} color="#666" />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
+          {/* Recent Achievements */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Achievements</Text>
+              <TouchableOpacity onPress={() => router.push('/achievements')}>
+                <Text style={styles.sectionAction}>View All</Text>
+              </TouchableOpacity>
             </View>
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.achievementsScroll}>
+              {achievements.map((achievement) => (
+                <AchievementBadge
+                  key={achievement.id}
+                  achievement={achievement}
+                  size="large"
+                  showProgress={true}
+                  onPress={() => handleAchievementPress(achievement.id)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Settings Groups */}
+          {settingsGroups.map((group, index) => (
+            <SettingsGroup
+              key={index}
+              title={group.title}
+              items={group.items}
+            />
           ))}
 
           {/* App Version */}
           <View style={styles.versionContainer}>
-            <Text style={styles.versionText}>GymVerse v1.0.0</Text>
+            <Text style={styles.versionText}>GymVerse v2.0.0</Text>
+            <Text style={styles.buildText}>Build 2024.05.15</Text>
           </View>
         </ScrollView>
       </LinearGradient>
@@ -196,161 +598,271 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
-  },
-  headerTitle: {
-    fontSize: 28,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-  },
-  settingsButton: {
-    padding: 8,
-  },
-  profileCard: {
-    marginHorizontal: 20,
-    marginBottom: 30,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  profileCardGradient: {
-    padding: 24,
+    paddingBottom: 120,
   },
   profileHeader: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingTop: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[6],
+  },
+  profileCard: {
+    borderRadius: DesignTokens.borderRadius.xl,
+    overflow: 'hidden',
+    ...DesignTokens.shadow.lg,
+  },
+  coverContainer: {
+    height: 120,
+    position: 'relative',
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  coverOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+  },
+  profileInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
+    alignItems: 'flex-start',
+    padding: DesignTokens.spacing[5],
+    paddingTop: DesignTokens.spacing[3],
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: DesignTokens.spacing[4],
+    marginTop: -30,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginRight: 16,
+    borderWidth: 4,
+    borderColor: DesignTokens.colors.surface.secondary,
   },
-  profileInfo: {
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: DesignTokens.colors.surface.secondary,
+  },
+  levelBadge: {
+    position: 'absolute',
+    top: -8,
+    left: -8,
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: DesignTokens.colors.surface.secondary,
+  },
+  levelText: {
+    fontSize: 10,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  userInfo: {
     flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[1],
   },
   name: {
-    fontSize: 22,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 4,
+    fontSize: DesignTokens.typography.fontSize['2xl'],
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginRight: DesignTokens.spacing[2],
+  },
+  verifiedBadge: {
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  verifiedIcon: {
+    fontSize: 12,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
   username: {
-    fontSize: 16,
-    color: '#9E7FFF',
-    fontFamily: 'Inter-Medium',
-    marginBottom: 4,
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    marginBottom: DesignTokens.spacing[1],
   },
   joinDate: {
-    fontSize: 14,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+  },
+  profileActions: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[2],
   },
   editButton: {
-    padding: 8,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statNumber: {
-    fontSize: 20,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#333',
-  },
-  menuSection: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  menuItems: {
-    backgroundColor: '#1a1a1a',
-    marginHorizontal: 20,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  lastMenuItem: {
-    borderBottomWidth: 0,
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  menuItemIcon: {
+    backgroundColor: `${DesignTokens.colors.primary[500]}20`,
+    borderRadius: 20,
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#9E7FFF20',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    alignItems: 'center',
   },
-  menuItemContent: {
+  shareButton: {
+    backgroundColor: DesignTokens.colors.surface.tertiary,
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  xpContainer: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingBottom: DesignTokens.spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: DesignTokens.colors.neutral[800],
+  },
+  xpHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[2],
+  },
+  xpLabel: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  xpText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  xpBar: {
+    height: 8,
+    backgroundColor: DesignTokens.colors.neutral[800],
+    borderRadius: 4,
+    marginBottom: DesignTokens.spacing[2],
+  },
+  xpFill: {
+    height: '100%',
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderRadius: 4,
+  },
+  xpNext: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+  },
+  socialStats: {
+    flexDirection: 'row',
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[4],
+  },
+  socialStat: {
     flex: 1,
+    alignItems: 'center',
   },
-  menuItemTitle: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 2,
+  socialStatValue: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginBottom: DesignTokens.spacing[1],
   },
-  menuItemSubtitle: {
-    fontSize: 14,
-    color: '#999',
-    fontFamily: 'Inter-Regular',
+  socialStatLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
   },
-  menuItemRight: {
-    marginLeft: 16,
+  section: {
+    marginBottom: DesignTokens.spacing[6],
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[4],
+  },
+  sectionTitle: {
+    fontSize: DesignTokens.typography.fontSize['2xl'],
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  sectionAction: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    paddingHorizontal: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[3],
+  },
+  goalsCard: {
+    marginHorizontal: DesignTokens.spacing[5],
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[5],
+    ...DesignTokens.shadow.base,
+  },
+  goalItem: {
+    marginBottom: DesignTokens.spacing[4],
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[2],
+  },
+  goalTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  goalValue: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  goalBar: {
+    height: 8,
+    backgroundColor: DesignTokens.colors.neutral[800],
+    borderRadius: 4,
+  },
+  goalFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  achievementsScroll: {
+    paddingLeft: DesignTokens.spacing[3],
   },
   versionContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: DesignTokens.spacing[6],
   },
   versionText: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: 'Inter-Regular',
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  buildText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.tertiary,
+    marginTop: DesignTokens.spacing[1],
   },
 });

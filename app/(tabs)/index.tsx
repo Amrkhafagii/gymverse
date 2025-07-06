@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -17,18 +18,92 @@ import {
   Flame,
   Award,
   ChevronRight,
-  Play
+  Play,
+  Zap,
+  Camera,
+  Plus
 } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { DesignTokens } from '@/design-system/tokens';
+import { StatCard } from '@/components/ui/StatCard';
+import { WorkoutCard } from '@/components/ui/WorkoutCard';
+import { Button } from '@/components/ui/Button';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const quickStats = [
-    { label: 'Streak', value: '12', unit: 'days', icon: Flame, color: '#FF6B6B' },
-    { label: 'This Week', value: '4', unit: 'workouts', icon: Target, color: '#4ECDC4' },
-    { label: 'Total Time', value: '8.5', unit: 'hours', icon: Clock, color: '#45B7D1' },
-    { label: 'PR Count', value: '23', unit: 'records', icon: Award, color: '#96CEB4' },
+  const [refreshing, setRefreshing] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState('morning');
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setTimeOfDay('morning');
+    else if (hour < 17) setTimeOfDay('afternoon');
+    else setTimeOfDay('evening');
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Simulate API call
+    setTimeout(() => setRefreshing(false), 1000);
+  };
+
+  const getGreeting = () => {
+    const greetings = {
+      morning: 'Good morning',
+      afternoon: 'Good afternoon', 
+      evening: 'Good evening'
+    };
+    return greetings[timeOfDay as keyof typeof greetings];
+  };
+
+  const getMotivationalMessage = () => {
+    const messages = {
+      morning: 'Ready to start strong? 💪',
+      afternoon: 'Time to power through! ⚡',
+      evening: 'Let\'s finish the day right! 🔥'
+    };
+    return messages[timeOfDay as keyof typeof messages];
+  };
+
+  const primaryStat = {
+    label: 'Current Streak',
+    value: '12',
+    unit: 'days',
+    trend: 'up' as const,
+    trendValue: '+3 from last week',
+    icon: <Flame size={24} color="#FF6B6B" />,
+    color: '#FF6B6B',
+  };
+
+  const secondaryStats = [
+    { 
+      label: 'This Week', 
+      value: '4', 
+      unit: 'workouts', 
+      icon: <Target size={20} color="#4ECDC4" />, 
+      color: '#4ECDC4',
+      trend: 'up' as const,
+      trendValue: '+1'
+    },
+    { 
+      label: 'Total Time', 
+      value: '8.5', 
+      unit: 'hours', 
+      icon: <Clock size={20} color="#45B7D1" />, 
+      color: '#45B7D1',
+      trend: 'up' as const,
+      trendValue: '+2.5h'
+    },
+    { 
+      label: 'PR Count', 
+      value: '23', 
+      unit: 'records', 
+      icon: <Award size={20} color="#96CEB4" />, 
+      color: '#96CEB4',
+      trend: 'up' as const,
+      trendValue: '+2'
+    },
   ];
 
   const recentWorkouts = [
@@ -39,6 +114,9 @@ export default function HomeScreen() {
       duration: '45 min',
       exercises: 6,
       image: 'https://images.pexels.com/photos/1552252/pexels-photo-1552252.jpeg?auto=compress&cs=tinysrgb&w=400',
+      difficulty: 'Intermediate' as const,
+      muscleGroups: ['Chest', 'Triceps', 'Shoulders'],
+      lastPerformed: '3 days ago',
     },
     {
       id: 2,
@@ -47,26 +125,56 @@ export default function HomeScreen() {
       duration: '52 min',
       exercises: 7,
       image: 'https://images.pexels.com/photos/1431282/pexels-photo-1431282.jpeg?auto=compress&cs=tinysrgb&w=400',
+      difficulty: 'Advanced' as const,
+      muscleGroups: ['Back', 'Biceps', 'Rear Delts'],
+      lastPerformed: '1 week ago',
     },
   ];
 
   const quickActions = [
-    { title: 'Start Workout', icon: Play, action: () => router.push('/workout-session') },
-    { title: 'View Progress', icon: TrendingUp, action: () => router.push('/(tabs)/progress') },
-    { title: 'Schedule', icon: Calendar, action: () => router.push('/schedule') },
+    { 
+      title: 'Start Workout', 
+      subtitle: 'Push Day ready',
+      icon: <Play size={20} color="#FFFFFF" />, 
+      primary: true,
+      action: () => router.push('/workout-session') 
+    },
+    { 
+      title: 'Quick Log', 
+      subtitle: 'Track progress',
+      icon: <Plus size={20} color="#9E7FFF" />, 
+      action: () => router.push('/quick-log') 
+    },
+    { 
+      title: 'Progress Photo', 
+      subtitle: 'Capture gains',
+      icon: <Camera size={20} color="#9E7FFF" />, 
+      action: () => router.push('/progress-photo') 
+    },
   ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {/* Hero Section */}
       <LinearGradient
-        colors={['#0a0a0a', '#1a1a1a']}
-        style={styles.header}
+        colors={['#0a0a0a', '#1a1a1a', '#0a0a0a']}
+        style={styles.hero}
       >
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.greeting}>Good morning,</Text>
+        <View style={styles.heroContent}>
+          <View style={styles.greetingSection}>
+            <Text style={styles.greeting}>{getGreeting()},</Text>
             <Text style={styles.userName}>Alex</Text>
+            <Text style={styles.motivationalMessage}>
+              {getMotivationalMessage()}
+            </Text>
           </View>
+          
           <TouchableOpacity 
             style={styles.profileButton}
             onPress={() => router.push('/profile')}
@@ -75,104 +183,132 @@ export default function HomeScreen() {
               source={{ uri: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=100' }}
               style={styles.profileImage}
             />
+            <View style={styles.statusIndicator} />
           </TouchableOpacity>
+        </View>
+
+        {/* Primary CTA */}
+        <View style={styles.primaryCTA}>
+          <Button
+            title="Start Today's Workout"
+            variant="gradient"
+            size="large"
+            onPress={() => router.push('/workout-session')}
+            icon={<Zap size={24} color="#FFFFFF" />}
+            style={styles.startButton}
+          />
+          <Text style={styles.ctaSubtext}>Push Day • 45 min • 6 exercises</Text>
         </View>
       </LinearGradient>
 
       <View style={styles.content}>
-        {/* Quick Stats */}
+        {/* Progress Overview */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Stats</Text>
+          <Text style={styles.sectionTitle}>Your Progress</Text>
+          <Text style={styles.sectionSubtitle}>Keep the momentum going</Text>
+          
+          {/* Primary Stat */}
+          <StatCard
+            {...primaryStat}
+            variant="primary"
+            onPress={() => router.push('/(tabs)/progress')}
+          />
+          
+          {/* Secondary Stats Grid */}
           <View style={styles.statsGrid}>
-            {quickStats.map((stat, index) => {
-              const IconComponent = stat.icon;
-              return (
-                <View key={index} style={styles.statCard}>
-                  <View style={[styles.statIcon, { backgroundColor: `${stat.color}20` }]}>
-                    <IconComponent size={20} color={stat.color} />
-                  </View>
-                  <Text style={styles.statValue}>{stat.value}</Text>
-                  <Text style={styles.statUnit}>{stat.unit}</Text>
-                  <Text style={styles.statLabel}>{stat.label}</Text>
-                </View>
-              );
-            })}
+            {secondaryStats.map((stat, index) => (
+              <StatCard
+                key={index}
+                {...stat}
+                onPress={() => router.push('/(tabs)/progress')}
+              />
+            ))}
           </View>
         </View>
 
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsRow}>
-            {quickActions.map((action, index) => {
-              const IconComponent = action.icon;
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.actionButton}
-                  onPress={action.action}
-                >
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.actionsScroll}
+          >
+            {quickActions.map((action, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.actionCard,
+                  action.primary && styles.primaryActionCard
+                ]}
+                onPress={action.action}
+              >
+                {action.primary ? (
                   <LinearGradient
                     colors={['#9E7FFF', '#7C3AED']}
                     style={styles.actionGradient}
                   >
-                    <IconComponent size={24} color="#FFFFFF" />
-                    <Text style={styles.actionText}>{action.title}</Text>
+                    {action.icon}
+                    <Text style={styles.actionTitle}>{action.title}</Text>
+                    <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
                   </LinearGradient>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                ) : (
+                  <View style={styles.actionContent}>
+                    {action.icon}
+                    <Text style={styles.secondaryActionTitle}>{action.title}</Text>
+                    <Text style={styles.secondaryActionSubtitle}>{action.subtitle}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
-        {/* Recent Workouts */}
+        {/* Recent Activity */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Workouts</Text>
+            <View>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <Text style={styles.sectionSubtitle}>Your latest workouts</Text>
+            </View>
             <TouchableOpacity onPress={() => router.push('/workout-history')}>
-              <Text style={styles.seeAllText}>See All</Text>
+              <Text style={styles.seeAllText}>View All</Text>
             </TouchableOpacity>
           </View>
+          
           {recentWorkouts.map((workout) => (
-            <TouchableOpacity
+            <WorkoutCard
               key={workout.id}
-              style={styles.workoutCard}
+              workout={workout}
               onPress={() => router.push('/workout-detail')}
-            >
-              <Image source={{ uri: workout.image }} style={styles.workoutImage} />
-              <View style={styles.workoutInfo}>
-                <Text style={styles.workoutName}>{workout.name}</Text>
-                <Text style={styles.workoutMeta}>
-                  {workout.date} • {workout.duration} • {workout.exercises} exercises
-                </Text>
-              </View>
-              <ChevronRight size={20} color="#666" />
-            </TouchableOpacity>
+              onQuickAction={() => router.push('/repeat-workout')}
+              showInsights={true}
+            />
           ))}
         </View>
 
-        {/* Today's Goal */}
+        {/* Achievement Highlight */}
         <View style={styles.section}>
-          <View style={styles.goalCard}>
+          <TouchableOpacity 
+            style={styles.achievementCard}
+            onPress={() => router.push('/(tabs)/achievements')}
+          >
             <LinearGradient
               colors={['#FF6B6B', '#FF8E53']}
-              style={styles.goalGradient}
+              style={styles.achievementGradient}
             >
-              <View style={styles.goalContent}>
-                <Target size={32} color="#FFFFFF" />
-                <View style={styles.goalText}>
-                  <Text style={styles.goalTitle}>Today's Goal</Text>
-                  <Text style={styles.goalDescription}>Complete your Push Day workout</Text>
+              <View style={styles.achievementContent}>
+                <Award size={32} color="#FFFFFF" />
+                <View style={styles.achievementText}>
+                  <Text style={styles.achievementTitle}>New Achievement!</Text>
+                  <Text style={styles.achievementDescription}>
+                    Consistency Champion - 7 day streak
+                  </Text>
                 </View>
               </View>
-              <TouchableOpacity 
-                style={styles.goalButton}
-                onPress={() => router.push('/workout-session')}
-              >
-                <Text style={styles.goalButtonText}>Start Now</Text>
-              </TouchableOpacity>
+              <ChevronRight size={20} color="#FFFFFF" />
             </LinearGradient>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -182,183 +318,181 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: DesignTokens.colors.surface.primary,
   },
-  header: {
+  hero: {
     paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingBottom: DesignTokens.spacing[6],
   },
-  headerContent: {
+  heroContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[6],
+  },
+  greetingSection: {
+    flex: 1,
   },
   greeting: {
-    fontSize: 16,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.regular,
   },
   userName: {
-    fontSize: 28,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginTop: 4,
+    fontSize: DesignTokens.typography.fontSize['4xl'],
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginTop: DesignTokens.spacing[1],
+    marginBottom: DesignTokens.spacing[2],
+  },
+  motivationalMessage: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
   profileButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    overflow: 'hidden',
+    position: 'relative',
   },
   profileImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: DesignTokens.colors.primary[500],
+  },
+  statusIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: DesignTokens.colors.success[500],
+    borderWidth: 2,
+    borderColor: DesignTokens.colors.surface.primary,
+  },
+  primaryCTA: {
+    alignItems: 'center',
+  },
+  startButton: {
     width: '100%',
-    height: '100%',
+    marginBottom: DesignTokens.spacing[2],
+  },
+  ctaSubtext: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
   },
   content: {
-    padding: 20,
+    padding: DesignTokens.spacing[5],
   },
   section: {
-    marginBottom: 32,
+    marginBottom: DesignTokens.spacing[8],
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[4],
   },
   sectionTitle: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
+    fontSize: DesignTokens.typography.fontSize['2xl'],
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  sectionSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.regular,
   },
   seeAllText: {
-    fontSize: 14,
-    color: '#9E7FFF',
-    fontFamily: 'Inter-Medium',
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: DesignTokens.spacing[3],
   },
-  statCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    padding: 16,
-    width: (width - 56) / 2,
-    alignItems: 'center',
+  actionsScroll: {
+    marginTop: DesignTokens.spacing[4],
   },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-  },
-  statUnit: {
-    fontSize: 12,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    marginTop: 2,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    marginTop: 4,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    borderRadius: 16,
+  actionCard: {
+    width: 140,
+    marginRight: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.lg,
     overflow: 'hidden',
+  },
+  primaryActionCard: {
+    width: 160,
   },
   actionGradient: {
-    padding: 16,
+    padding: DesignTokens.spacing[4],
     alignItems: 'center',
-    gap: 8,
+    gap: DesignTokens.spacing[2],
+    minHeight: 120,
   },
-  actionText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-  },
-  workoutCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
+  actionContent: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    padding: DesignTokens.spacing[4],
     alignItems: 'center',
-    marginBottom: 12,
+    gap: DesignTokens.spacing[2],
+    minHeight: 120,
   },
-  workoutImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    marginRight: 16,
+  actionTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    textAlign: 'center',
   },
-  workoutInfo: {
-    flex: 1,
+  actionSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.primary,
+    opacity: 0.8,
+    textAlign: 'center',
   },
-  workoutName: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    marginBottom: 4,
+  secondaryActionTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    textAlign: 'center',
   },
-  workoutMeta: {
-    fontSize: 14,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
+  secondaryActionSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
   },
-  goalCard: {
-    borderRadius: 20,
+  achievementCard: {
+    borderRadius: DesignTokens.borderRadius.xl,
     overflow: 'hidden',
+    ...DesignTokens.shadow.lg,
   },
-  goalGradient: {
-    padding: 20,
-  },
-  goalContent: {
+  achievementGradient: {
+    padding: DesignTokens.spacing[5],
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  goalText: {
-    marginLeft: 16,
+  achievementContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  goalTitle: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
+  achievementText: {
+    marginLeft: DesignTokens.spacing[4],
+    flex: 1,
   },
-  goalDescription: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Regular',
+  achievementTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  achievementDescription: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
     opacity: 0.9,
-    marginTop: 4,
-  },
-  goalButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    alignSelf: 'flex-start',
-  },
-  goalButtonText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
   },
 });
