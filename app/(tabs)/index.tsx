@@ -137,7 +137,7 @@ export default function HomeScreen() {
       subtitle: 'Push Day ready',
       icon: <Play size={20} color="#FFFFFF" />, 
       primary: true,
-      action: () => router.push('/workout-session') 
+      action: () => router.push('/(tabs)/workout-session') 
     },
     { 
       title: 'Quick Log', 
@@ -193,7 +193,7 @@ export default function HomeScreen() {
             title="Start Today's Workout"
             variant="gradient"
             size="large"
-            onPress={() => router.push('/workout-session')}
+            onPress={() => router.push('/(tabs)/workout-session')}
             icon={<Zap size={24} color="#FFFFFF" />}
             style={styles.startButton}
           />
