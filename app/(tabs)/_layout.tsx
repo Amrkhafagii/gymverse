@@ -121,12 +121,7 @@ export default function TabLayout() {
           href: null,
         }}
       />
-      <Tabs.Screen
-        name="leaderboard"
-        options={{
-          href: null,
-        }}
-      />
+    
       <Tabs.Screen
         name="create-workout"
         options={{
