@@ -16,9 +16,9 @@ import { router } from 'expo-router';
 import { ArrowLeft, Save, Plus, X, Clock, Target, Smartphone, User } from 'lucide-react-native';
 import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
 import { supabase, Exercise } from '@/lib/supabase';
-import ExerciseSelector from '@/components/ExerciseSelector';
-import WorkoutExerciseCard from '@/components/WorkoutExerciseCard';
-import SegmentedControl from '@/components/SegmentedControl';
+import ExerciseSelector from '@/components/workout/ExerciseSelector';
+import WorkoutExerciseCard from '@/components/workout/WorkoutExerciseCard';
+import SegmentedControl from '@/components/ui/SegmentedControl';
 
 interface WorkoutExercise {
   exercise: Exercise;

@@ -7,180 +7,185 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
-  TrendingUp, 
-  TrendingDown, 
-  AlertCircle,
+  Brain,
+  TrendingUp,
+  AlertTriangle,
   CheckCircle,
   Lightbulb,
   Target,
+  ArrowRight,
 } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
 
-interface NutritionInsightCardProps {
-  insight: {
-    id: string;
-    type: 'success' | 'warning' | 'info' | 'tip';
-    title: string;
-    description: string;
-    action?: string;
-    trend?: 'up' | 'down' | 'stable';
-    value?: string;
-  };
-  onPress?: () => void;
-  onActionPress?: () => void;
+interface NutritionInsight {
+  id: string;
+  type: 'recommendation' | 'warning' | 'achievement' | 'tip';
+  title: string;
+  description: string;
+  action?: string;
+  priority: 'high' | 'medium' | 'low';
 }
 
-export const NutritionInsightCard: React.FC<NutritionInsightCardProps> = ({
+interface NutritionInsightCardProps {
+  insight: NutritionInsight;
+  onPress?: () => void;
+  onAction?: () => void;
+}
+
+export default function NutritionInsightCard({
   insight,
   onPress,
-  onActionPress,
-}) => {
-  const getInsightIcon = () => {
+  onAction,
+}: NutritionInsightCardProps) {
+  const getIcon = () => {
     switch (insight.type) {
-      case 'success':
-        return <CheckCircle size={24} color="#10B981" />;
-      case 'warning':
-        return <AlertCircle size={24} color="#F59E0B" />;
-      case 'info':
-        return <Target size={24} color="#3B82F6" />;
-      case 'tip':
-        return <Lightbulb size={24} color="#8B5CF6" />;
-      default:
-        return <Target size={24} color="#6B7280" />;
-    }
-  };
-
-  const getTrendIcon = () => {
-    if (!insight.trend) return null;
-    
-    switch (insight.trend) {
-      case 'up':
-        return <TrendingUp size={16} color="#10B981" />;
-      case 'down':
-        return <TrendingDown size={16} color="#EF4444" />;
-      default:
-        return null;
+      case 'recommendation': return <Brain size={20} color="#fff" />;
+      case 'warning': return <AlertTriangle size={20} color="#fff" />;
+      case 'achievement': return <CheckCircle size={20} color="#fff" />;
+      case 'tip': return <Lightbulb size={20} color="#fff" />;
+      default: return <Target size={20} color="#fff" />;
     }
   };
 
   const getGradientColors = () => {
     switch (insight.type) {
-      case 'success':
-        return ['#10B981', '#059669'];
-      case 'warning':
-        return ['#F59E0B', '#D97706'];
-      case 'info':
-        return ['#3B82F6', '#2563EB'];
-      case 'tip':
-        return ['#8B5CF6', '#7C3AED'];
-      default:
-        return ['#6B7280', '#4B5563'];
+      case 'recommendation': return ['#3b82f6', '#2563eb'];
+      case 'warning': return ['#f59e0b', '#d97706'];
+      case 'achievement': return ['#10b981', '#059669'];
+      case 'tip': return ['#8b5cf6', '#7c3aed'];
+      default: return ['#6b7280', '#4b5563'];
+    }
+  };
+
+  const getBorderColor = () => {
+    switch (insight.priority) {
+      case 'high': return '#ef4444';
+      case 'medium': return '#f59e0b';
+      case 'low': return '#6b7280';
+      default: return '#6b7280';
     }
   };
 
   return (
-    <TouchableOpacity
-      style={styles.container}
+    <TouchableOpacity 
+      style={[styles.container, { borderColor: getBorderColor() }]} 
       onPress={onPress}
-      activeOpacity={0.9}
+      activeOpacity={0.8}
     >
-      <View style={styles.card}>
+      <LinearGradient colors={['#1f2937', '#111827']} style={styles.gradient}>
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            {getInsightIcon()}
+            <LinearGradient colors={getGradientColors()} style={styles.iconGradient}>
+              {getIcon()}
+            </LinearGradient>
           </View>
           
-          <View style={styles.content}>
-            <View style={styles.titleRow}>
-              <Text style={styles.title}>{insight.title}</Text>
-              {insight.value && (
-                <View style={styles.valueContainer}>
-                  {getTrendIcon()}
-                  <Text style={styles.value}>{insight.value}</Text>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>{insight.title}</Text>
+            <View style={styles.typeContainer}>
+              <Text style={[styles.type, { color: getGradientColors()[0] }]}>
+                {insight.type.charAt(0).toUpperCase() + insight.type.slice(1)}
+              </Text>
+              {insight.priority === 'high' && (
+                <View style={styles.priorityBadge}>
+                  <Text style={styles.priorityText}>High Priority</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.description}>{insight.description}</Text>
           </View>
         </View>
 
+        <Text style={styles.description}>{insight.description}</Text>
+
         {insight.action && (
-          <TouchableOpacity
+          <TouchableOpacity 
             style={styles.actionButton}
-            onPress={onActionPress}
+            onPress={onAction}
           >
-            <LinearGradient
-              colors={getGradientColors()}
-              style={styles.actionGradient}
-            >
+            <LinearGradient colors={getGradientColors()} style={styles.actionGradient}>
               <Text style={styles.actionText}>{insight.action}</Text>
+              <ArrowRight size={16} color="#fff" />
             </LinearGradient>
           </TouchableOpacity>
         )}
-      </View>
+      </LinearGradient>
     </TouchableOpacity>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: DesignTokens.spacing[5],
+    borderRadius: DesignTokens.borderRadius.xl,
+    overflow: 'hidden',
     marginBottom: DesignTokens.spacing[3],
-  },
-  card: {
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    borderRadius: DesignTokens.borderRadius.lg,
-    padding: DesignTokens.spacing[4],
     borderWidth: 1,
-    borderColor: DesignTokens.colors.neutral[800],
+  },
+  gradient: {
+    padding: DesignTokens.spacing[4],
   },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[3],
   },
   iconContainer: {
     marginRight: DesignTokens.spacing[3],
-    marginTop: DesignTokens.spacing[1],
   },
-  content: {
-    flex: 1,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  iconGradient: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
-    marginBottom: DesignTokens.spacing[2],
+    justifyContent: 'center',
+  },
+  headerContent: {
+    flex: 1,
   },
   title: {
-    fontSize: DesignTokens.typography.fontSize.base,
+    fontSize: DesignTokens.typography.fontSize.lg,
     color: DesignTokens.colors.text.primary,
     fontWeight: DesignTokens.typography.fontWeight.semibold,
-    flex: 1,
+    marginBottom: DesignTokens.spacing[1],
   },
-  valueContainer: {
+  typeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: DesignTokens.spacing[1],
+    gap: DesignTokens.spacing[2],
   },
-  value: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
+  type: {
+    fontSize: DesignTokens.typography.fontSize.xs,
     fontWeight: DesignTokens.typography.fontWeight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  priorityBadge: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: 2,
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+  priorityText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
   description: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
     lineHeight: 20,
+    marginBottom: DesignTokens.spacing[3],
   },
   actionButton: {
-    marginTop: DesignTokens.spacing[3],
-    borderRadius: DesignTokens.borderRadius.md,
+    borderRadius: DesignTokens.borderRadius.lg,
     overflow: 'hidden',
+    alignSelf: 'flex-start',
   },
   actionGradient: {
-    paddingVertical: DesignTokens.spacing[2],
-    paddingHorizontal: DesignTokens.spacing[4],
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    gap: DesignTokens.spacing[2],
   },
   actionText: {
     fontSize: DesignTokens.typography.fontSize.sm,

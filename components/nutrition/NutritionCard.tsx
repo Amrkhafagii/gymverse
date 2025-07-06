@@ -4,326 +4,203 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
-  Clock, 
-  Flame, 
+  Apple,
+  Utensils,
+  Coffee,
+  Cookie,
+  TrendingUp,
+  Target,
+  Clock,
   Zap,
-  Plus,
-  MoreHorizontal,
 } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-import * as Haptics from 'expo-haptics';
 
 interface NutritionCardProps {
-  meal: {
-    id: string;
-    name: string;
-    time: string;
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    foods: Array<{
-      name: string;
-      quantity: string;
-      calories: number;
-    }>;
-    image?: string;
-    isLogged: boolean;
-  };
+  title: string;
+  value: string | number;
+  unit?: string;
+  target?: number;
+  percentage?: number;
+  trend?: 'up' | 'down' | 'stable';
+  type: 'calories' | 'protein' | 'carbs' | 'fat' | 'water' | 'fiber';
   onPress?: () => void;
-  onAddFood?: () => void;
-  onQuickLog?: () => void;
 }
 
-export const NutritionCard: React.FC<NutritionCardProps> = ({
-  meal,
+export default function NutritionCard({
+  title,
+  value,
+  unit,
+  target,
+  percentage,
+  trend,
+  type,
   onPress,
-  onAddFood,
-  onQuickLog,
-}) => {
-  const handlePress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPress?.();
-  };
-
-  const handleAddFood = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onAddFood?.();
-  };
-
-  const getMealIcon = () => {
-    switch (meal.name.toLowerCase()) {
-      case 'breakfast':
-        return '🌅';
-      case 'lunch':
-        return '☀️';
-      case 'dinner':
-        return '🌙';
-      case 'snacks':
-        return '🍎';
-      default:
-        return '🍽️';
+}: NutritionCardProps) {
+  const getIcon = () => {
+    switch (type) {
+      case 'calories': return <Zap size={20} color="#fff" />;
+      case 'protein': return <Target size={20} color="#fff" />;
+      case 'carbs': return <Cookie size={20} color="#fff" />;
+      case 'fat': return <Apple size={20} color="#fff" />;
+      case 'water': return <Coffee size={20} color="#fff" />;
+      case 'fiber': return <Utensils size={20} color="#fff" />;
+      default: return <Utensils size={20} color="#fff" />;
     }
   };
 
-  const getMealGradient = () => {
-    switch (meal.name.toLowerCase()) {
-      case 'breakfast':
-        return ['#FF9A56', '#FF6B35'];
-      case 'lunch':
-        return ['#4ECDC4', '#44A08D'];
-      case 'dinner':
-        return ['#667eea', '#764ba2'];
-      case 'snacks':
-        return ['#f093fb', '#f5576c'];
-      default:
-        return ['#9E7FFF', '#7C3AED'];
+  const getGradientColors = () => {
+    switch (type) {
+      case 'calories': return ['#ef4444', '#dc2626'];
+      case 'protein': return ['#10b981', '#059669'];
+      case 'carbs': return ['#f59e0b', '#d97706'];
+      case 'fat': return ['#8b5cf6', '#7c3aed'];
+      case 'water': return ['#06b6d4', '#0891b2'];
+      case 'fiber': return ['#84cc16', '#65a30d'];
+      default: return ['#6b7280', '#4b5563'];
+    }
+  };
+
+  const getTrendIcon = () => {
+    if (!trend) return null;
+    
+    switch (trend) {
+      case 'up': return <TrendingUp size={12} color="#10b981" />;
+      case 'down': return <TrendingUp size={12} color="#ef4444" style={{ transform: [{ rotate: '180deg' }] }} />;
+      case 'stable': return <Clock size={12} color="#6b7280" />;
     }
   };
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={handlePress}
-      activeOpacity={0.95}
-    >
-      <LinearGradient
-        colors={meal.isLogged ? getMealGradient() : ['#1A1A1A', '#2A2A2A']}
-        style={styles.gradient}
-      >
-        {/* Header */}
+    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.8}>
+      <LinearGradient colors={getGradientColors()} style={styles.gradient}>
         <View style={styles.header}>
-          <View style={styles.mealInfo}>
-            <Text style={styles.mealIcon}>{getMealIcon()}</Text>
-            <View style={styles.mealDetails}>
-              <Text style={styles.mealName}>{meal.name}</Text>
-              <View style={styles.timeContainer}>
-                <Clock size={14} color={DesignTokens.colors.text.secondary} />
-                <Text style={styles.mealTime}>{meal.time}</Text>
-              </View>
-            </View>
+          <View style={styles.iconContainer}>
+            {getIcon()}
+          </View>
+          {getTrendIcon()}
+        </View>
+        
+        <View style={styles.content}>
+          <Text style={styles.title}>{title}</Text>
+          <View style={styles.valueContainer}>
+            <Text style={styles.value}>
+              {typeof value === 'number' ? value.toLocaleString() : value}
+            </Text>
+            {unit && <Text style={styles.unit}>{unit}</Text>}
           </View>
           
-          <TouchableOpacity
-            style={styles.moreButton}
-            onPress={() => {}}
-          >
-            <MoreHorizontal size={20} color={DesignTokens.colors.text.secondary} />
-          </TouchableOpacity>
-        </View>
-
-        {meal.isLogged ? (
-          <>
-            {/* Nutrition Summary */}
-            <View style={styles.nutritionSummary}>
-              <View style={styles.caloriesContainer}>
-                <Flame size={20} color="#FFFFFF" />
-                <Text style={styles.caloriesText}>{meal.calories}</Text>
-                <Text style={styles.caloriesLabel}>calories</Text>
-              </View>
-              
-              <View style={styles.macrosContainer}>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroValue}>{meal.protein}g</Text>
-                  <Text style={styles.macroLabel}>Protein</Text>
-                </View>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroValue}>{meal.carbs}g</Text>
-                  <Text style={styles.macroLabel}>Carbs</Text>
-                </View>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroValue}>{meal.fat}g</Text>
-                  <Text style={styles.macroLabel}>Fat</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Food Items */}
-            <View style={styles.foodItems}>
-              {meal.foods.slice(0, 3).map((food, index) => (
-                <View key={index} style={styles.foodItem}>
-                  <Text style={styles.foodName}>{food.name}</Text>
-                  <Text style={styles.foodDetails}>
-                    {food.quantity} • {food.calories} cal
-                  </Text>
-                </View>
-              ))}
-              {meal.foods.length > 3 && (
-                <Text style={styles.moreItems}>
-                  +{meal.foods.length - 3} more items
-                </Text>
-              )}
-            </View>
-          </>
-        ) : (
-          /* Empty State */
-          <View style={styles.emptyState}>
-            <Zap size={32} color={DesignTokens.colors.text.tertiary} />
-            <Text style={styles.emptyTitle}>No food logged yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Add foods to track your nutrition
+          {target && (
+            <Text style={styles.target}>
+              of {target.toLocaleString()}{unit} target
             </Text>
-            
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleAddFood}
-            >
-              <Plus size={20} color={DesignTokens.colors.primary[500]} />
-              <Text style={styles.addButtonText}>Add Food</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          )}
+          
+          {percentage !== undefined && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${Math.min(percentage, 100)}%` }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.percentage}>{Math.round(percentage)}%</Text>
+            </View>
+          )}
+        </View>
       </LinearGradient>
     </TouchableOpacity>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: DesignTokens.spacing[5],
-    marginBottom: DesignTokens.spacing[4],
     borderRadius: DesignTokens.borderRadius.xl,
     overflow: 'hidden',
-    ...DesignTokens.shadow.lg,
+    flex: 1,
+    minHeight: 120,
   },
   gradient: {
+    flex: 1,
     padding: DesignTokens.spacing[4],
+    justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[2],
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
-    marginBottom: DesignTokens.spacing[4],
+    justifyContent: 'center',
   },
-  mealInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  content: {
     flex: 1,
+    justifyContent: 'flex-end',
   },
-  mealIcon: {
-    fontSize: 32,
-    marginRight: DesignTokens.spacing[3],
-  },
-  mealDetails: {
-    flex: 1,
-  },
-  mealName: {
-    fontSize: DesignTokens.typography.fontSize.xl,
+  title: {
+    fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    opacity: 0.9,
     marginBottom: DesignTokens.spacing[1],
   },
-  timeContainer: {
+  valueContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
+    marginBottom: DesignTokens.spacing[1],
   },
-  mealTime: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    marginLeft: DesignTokens.spacing[1],
-  },
-  moreButton: {
-    padding: DesignTokens.spacing[2],
-  },
-  nutritionSummary: {
-    marginBottom: DesignTokens.spacing[4],
-  },
-  caloriesContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: DesignTokens.spacing[3],
-  },
-  caloriesText: {
+  value: {
     fontSize: DesignTokens.typography.fontSize['2xl'],
     color: DesignTokens.colors.text.primary,
     fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginLeft: DesignTokens.spacing[2],
+    fontFamily: 'SF Mono',
   },
-  caloriesLabel: {
-    fontSize: DesignTokens.typography.fontSize.base,
+  unit: {
+    fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
     opacity: 0.8,
     marginLeft: DesignTokens.spacing[1],
   },
-  macrosContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  macroItem: {
-    alignItems: 'center',
-  },
-  macroValue: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-  },
-  macroLabel: {
-    fontSize: DesignTokens.typography.fontSize.sm,
+  target: {
+    fontSize: DesignTokens.typography.fontSize.xs,
     color: DesignTokens.colors.text.primary,
     opacity: 0.7,
-    marginTop: DesignTokens.spacing[1],
+    marginBottom: DesignTokens.spacing[2],
   },
-  foodItems: {
-    gap: DesignTokens.spacing[2],
-  },
-  foodItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: DesignTokens.borderRadius.md,
-    padding: DesignTokens.spacing[3],
-  },
-  foodName: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    marginBottom: DesignTokens.spacing[1],
-  },
-  foodDetails: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
-    opacity: 0.8,
-  },
-  moreItems: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
-    opacity: 0.7,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: DesignTokens.spacing[6],
-  },
-  emptyTitle: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    marginTop: DesignTokens.spacing[3],
-    marginBottom: DesignTokens.spacing[1],
-  },
-  emptySubtitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
-    marginBottom: DesignTokens.spacing[4],
-  },
-  addButton: {
+  progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    paddingHorizontal: DesignTokens.spacing[4],
-    paddingVertical: DesignTokens.spacing[3],
-    borderRadius: DesignTokens.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: DesignTokens.colors.primary[500],
     gap: DesignTokens.spacing[2],
   },
-  addButtonText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.primary[500],
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+  progressBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: DesignTokens.colors.text.primary,
+    borderRadius: 2,
+  },
+  percentage: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    fontFamily: 'SF Mono',
+    minWidth: 32,
+    textAlign: 'right',
   },
 });

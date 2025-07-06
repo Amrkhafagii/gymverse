@@ -11,198 +11,250 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
-  Apple,
+  Plus,
+  Camera,
+  Search,
   Target,
   TrendingUp,
   Calendar,
-  Search,
-  Plus,
-  Camera,
-  Scan,
-  BookOpen,
-  Award,
-  Zap,
+  Settings,
+  Utensils,
+  Coffee,
+  Apple,
+  Cookie,
   Droplets,
-  Scale,
+  Brain,
+  Award,
+  Clock,
 } from 'lucide-react-native';
-import { router } from 'expo-router';
-import { DesignTokens } from '@/design-system/tokens';
-import { NutritionCard } from '@/components/nutrition/NutritionCard';
-import { MacroRingChart } from '@/components/nutrition/MacroRingChart';
-import { NutritionInsightCard } from '@/components/nutrition/NutritionInsightCard';
-import { StatCard } from '@/components/ui/StatCard';
-import { Button } from '@/components/ui/Button';
+import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
+import NutritionCard from '@/components/nutrition/NutritionCard';
+import MacroRingChart from '@/components/nutrition/MacroRingChart';
+import NutritionInsightCard from '@/components/nutrition/NutritionInsightCard';
 import * as Haptics from 'expo-haptics';
 
+interface NutritionData {
+  calories: { current: number; target: number };
+  protein: { current: number; target: number };
+  carbs: { current: number; target: number };
+  fat: { current: number; target: number };
+  water: { current: number; target: number };
+  fiber: { current: number; target: number };
+}
+
+interface MealEntry {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  time: string;
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+}
+
+interface NutritionInsight {
+  id: string;
+  type: 'recommendation' | 'warning' | 'achievement' | 'tip';
+  title: string;
+  description: string;
+  action?: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
 export default function NutritionScreen() {
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setRefreshing(false);
-  };
-
-  // Mock data
-  const dailyGoals = {
-    calories: { current: 1850, target: 2200 },
-    protein: { current: 125, target: 150, color: '#10B981' },
-    carbs: { current: 180, target: 220, color: '#3B82F6' },
-    fat: { current: 65, target: 80, color: '#F59E0B' },
+  const { user, isAuthenticated } = useDeviceAuth();
+  const [nutritionData, setNutritionData] = useState<NutritionData>({
+    calories: { current: 1847, target: 2200 },
+    protein: { current: 89, target: 150 },
+    carbs: { current: 156, target: 275 },
+    fat: { current: 67, target: 73 },
     water: { current: 6, target: 8 },
-  };
-
-  const meals = [
+    fiber: { current: 18, target: 25 },
+  });
+  
+  const [todaysMeals, setTodaysMeals] = useState<MealEntry[]>([
     {
       id: '1',
-      name: 'Breakfast',
-      time: '8:30 AM',
-      calories: 450,
-      protein: 25,
-      carbs: 45,
-      fat: 18,
-      foods: [
-        { name: 'Greek Yogurt', quantity: '1 cup', calories: 150 },
-        { name: 'Blueberries', quantity: '1/2 cup', calories: 40 },
-        { name: 'Granola', quantity: '1/4 cup', calories: 120 },
-        { name: 'Honey', quantity: '1 tbsp', calories: 60 },
-        { name: 'Almonds', quantity: '10 pieces', calories: 80 },
-      ],
-      isLogged: true,
+      name: 'Greek Yogurt with Berries',
+      calories: 180,
+      protein: 15,
+      carbs: 20,
+      fat: 6,
+      time: '08:30',
+      meal_type: 'breakfast',
     },
     {
       id: '2',
-      name: 'Lunch',
-      time: '12:30 PM',
-      calories: 650,
-      protein: 45,
-      carbs: 55,
-      fat: 25,
-      foods: [
-        { name: 'Grilled Chicken', quantity: '6 oz', calories: 280 },
-        { name: 'Brown Rice', quantity: '1 cup', calories: 220 },
-        { name: 'Broccoli', quantity: '1 cup', calories: 30 },
-        { name: 'Olive Oil', quantity: '1 tbsp', calories: 120 },
-      ],
-      isLogged: true,
+      name: 'Grilled Chicken Salad',
+      calories: 420,
+      protein: 35,
+      carbs: 12,
+      fat: 28,
+      time: '12:45',
+      meal_type: 'lunch',
     },
     {
       id: '3',
-      name: 'Dinner',
-      time: '7:00 PM',
-      calories: 750,
-      protein: 55,
-      carbs: 80,
-      fat: 22,
-      foods: [],
-      isLogged: false,
+      name: 'Salmon with Quinoa',
+      calories: 580,
+      protein: 39,
+      carbs: 45,
+      fat: 25,
+      time: '19:15',
+      meal_type: 'dinner',
     },
     {
       id: '4',
-      name: 'Snacks',
-      time: 'Throughout day',
-      calories: 0,
-      protein: 0,
-      carbs: 0,
-      fat: 0,
-      foods: [],
-      isLogged: false,
+      name: 'Mixed Nuts',
+      calories: 160,
+      protein: 6,
+      carbs: 8,
+      fat: 14,
+      time: '15:30',
+      meal_type: 'snack',
     },
-  ];
+  ]);
 
-  const insights = [
+  const [insights, setInsights] = useState<NutritionInsight[]>([
     {
       id: '1',
-      type: 'success' as const,
-      title: 'Great protein intake!',
-      description: 'You\'re 83% towards your protein goal. Keep it up!',
-      trend: 'up' as const,
-      value: '+15g',
+      type: 'recommendation',
+      title: 'Increase Protein Intake',
+      description: 'You\'re 61g short of your protein goal. Consider adding a protein shake or lean meat to your next meal.',
+      action: 'View Protein Sources',
+      priority: 'high',
     },
     {
       id: '2',
-      type: 'warning' as const,
-      title: 'Low on calories',
-      description: 'You\'re 350 calories below your target. Consider a healthy snack.',
-      action: 'View Snack Ideas',
-      trend: 'down' as const,
-      value: '-350 cal',
+      type: 'achievement',
+      title: 'Great Fiber Intake!',
+      description: 'You\'re doing well with fiber today. This supports digestive health and helps you feel full.',
+      priority: 'low',
     },
     {
       id: '3',
-      type: 'tip' as const,
-      title: 'Hydration reminder',
-      description: 'You\'re doing well! 2 more glasses to reach your water goal.',
+      type: 'tip',
+      title: 'Hydration Reminder',
+      description: 'You\'re close to your water goal! Drink 2 more glasses to stay optimally hydrated.',
       action: 'Log Water',
-      value: '6/8 glasses',
+      priority: 'medium',
     },
-  ];
+    {
+      id: '4',
+      type: 'warning',
+      title: 'Low Calorie Intake',
+      description: 'You\'re 353 calories below your target. Make sure you\'re eating enough to fuel your workouts.',
+      action: 'Add Meal',
+      priority: 'high',
+    },
+  ]);
 
-  const weeklyStats = [
-    {
-      label: 'Avg Calories',
-      value: '2,050',
-      unit: 'cal/day',
-      trend: 'up' as const,
-      trendValue: '+150',
-      icon: <Target size={20} color="#4ECDC4" />,
-      color: '#4ECDC4',
-    },
-    {
-      label: 'Protein Goal',
-      value: '85',
-      unit: '% hit',
-      trend: 'up' as const,
-      trendValue: '+12%',
-      icon: <Award size={20} color="#10B981" />,
-      color: '#10B981',
-    },
-    {
-      label: 'Water Intake',
-      value: '7.2',
-      unit: 'glasses',
-      trend: 'up' as const,
-      trendValue: '+0.8',
-      icon: <Droplets size={20} color="#3B82F6" />,
-      color: '#3B82F6',
-    },
-  ];
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const quickActions = [
-    {
-      title: 'Scan Barcode',
-      icon: <Scan size={20} color="#FFFFFF" />,
-      gradient: ['#9E7FFF', '#7C3AED'],
-      onPress: () => router.push('/barcode-scanner'),
-    },
-    {
-      title: 'Photo Food',
-      icon: <Camera size={20} color="#FFFFFF" />,
-      gradient: ['#10B981', '#059669'],
-      onPress: () => router.push('/photo-food'),
-    },
-    {
-      title: 'Search Food',
-      icon: <Search size={20} color="#FFFFFF" />,
-      gradient: ['#3B82F6', '#2563EB'],
-      onPress: () => router.push('/food-search'),
-    },
-    {
-      title: 'Meal Plans',
-      icon: <BookOpen size={20} color="#FFFFFF" />,
-      gradient: ['#F59E0B', '#D97706'],
-      onPress: () => router.push('/meal-plans'),
-    },
-  ];
+  useEffect(() => {
+    loadNutritionData();
+  }, []);
 
-  const getCalorieProgress = () => {
-    return (dailyGoals.calories.current / dailyGoals.calories.target) * 100;
+  const loadNutritionData = async () => {
+    try {
+      setLoading(true);
+      // In real app, load from API/database
+      // Mock data is already set in state
+    } catch (error) {
+      console.error('Error loading nutrition data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getWaterProgress = () => {
-    return (dailyGoals.water.current / dailyGoals.water.target) * 100;
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadNutritionData();
+    setRefreshing(false);
   };
+
+  const handleAddMeal = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert(
+      'Add Meal',
+      'Choose how you\'d like to add your meal:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Search Foods', onPress: () => console.log('Search foods') },
+        { text: 'Scan Barcode', onPress: () => console.log('Scan barcode') },
+        { text: 'Take Photo', onPress: () => console.log('Take photo') },
+      ]
+    );
+  };
+
+  const handleQuickAdd = async (type: 'water' | 'snack') => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    if (type === 'water') {
+      setNutritionData(prev => ({
+        ...prev,
+        water: {
+          ...prev.water,
+          current: Math.min(prev.water.current + 1, prev.water.target),
+        },
+      }));
+    }
+  };
+
+  const handleInsightAction = async (insight: NutritionInsight) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    switch (insight.action) {
+      case 'View Protein Sources':
+        Alert.alert('Protein Sources', 'Here are some high-protein foods to consider...');
+        break;
+      case 'Log Water':
+        handleQuickAdd('water');
+        break;
+      case 'Add Meal':
+        handleAddMeal();
+        break;
+      default:
+        console.log('Insight action:', insight.action);
+    }
+  };
+
+  const getMealTypeIcon = (mealType: string) => {
+    switch (mealType) {
+      case 'breakfast': return <Coffee size={16} color="#f59e0b" />;
+      case 'lunch': return <Utensils size={16} color="#10b981" />;
+      case 'dinner': return <Apple size={16} color="#ef4444" />;
+      case 'snack': return <Cookie size={16} color="#8b5cf6" />;
+      default: return <Utensils size={16} color="#6b7280" />;
+    }
+  };
+
+  const macroData = {
+    protein: { 
+      current: nutritionData.protein.current, 
+      target: nutritionData.protein.target, 
+      color: '#10b981' 
+    },
+    carbs: { 
+      current: nutritionData.carbs.current, 
+      target: nutritionData.carbs.target, 
+      color: '#f59e0b' 
+    },
+    fat: { 
+      current: nutritionData.fat.current, 
+      target: nutritionData.fat.target, 
+      color: '#8b5cf6' 
+    },
+  };
+
+  const caloriesPercentage = (nutritionData.calories.current / nutritionData.calories.target) * 100;
+  const proteinPercentage = (nutritionData.protein.current / nutritionData.protein.target) * 100;
+  const carbsPercentage = (nutritionData.carbs.current / nutritionData.carbs.target) * 100;
+  const fatPercentage = (nutritionData.fat.current / nutritionData.fat.target) * 100;
+  const waterPercentage = (nutritionData.water.current / nutritionData.water.target) * 100;
+  const fiberPercentage = (nutritionData.fiber.current / nutritionData.fiber.target) * 100;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -210,108 +262,149 @@ export default function NutritionScreen() {
       <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
-            <Apple size={28} color={DesignTokens.colors.primary[500]} />
-            <Text style={styles.title}>Nutrition</Text>
+            <Brain size={32} color="#10b981" />
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>Nutrition AI</Text>
+              <Text style={styles.headerSubtitle}>Smart nutrition tracking</Text>
+            </View>
           </View>
-          
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => Alert.alert('Date Picker', 'This would open a date picker')}
-          >
-            <Calendar size={20} color={DesignTokens.colors.text.secondary} />
-            <Text style={styles.dateText}>Today</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerButton}>
+              <Calendar size={24} color="#999" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerButton}>
+              <Settings size={24} color="#999" />
+            </TouchableOpacity>
+          </View>
         </View>
-
-        {/* Daily Overview */}
-        <View style={styles.dailyOverview}>
-          <View style={styles.calorieProgress}>
-            <View style={styles.calorieHeader}>
-              <Text style={styles.calorieTitle}>Daily Calories</Text>
-              <Text style={styles.calorieValue}>
-                {dailyGoals.calories.current} / {dailyGoals.calories.target}
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill,
-                  { 
-                    width: `${Math.min(getCalorieProgress(), 100)}%`,
-                    backgroundColor: getCalorieProgress() > 100 ? 
-                      DesignTokens.colors.warning[500] : 
-                      DesignTokens.colors.primary[500]
-                  }
-                ]}
-              />
-            </View>
-            <Text style={styles.remainingText}>
-              {dailyGoals.calories.target - dailyGoals.calories.current > 0 ? 
-                `${dailyGoals.calories.target - dailyGoals.calories.current} calories remaining` :
-                `${dailyGoals.calories.current - dailyGoals.calories.target} calories over`
-              }
+        
+        {/* Quick Stats */}
+        <View style={styles.quickStats}>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickStatValue}>
+              {Math.round(caloriesPercentage)}%
             </Text>
+            <Text style={styles.quickStatLabel}>Daily Goal</Text>
+          </View>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickStatValue}>{todaysMeals.length}</Text>
+            <Text style={styles.quickStatLabel}>Meals Logged</Text>
+          </View>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickStatValue}>
+              {insights.filter(i => i.priority === 'high').length}
+            </Text>
+            <Text style={styles.quickStatLabel}>Insights</Text>
           </View>
         </View>
       </LinearGradient>
 
-      <ScrollView 
-        style={styles.scrollView}
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Add</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.quickActionsScroll}
-          >
-            {quickActions.map((action, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.quickAction}
-                onPress={action.onPress}
-              >
-                <LinearGradient
-                  colors={action.gradient}
-                  style={styles.quickActionGradient}
-                >
-                  {action.icon}
-                  <Text style={styles.quickActionText}>{action.title}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+          <View style={styles.quickActions}>
+            <TouchableOpacity style={styles.quickAction} onPress={handleAddMeal}>
+              <LinearGradient colors={['#10b981', '#059669']} style={styles.quickActionGradient}>
+                <Plus size={20} color="#fff" />
+                <Text style={styles.quickActionText}>Add Meal</Text>
+              </LinearGradient>
+            </TouchableOpacity>
 
-        {/* Macro Chart */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Macronutrients</Text>
-          <View style={styles.macroChartContainer}>
-            <MacroRingChart
-              protein={dailyGoals.protein}
-              carbs={dailyGoals.carbs}
-              fat={dailyGoals.fat}
-              size={180}
-            />
+            <TouchableOpacity style={styles.quickAction}>
+              <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.quickActionGradient}>
+                <Camera size={20} color="#fff" />
+                <Text style={styles.quickActionText}>Scan Food</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.quickAction}
+              onPress={() => handleQuickAdd('water')}
+            >
+              <LinearGradient colors={['#06b6d4', '#0891b2']} style={styles.quickActionGradient}>
+                <Droplets size={20} color="#fff" />
+                <Text style={styles.quickActionText}>Add Water</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Weekly Stats */}
+        {/* Macro Ring Chart */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>This Week</Text>
-          <View style={styles.statsGrid}>
-            {weeklyStats.map((stat, index) => (
-              <StatCard
-                key={index}
-                {...stat}
-                onPress={() => router.push('/nutrition-analytics')}
-              />
-            ))}
+          <Text style={styles.sectionTitle}>Today's Macros</Text>
+          <MacroRingChart data={macroData} />
+        </View>
+
+        {/* Nutrition Cards Grid */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Nutrition Overview</Text>
+          <View style={styles.nutritionGrid}>
+            <NutritionCard
+              title="Calories"
+              value={nutritionData.calories.current}
+              unit="kcal"
+              target={nutritionData.calories.target}
+              percentage={caloriesPercentage}
+              trend="up"
+              type="calories"
+            />
+            <NutritionCard
+              title="Protein"
+              value={nutritionData.protein.current}
+              unit="g"
+              target={nutritionData.protein.target}
+              percentage={proteinPercentage}
+              trend="down"
+              type="protein"
+            />
+          </View>
+          
+          <View style={styles.nutritionGrid}>
+            <NutritionCard
+              title="Carbs"
+              value={nutritionData.carbs.current}
+              unit="g"
+              target={nutritionData.carbs.target}
+              percentage={carbsPercentage}
+              trend="stable"
+              type="carbs"
+            />
+            <NutritionCard
+              title="Fat"
+              value={nutritionData.fat.current}
+              unit="g"
+              target={nutritionData.fat.target}
+              percentage={fatPercentage}
+              trend="up"
+              type="fat"
+            />
+          </View>
+          
+          <View style={styles.nutritionGrid}>
+            <NutritionCard
+              title="Water"
+              value={nutritionData.water.current}
+              unit="glasses"
+              target={nutritionData.water.target}
+              percentage={waterPercentage}
+              trend="up"
+              type="water"
+            />
+            <NutritionCard
+              title="Fiber"
+              value={nutritionData.fiber.current}
+              unit="g"
+              target={nutritionData.fiber.target}
+              percentage={fiberPercentage}
+              trend="up"
+              type="fiber"
+            />
           </View>
         </View>
 
@@ -319,109 +412,106 @@ export default function NutritionScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>AI Insights</Text>
-            <TouchableOpacity onPress={() => router.push('/nutrition-insights')}>
-              <Text style={styles.seeAllText}>View All</Text>
-            </TouchableOpacity>
+            <View style={styles.insightsBadge}>
+              <Brain size={14} color="#10b981" />
+              <Text style={styles.insightsBadgeText}>
+                {insights.filter(i => i.priority === 'high').length} Priority
+              </Text>
+            </View>
           </View>
           
           {insights.map((insight) => (
             <NutritionInsightCard
               key={insight.id}
               insight={insight}
-              onPress={() => router.push('/nutrition-detail')}
-              onActionPress={() => {
-                if (insight.action === 'View Snack Ideas') {
-                  router.push('/snack-ideas');
-                } else if (insight.action === 'Log Water') {
-                  Alert.alert('Water Logged', 'Added 1 glass of water!');
-                }
-              }}
+              onAction={() => handleInsightAction(insight)}
             />
           ))}
         </View>
 
-        {/* Meals */}
+        {/* Today's Meals */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Meals</Text>
-          {meals.map((meal) => (
-            <NutritionCard
-              key={meal.id}
-              meal={meal}
-              onPress={() => router.push('/meal-detail')}
-              onAddFood={() => router.push('/add-food')}
-            />
-          ))}
-        </View>
-
-        {/* Water Tracking */}
-        <View style={styles.section}>
-          <View style={styles.waterCard}>
-            <LinearGradient
-              colors={['#3B82F6', '#2563EB']}
-              style={styles.waterGradient}
-            >
-              <View style={styles.waterHeader}>
-                <Droplets size={24} color="#FFFFFF" />
-                <Text style={styles.waterTitle}>Water Intake</Text>
-              </View>
-              
-              <View style={styles.waterProgress}>
-                <Text style={styles.waterValue}>
-                  {dailyGoals.water.current} / {dailyGoals.water.target} glasses
-                </Text>
-                <View style={styles.waterProgressBar}>
-                  <View 
-                    style={[
-                      styles.waterProgressFill,
-                      { width: `${getWaterProgress()}%` }
-                    ]}
-                  />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Today's Meals</Text>
+            <TouchableOpacity onPress={handleAddMeal}>
+              <Plus size={20} color="#10b981" />
+            </TouchableOpacity>
+          </View>
+          
+          {todaysMeals.map((meal) => (
+            <View key={meal.id} style={styles.mealCard}>
+              <LinearGradient colors={['#1f2937', '#111827']} style={styles.mealGradient}>
+                <View style={styles.mealHeader}>
+                  <View style={styles.mealInfo}>
+                    <View style={styles.mealTitleRow}>
+                      {getMealTypeIcon(meal.meal_type)}
+                      <Text style={styles.mealName}>{meal.name}</Text>
+                    </View>
+                    <View style={styles.mealMeta}>
+                      <Clock size={12} color="#999" />
+                      <Text style={styles.mealTime}>{meal.time}</Text>
+                      <Text style={styles.mealType}>
+                        {meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.mealStats}>
+                    <Text style={styles.mealCalories}>{meal.calories}</Text>
+                    <Text style={styles.mealCaloriesLabel}>kcal</Text>
+                  </View>
                 </View>
-              </View>
+                
+                <View style={styles.mealMacros}>
+                  <View style={styles.mealMacro}>
+                    <Text style={styles.mealMacroValue}>{meal.protein}g</Text>
+                    <Text style={styles.mealMacroLabel}>Protein</Text>
+                  </View>
+                  <View style={styles.mealMacro}>
+                    <Text style={styles.mealMacroValue}>{meal.carbs}g</Text>
+                    <Text style={styles.mealMacroLabel}>Carbs</Text>
+                  </View>
+                  <View style={styles.mealMacro}>
+                    <Text style={styles.mealMacroValue}>{meal.fat}g</Text>
+                    <Text style={styles.mealMacroLabel}>Fat</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </View>
+          ))}
+        </View>
 
-              <View style={styles.waterGlasses}>
-                {Array.from({ length: dailyGoals.water.target }, (_, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.waterGlass,
-                      index < dailyGoals.water.current && styles.waterGlassFilled
-                    ]}
-                    onPress={async () => {
-                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      // Toggle water glass
-                    }}
-                  >
-                    <Droplets 
-                      size={16} 
-                      color={index < dailyGoals.water.current ? "#FFFFFF" : "rgba(255,255,255,0.3)"} 
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </LinearGradient>
+        {/* Weekly Summary */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>This Week</Text>
+          <View style={styles.weeklyStats}>
+            <View style={styles.weeklyStat}>
+              <LinearGradient colors={['#10b981', '#059669']} style={styles.weeklyStatGradient}>
+                <Target size={24} color="#fff" />
+                <Text style={styles.weeklyStatValue}>5/7</Text>
+                <Text style={styles.weeklyStatLabel}>Goals Met</Text>
+              </LinearGradient>
+            </View>
+            
+            <View style={styles.weeklyStat}>
+              <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.weeklyStatGradient}>
+                <TrendingUp size={24} color="#fff" />
+                <Text style={styles.weeklyStatValue}>+2.1kg</Text>
+                <Text style={styles.weeklyStatLabel}>Avg Protein</Text>
+              </LinearGradient>
+            </View>
+            
+            <View style={styles.weeklyStat}>
+              <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.weeklyStatGradient}>
+                <Award size={24} color="#fff" />
+                <Text style={styles.weeklyStatValue}>12</Text>
+                <Text style={styles.weeklyStatLabel}>Streak Days</Text>
+              </LinearGradient>
+            </View>
           </View>
         </View>
 
-        {/* Weight Tracking */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.weightCard}
-            onPress={() => router.push('/weight-tracking')}
-          >
-            <LinearGradient
-              colors={['#8B5CF6', '#7C3AED']}
-              style={styles.weightGradient}
-            >
-              <Scale size={24} color="#FFFFFF" />
-              <View style={styles.weightContent}>
-                <Text style={styles.weightTitle}>Weight Tracking</Text>
-                <Text style={styles.weightSubtitle}>Log your weight progress</Text>
-              </View>
-              <Text style={styles.weightValue}>165.2 lbs</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -430,223 +520,236 @@ export default function NutritionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: DesignTokens.colors.surface.primary,
+    backgroundColor: '#0a0a0a',
   },
   header: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingTop: DesignTokens.spacing[2],
-    paddingBottom: DesignTokens.spacing[4],
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: DesignTokens.spacing[4],
+    marginBottom: 20,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  title: {
-    fontSize: DesignTokens.typography.fontSize['3xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginLeft: DesignTokens.spacing[3],
+  headerText: {
+    marginLeft: 12,
   },
-  dateButton: {
+  headerTitle: {
+    fontSize: 28,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 2,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+  },
+  headerActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    paddingHorizontal: DesignTokens.spacing[3],
-    paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.lg,
-    gap: DesignTokens.spacing[2],
   },
-  dateText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+  headerButton: {
+    padding: 8,
+    marginLeft: 8,
   },
-  dailyOverview: {
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    borderRadius: DesignTokens.borderRadius.lg,
-    padding: DesignTokens.spacing[4],
-  },
-  calorieProgress: {
-    alignItems: 'center',
-  },
-  calorieHeader: {
+  quickStats: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  quickStat: {
     alignItems: 'center',
-    width: '100%',
-    marginBottom: DesignTokens.spacing[3],
   },
-  calorieTitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+  quickStatValue: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 4,
   },
-  calorieValue: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
+  quickStatLabel: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
   },
-  progressBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: DesignTokens.colors.neutral[800],
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: DesignTokens.spacing[2],
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  remainingText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
-  },
-  scrollView: {
+  content: {
     flex: 1,
   },
   section: {
-    marginBottom: DesignTokens.spacing[6],
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: DesignTokens.spacing[5],
-    marginBottom: DesignTokens.spacing[4],
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: DesignTokens.typography.fontSize.xl,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    paddingHorizontal: DesignTokens.spacing[5],
-    marginBottom: DesignTokens.spacing[4],
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
   },
-  seeAllText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.primary[500],
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+  insightsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10b98120',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#10b981',
   },
-  quickActionsScroll: {
-    paddingLeft: DesignTokens.spacing[5],
+  insightsBadgeText: {
+    fontSize: 12,
+    color: '#10b981',
+    fontFamily: 'Inter-Medium',
+    marginLeft: 4,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
   },
   quickAction: {
-    marginRight: DesignTokens.spacing[3],
-    borderRadius: DesignTokens.borderRadius.lg,
+    flex: 1,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   quickActionGradient: {
-    paddingHorizontal: DesignTokens.spacing[4],
-    paddingVertical: DesignTokens.spacing[3],
-    alignItems: 'center',
-    gap: DesignTokens.spacing[2],
-    minWidth: 100,
-  },
-  quickActionText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    textAlign: 'center',
-  },
-  macroChartContainer: {
-    alignItems: 'center',
-    paddingVertical: DesignTokens.spacing[4],
-  },
-  statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: DesignTokens.spacing[3],
-    paddingHorizontal: DesignTokens.spacing[5],
-  },
-  waterCard: {
-    marginHorizontal: DesignTokens.spacing[5],
-    borderRadius: DesignTokens.borderRadius.xl,
-    overflow: 'hidden',
-  },
-  waterGradient: {
-    padding: DesignTokens.spacing[4],
-  },
-  waterHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: DesignTokens.spacing[3],
-  },
-  waterTitle: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginLeft: DesignTokens.spacing[2],
-  },
-  waterProgress: {
-    marginBottom: DesignTokens.spacing[4],
-  },
-  waterValue: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    marginBottom: DesignTokens.spacing[2],
-  },
-  waterProgressBar: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  waterProgressFill: {
-    height: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 3,
-  },
-  waterGlasses: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  waterGlass: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  waterGlassFilled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  quickActionText: {
+    fontSize: 14,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
   },
-  weightCard: {
-    marginHorizontal: DesignTokens.spacing[5],
-    borderRadius: DesignTokens.borderRadius.xl,
-    overflow: 'hidden',
-  },
-  weightGradient: {
+  nutritionGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: DesignTokens.spacing[4],
-    gap: DesignTokens.spacing[3],
+    gap: 12,
+    marginBottom: 12,
   },
-  weightContent: {
+  mealCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  mealGradient: {
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  mealHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  mealInfo: {
     flex: 1,
   },
-  weightTitle: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
+  mealTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  weightSubtitle: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
+  mealName: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
+  },
+  mealMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mealTime: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    marginLeft: 4,
+  },
+  mealType: {
+    fontSize: 12,
+    color: '#10b981',
+    fontFamily: 'Inter-Medium',
+  },
+  mealStats: {
+    alignItems: 'flex-end',
+  },
+  mealCalories: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+  },
+  mealCaloriesLabel: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
+  },
+  mealMacros: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 12,
+  },
+  mealMacro: {
+    alignItems: 'center',
+  },
+  mealMacroValue: {
+    fontSize: 14,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 2,
+  },
+  mealMacroLabel: {
+    fontSize: 10,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
+  },
+  weeklyStats: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  weeklyStat: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  weeklyStatGradient: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  weeklyStatValue: {
+    fontSize: 18,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  weeklyStatLabel: {
+    fontSize: 12,
+    color: '#fff',
+    fontFamily: 'Inter-Medium',
     opacity: 0.8,
+    textAlign: 'center',
   },
-  weightValue: {
-    fontSize: DesignTokens.typography.fontSize.xl,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
+  bottomSpacer: {
+    height: 100,
   },
 });
