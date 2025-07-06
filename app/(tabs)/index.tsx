@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +22,22 @@ import {
   Zap,
   ChevronRight,
   Calculator,
+  Plus,
+  Grid3X3,
+  X,
+  Dumbbell,
+  Users,
+  Settings,
+  BookOpen,
+  Camera,
+  Share2,
+  Award,
+  BarChart3,
+  Timer,
+  Heart,
+  MapPin,
+  Bell,
+  Search,
 } from 'lucide-react-native';
 import { useData } from '@/contexts/DataContext';
 
@@ -29,6 +46,7 @@ const { width } = Dimensions.get('window');
 export default function HomeScreen() {
   const { workouts, achievements } = useData();
   const router = useRouter();
+  const [showAllActions, setShowAllActions] = useState(false);
 
   const todayWorkouts = workouts.filter(
     workout => new Date(workout.date).toDateString() === new Date().toDateString()
@@ -41,7 +59,8 @@ export default function HomeScreen() {
     streak: 7,
   };
 
-  const quickActions = [
+  // Primary Quick Actions (Most Used)
+  const primaryActions = [
     { 
       icon: Zap, 
       title: 'Quick Workout', 
@@ -70,15 +89,93 @@ export default function HomeScreen() {
       }
     },
     { 
-      icon: Calendar, 
-      title: 'Schedule', 
-      subtitle: 'Plan your week', 
-      color: '#FFB800',
-      onPress: () => {
-        // Navigate to schedule
-      }
+      icon: Plus, 
+      title: 'More Actions', 
+      subtitle: 'View all features', 
+      color: '#666',
+      onPress: () => setShowAllActions(true)
     },
   ];
+
+  // Categorized Secondary Actions
+  const secondaryActions = {
+    'Workout & Training': [
+      { icon: Dumbbell, title: 'Custom Workout', subtitle: 'Create your own', color: '#FF6B35' },
+      { icon: Timer, title: 'Rest Timer', subtitle: 'Track your breaks', color: '#FFB800' },
+      { icon: BookOpen, title: 'Exercise Library', subtitle: 'Browse exercises', color: '#00D4AA' },
+      { icon: Calendar, title: 'Schedule Workout', subtitle: 'Plan ahead', color: '#9E7FFF' },
+    ],
+    'Progress & Analytics': [
+      { icon: TrendingUp, title: 'Progress Charts', subtitle: 'View your growth', color: '#00D4AA' },
+      { icon: BarChart3, title: 'Detailed Stats', subtitle: 'Advanced metrics', color: '#9E7FFF' },
+      { icon: Award, title: 'Achievements', subtitle: 'Your milestones', color: '#FFB800' },
+      { icon: Camera, title: 'Progress Photos', subtitle: 'Visual tracking', color: '#FF6B35' },
+    ],
+    'Social & Community': [
+      { icon: Users, title: 'Find Friends', subtitle: 'Connect with others', color: '#9E7FFF' },
+      { icon: Share2, title: 'Share Progress', subtitle: 'Post achievements', color: '#00D4AA' },
+      { icon: Trophy, title: 'Leaderboards', subtitle: 'See rankings', color: '#FFB800' },
+      { icon: Heart, title: 'Challenges', subtitle: 'Join competitions', color: '#FF6B35' },
+    ],
+    'Tools & Settings': [
+      { icon: Settings, title: 'Settings', subtitle: 'App preferences', color: '#666' },
+      { icon: Bell, title: 'Notifications', subtitle: 'Manage alerts', color: '#9E7FFF' },
+      { icon: MapPin, title: 'Gym Locator', subtitle: 'Find nearby gyms', color: '#00D4AA' },
+      { icon: Search, title: 'Search', subtitle: 'Find anything', color: '#FFB800' },
+    ],
+  };
+
+  const renderActionModal = () => (
+    <Modal
+      visible={showAllActions}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={() => setShowAllActions(false)}
+    >
+      <View style={styles.modalContainer}>
+        <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.modalGradient}>
+          <SafeAreaView style={styles.modalSafeArea}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>All Features</Text>
+              <TouchableOpacity 
+                onPress={() => setShowAllActions(false)}
+                style={styles.closeButton}
+              >
+                <X size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalContent}>
+              {Object.entries(secondaryActions).map(([category, actions]) => (
+                <View key={category} style={styles.categorySection}>
+                  <Text style={styles.categoryTitle}>{category}</Text>
+                  <View style={styles.categoryGrid}>
+                    {actions.map((action, index) => (
+                      <TouchableOpacity 
+                        key={index} 
+                        style={styles.modalActionCard}
+                        onPress={() => {
+                          setShowAllActions(false);
+                          action.onPress?.();
+                        }}
+                      >
+                        <View style={[styles.modalActionIcon, { backgroundColor: `${action.color}20` }]}>
+                          <action.icon size={20} color={action.color} />
+                        </View>
+                        <Text style={styles.modalActionTitle}>{action.title}</Text>
+                        <Text style={styles.modalActionSubtitle}>{action.subtitle}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </SafeAreaView>
+        </LinearGradient>
+      </View>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -96,33 +193,33 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Weekly Stats */}
+          {/* Weekly Stats - Condensed */}
           <View style={styles.statsContainer}>
             <Text style={styles.sectionTitle}>This Week</Text>
             <View style={styles.statsGrid}>
               <View style={styles.statCard}>
-                <Trophy size={24} color="#FFB800" />
+                <Trophy size={20} color="#FFB800" />
                 <Text style={styles.statNumber}>{weeklyStats.workoutsCompleted}</Text>
                 <Text style={styles.statLabel}>Workouts</Text>
               </View>
               <View style={styles.statCard}>
-                <Clock size={24} color="#9E7FFF" />
+                <Clock size={20} color="#9E7FFF" />
                 <Text style={styles.statNumber}>{weeklyStats.totalMinutes}</Text>
                 <Text style={styles.statLabel}>Minutes</Text>
               </View>
               <View style={styles.statCard}>
-                <Flame size={24} color="#FF6B35" />
+                <Flame size={20} color="#FF6B35" />
                 <Text style={styles.statNumber}>{weeklyStats.caloriesBurned}</Text>
                 <Text style={styles.statLabel}>Calories</Text>
               </View>
             </View>
           </View>
 
-          {/* Quick Actions */}
+          {/* Primary Quick Actions - Reorganized */}
           <View style={styles.quickActionsContainer}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.quickActionsGrid}>
-              {quickActions.map((action, index) => (
+              {primaryActions.map((action, index) => (
                 <TouchableOpacity 
                   key={index} 
                   style={styles.quickActionCard}
@@ -135,13 +232,18 @@ export default function HomeScreen() {
                     <action.icon size={24} color={action.color} />
                     <Text style={styles.quickActionTitle}>{action.title}</Text>
                     <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                    {action.title === 'More Actions' && (
+                      <View style={styles.moreActionsBadge}>
+                        <Grid3X3 size={12} color="#666" />
+                      </View>
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
-          {/* Today's Workouts */}
+          {/* Today's Workouts - Streamlined */}
           <View style={styles.todayContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today's Workouts</Text>
@@ -152,7 +254,7 @@ export default function HomeScreen() {
             </View>
             
             {todayWorkouts.length > 0 ? (
-              todayWorkouts.slice(0, 2).map((workout) => (
+              todayWorkouts.slice(0, 1).map((workout) => (
                 <TouchableOpacity key={workout.id} style={styles.workoutCard}>
                   <LinearGradient
                     colors={['#1a1a1a', '#2a2a2a']}
@@ -195,10 +297,16 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {/* Recent Achievements */}
+          {/* Recent Achievements - Condensed */}
           <View style={styles.achievementsContainer}>
-            <Text style={styles.sectionTitle}>Recent Achievements</Text>
-            {achievements.slice(0, 3).map((achievement) => (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Achievements</Text>
+              <TouchableOpacity style={styles.seeAllButton}>
+                <Text style={styles.seeAllText}>View All</Text>
+                <ChevronRight size={16} color="#9E7FFF" />
+              </TouchableOpacity>
+            </View>
+            {achievements.slice(0, 2).map((achievement) => (
               <View key={achievement.id} style={styles.achievementCard}>
                 <View style={styles.achievementIcon}>
                   <Trophy size={20} color="#FFB800" />
@@ -214,6 +322,9 @@ export default function HomeScreen() {
             ))}
           </View>
         </ScrollView>
+
+        {/* Action Modal */}
+        {renderActionModal()}
       </LinearGradient>
     </SafeAreaView>
   );
@@ -281,7 +392,7 @@ const styles = StyleSheet.create({
   statCard: {
     backgroundColor: '#1a1a1a',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
     flex: 1,
     marginHorizontal: 4,
@@ -289,7 +400,7 @@ const styles = StyleSheet.create({
     borderColor: '#333',
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 20,
     color: '#fff',
     fontFamily: 'Inter-Bold',
     marginTop: 8,
@@ -318,6 +429,7 @@ const styles = StyleSheet.create({
   quickActionGradient: {
     padding: 20,
     alignItems: 'center',
+    position: 'relative',
   },
   quickActionTitle: {
     fontSize: 16,
@@ -332,6 +444,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     marginTop: 4,
     textAlign: 'center',
+  },
+  moreActionsBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#333',
+    borderRadius: 8,
+    padding: 4,
   },
   todayContainer: {
     paddingHorizontal: 20,
@@ -476,5 +596,83 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontFamily: 'Inter-Regular',
+  },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+  },
+  modalGradient: {
+    flex: 1,
+  },
+  modalSafeArea: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  modalTitle: {
+    fontSize: 24,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+  },
+  closeButton: {
+    padding: 8,
+    backgroundColor: '#333',
+    borderRadius: 20,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  categorySection: {
+    marginVertical: 20,
+  },
+  categoryTitle: {
+    fontSize: 18,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 16,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  modalActionCard: {
+    width: (width - 52) / 2,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  modalActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  modalActionTitle: {
+    fontSize: 14,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  modalActionSubtitle: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
   },
 });
