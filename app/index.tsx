@@ -2,17 +2,12 @@ import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { View, StyleSheet, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useData } from '@/contexts/DataContext';
 
 export default function IndexScreen() {
-  const { loading } = useData();
-
   useEffect(() => {
-    if (!loading) {
-      // Always redirect to tabs since we removed authentication
-      router.replace('/(tabs)');
-    }
-  }, [loading]);
+    // Always redirect to tabs since we removed authentication
+    router.replace('/(tabs)');
+  }, []);
 
   return (
     <View style={styles.container}>
