@@ -126,9 +126,11 @@ export default function AchievementsScreen() {
                   <Text style={[styles.achievementDescription, styles.lockedText]}>
                     {achievement.description}
                   </Text>
-                  <Text style={styles.achievementCategory}>
-                    {achievement.category.charAt(0).toUpperCase() + achievement.category.slice(1)}
-                  </Text>
+                  {achievement.category && (
+                    <Text style={styles.achievementCategory}>
+                      {achievement.category.charAt(0).toUpperCase() + achievement.category.slice(1)}
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.achievementBadge}>
                   <Ionicons name="lock-closed" size={20} color="#A3A3A3" />
