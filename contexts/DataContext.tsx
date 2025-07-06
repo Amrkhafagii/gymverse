@@ -1,198 +1,505 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '@/lib/supabase';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
-// Mock data types to match the expected structure
-interface Exercise {
+// Types
+export interface Exercise {
   id: string;
   name: string;
-  description: string;
-  targetMuscles: string[];
-  duration: number;
+  category: string;
+  muscleGroups: string[];
+  equipment: string;
+  instructions: string[];
+  tips?: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  imageUrl?: string;
 }
 
-interface Workout {
+export interface WorkoutSet {
+  id: string;
+  exerciseId: string;
+  reps: number;
+  weight: number;
+  restTime?: number;
+  completed: boolean;
+  notes?: string;
+}
+
+export interface WorkoutExercise {
+  id: string;
+  exerciseId: string;
+  exercise: Exercise;
+  sets: WorkoutSet[];
+  notes?: string;
+}
+
+export interface Workout {
   id: string;
   name: string;
-  description: string;
-  exercises: Exercise[];
-  duration: number;
-  targetMuscles: string[];
+  description?: string;
+  exercises: WorkoutExercise[];
+  duration?: number;
+  completedAt?: string;
+  createdAt: string;
+  userId: string;
+}
+
+export interface WorkoutTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  exercises: Omit<WorkoutExercise, 'sets'>[];
+  category: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedDuration: number;
+  createdAt: string;
+}
+
+export interface ProgressEntry {
+  id: string;
+  exerciseId: string;
   date: string;
-}
-
-interface Achievement {
-  id: string;
-  title: string;
-  description: string;
-  unlockedAt: string;
+  weight: number;
+  reps: number;
+  sets: number;
+  volume: number;
+  userId: string;
 }
 
 interface DataContextType {
-  workouts: Workout[];
-  achievements: Achievement[];
+  // Exercises
   exercises: Exercise[];
-  loading: boolean;
+  getExercise: (id: string) => Exercise | undefined;
+  addExercise: (exercise: Omit<Exercise, 'id'>) => Promise<Exercise>;
+  updateExercise: (id: string, updates: Partial<Exercise>) => Promise<void>;
+  
+  // Workouts
+  workouts: Workout[];
+  addWorkout: (workout: Omit<Workout, 'id' | 'createdAt' | 'userId'>) => Promise<Workout>;
+  updateWorkout: (id: string, updates: Partial<Workout>) => Promise<void>;
+  deleteWorkout: (id: string) => Promise<void>;
+  
+  // Templates
+  templates: WorkoutTemplate[];
+  addTemplate: (template: Omit<WorkoutTemplate, 'id' | 'createdAt'>) => Promise<WorkoutTemplate>;
+  updateTemplate: (id: string, updates: Partial<WorkoutTemplate>) => Promise<void>;
+  deleteTemplate: (id: string) => Promise<void>;
+  
+  // Progress
+  progressEntries: ProgressEntry[];
+  addProgressEntry: (entry: Omit<ProgressEntry, 'id' | 'userId'>) => Promise<ProgressEntry>;
+  getExerciseProgress: (exerciseId: string) => ProgressEntry[];
+  
+  // Analytics
+  getWorkoutStats: () => {
+    totalWorkouts: number;
+    totalVolume: number;
+    averageDuration: number;
+    workoutsThisWeek: number;
+  };
+  
+  isLoading: boolean;
   error: string | null;
-  refreshData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export function useData() {
-  const context = useContext(DataContext);
-  if (context === undefined) {
-    throw new Error('useData must be used within a DataProvider');
-  }
-  return context;
-}
+const STORAGE_KEYS = {
+  EXERCISES: '@gymverse_exercises',
+  WORKOUTS: '@gymverse_workouts',
+  TEMPLATES: '@gymverse_templates',
+  PROGRESS: '@gymverse_progress',
+};
 
-interface DataProviderProps {
-  children: ReactNode;
-}
-
-export function DataProvider({ children }: DataProviderProps) {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
+export function DataProvider({ children }: { children: ReactNode }) {
+  const { user: authUser, isAuthenticated } = useSupabaseAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
+  const [progressEntries, setProgressEntries] = useState<ProgressEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Mock data for development
-  const mockWorkouts: Workout[] = [
-    {
-      id: '1',
-      name: 'Morning Strength',
-      description: 'Full body strength training to start your day',
-      exercises: [
-        {
-          id: '1',
-          name: 'Push-ups',
-          description: 'Classic bodyweight exercise',
-          targetMuscles: ['Chest', 'Shoulders', 'Triceps'],
-          duration: 5
-        },
-        {
-          id: '2',
-          name: 'Squats',
-          description: 'Lower body compound movement',
-          targetMuscles: ['Quadriceps', 'Glutes'],
-          duration: 5
-        }
-      ],
-      duration: 45,
-      targetMuscles: ['Chest', 'Shoulders', 'Legs'],
-      date: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      name: 'Evening Cardio',
-      description: 'High intensity cardio session',
-      exercises: [
-        {
-          id: '3',
-          name: 'Burpees',
-          description: 'Full body explosive movement',
-          targetMuscles: ['Full Body'],
-          duration: 10
-        }
-      ],
-      duration: 30,
-      targetMuscles: ['Full Body'],
-      date: new Date().toISOString(),
-    }
-  ];
+  useEffect(() => {
+    initializeData();
+  }, [isAuthenticated, authUser]);
 
-  const mockAchievements: Achievement[] = [
-    {
-      id: '1',
-      title: 'First Workout',
-      description: 'Completed your first workout session',
-      unlockedAt: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-    },
-    {
-      id: '2',
-      title: 'Week Warrior',
-      description: 'Completed 7 workouts in a week',
-      unlockedAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-    },
-    {
-      id: '3',
-      title: 'Consistency King',
-      description: 'Maintained a 7-day workout streak',
-      unlockedAt: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-    }
-  ];
-
-  const mockExercises: Exercise[] = [
-    {
-      id: '1',
-      name: 'Push-ups',
-      description: 'Classic bodyweight exercise targeting chest, shoulders, and triceps',
-      targetMuscles: ['Chest', 'Shoulders', 'Triceps'],
-      duration: 5
-    },
-    {
-      id: '2',
-      name: 'Squats',
-      description: 'Lower body compound movement targeting quadriceps and glutes',
-      targetMuscles: ['Quadriceps', 'Glutes'],
-      duration: 5
-    },
-    {
-      id: '3',
-      name: 'Burpees',
-      description: 'Full body explosive movement combining squat, plank, and jump',
-      targetMuscles: ['Full Body'],
-      duration: 10
-    },
-    {
-      id: '4',
-      name: 'Plank',
-      description: 'Core strengthening isometric exercise',
-      targetMuscles: ['Core', 'Shoulders'],
-      duration: 3
-    },
-    {
-      id: '5',
-      name: 'Lunges',
-      description: 'Single-leg exercise targeting quadriceps, glutes, and balance',
-      targetMuscles: ['Quadriceps', 'Glutes', 'Calves'],
-      duration: 8
-    }
-  ];
-
-  const refreshData = async () => {
-    setLoading(true);
-    setError(null);
-    
+  const initializeData = async () => {
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In a real app, this would fetch from Supabase
-      setWorkouts(mockWorkouts);
-      setAchievements(mockAchievements);
-      setExercises(mockExercises);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load data');
+      setIsLoading(true);
+      setError(null);
+
+      if (isAuthenticated && authUser) {
+        // Try to load from Supabase first, fallback to local storage
+        await loadFromSupabase();
+      } else {
+        // Load from local storage only
+        await loadFromLocalStorage();
+      }
+
+      // Load default exercises if none exist
+      if (exercises.length === 0) {
+        await loadDefaultExercises();
+      }
+    } catch (err) {
+      console.error('Failed to initialize data:', err);
+      setError('Failed to load data');
+      // Fallback to local storage
+      await loadFromLocalStorage();
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    // Load initial data
-    setWorkouts(mockWorkouts);
-    setAchievements(mockAchievements);
-    setExercises(mockExercises);
-  }, []);
+  const loadFromSupabase = async () => {
+    try {
+      // Load exercises
+      const { data: exercisesData, error: exercisesError } = await supabase
+        .from('exercises')
+        .select('*');
+
+      if (exercisesError) throw exercisesError;
+
+      // Load workouts
+      const { data: workoutsData, error: workoutsError } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', authUser?.id);
+
+      if (workoutsError) throw workoutsError;
+
+      // Load templates
+      const { data: templatesData, error: templatesError } = await supabase
+        .from('workout_templates')
+        .select('*');
+
+      if (templatesError) throw templatesError;
+
+      // Load progress
+      const { data: progressData, error: progressError } = await supabase
+        .from('progress_entries')
+        .select('*')
+        .eq('user_id', authUser?.id);
+
+      if (progressError) throw progressError;
+
+      // Update state with Supabase data
+      if (exercisesData) setExercises(exercisesData);
+      if (workoutsData) setWorkouts(workoutsData);
+      if (templatesData) setTemplates(templatesData);
+      if (progressData) setProgressEntries(progressData);
+
+    } catch (error) {
+      console.error('Failed to load from Supabase:', error);
+      // Fallback to local storage
+      await loadFromLocalStorage();
+    }
+  };
+
+  const loadFromLocalStorage = async () => {
+    try {
+      const [exercisesData, workoutsData, templatesData, progressData] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.EXERCISES),
+        AsyncStorage.getItem(STORAGE_KEYS.WORKOUTS),
+        AsyncStorage.getItem(STORAGE_KEYS.TEMPLATES),
+        AsyncStorage.getItem(STORAGE_KEYS.PROGRESS),
+      ]);
+
+      if (exercisesData) setExercises(JSON.parse(exercisesData));
+      if (workoutsData) setWorkouts(JSON.parse(workoutsData));
+      if (templatesData) setTemplates(JSON.parse(templatesData));
+      if (progressData) setProgressEntries(JSON.parse(progressData));
+    } catch (error) {
+      console.error('Failed to load from local storage:', error);
+    }
+  };
+
+  const loadDefaultExercises = async () => {
+    const defaultExercises: Exercise[] = [
+      {
+        id: 'ex_1',
+        name: 'Bench Press',
+        category: 'Chest',
+        muscleGroups: ['Chest', 'Triceps', 'Shoulders'],
+        equipment: 'Barbell',
+        instructions: [
+          'Lie flat on bench with feet firmly on ground',
+          'Grip barbell with hands slightly wider than shoulder width',
+          'Lower bar to chest with control',
+          'Press bar up explosively to starting position'
+        ],
+        difficulty: 'intermediate',
+        imageUrl: 'https://images.pexels.com/photos/703012/pexels-photo-703012.jpeg'
+      },
+      {
+        id: 'ex_2',
+        name: 'Squats',
+        category: 'Legs',
+        muscleGroups: ['Quadriceps', 'Glutes', 'Hamstrings'],
+        equipment: 'Barbell',
+        instructions: [
+          'Stand with feet shoulder-width apart',
+          'Lower body by bending knees and hips',
+          'Keep chest up and knees tracking over toes',
+          'Return to starting position'
+        ],
+        difficulty: 'beginner',
+        imageUrl: 'https://images.pexels.com/photos/685530/pexels-photo-685530.jpeg'
+      },
+      {
+        id: 'ex_3',
+        name: 'Deadlift',
+        category: 'Back',
+        muscleGroups: ['Hamstrings', 'Glutes', 'Lower Back', 'Traps'],
+        equipment: 'Barbell',
+        instructions: [
+          'Stand with feet hip-width apart, bar over mid-foot',
+          'Bend at hips and knees to grip bar',
+          'Keep chest up and back straight',
+          'Drive through heels to lift bar'
+        ],
+        difficulty: 'advanced',
+        imageUrl: 'https://images.pexels.com/photos/1552252/pexels-photo-1552252.jpeg'
+      }
+    ];
+
+    setExercises(defaultExercises);
+    await AsyncStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(defaultExercises));
+  };
+
+  // Exercise methods
+  const getExercise = (id: string): Exercise | undefined => {
+    return exercises.find(ex => ex.id === id);
+  };
+
+  const addExercise = async (exerciseData: Omit<Exercise, 'id'>): Promise<Exercise> => {
+    const newExercise: Exercise = {
+      ...exerciseData,
+      id: `ex_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    };
+
+    const updatedExercises = [...exercises, newExercise];
+    setExercises(updatedExercises);
+    await AsyncStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(updatedExercises));
+
+    // Try to sync with Supabase if authenticated
+    if (isAuthenticated) {
+      try {
+        await supabase.from('exercises').insert([newExercise]);
+      } catch (error) {
+        console.error('Failed to sync exercise with Supabase:', error);
+      }
+    }
+
+    return newExercise;
+  };
+
+  const updateExercise = async (id: string, updates: Partial<Exercise>): Promise<void> => {
+    const updatedExercises = exercises.map(ex => 
+      ex.id === id ? { ...ex, ...updates } : ex
+    );
+    setExercises(updatedExercises);
+    await AsyncStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(updatedExercises));
+
+    // Try to sync with Supabase if authenticated
+    if (isAuthenticated) {
+      try {
+        await supabase.from('exercises').update(updates).eq('id', id);
+      } catch (error) {
+        console.error('Failed to sync exercise update with Supabase:', error);
+      }
+    }
+  };
+
+  // Workout methods
+  const addWorkout = async (workoutData: Omit<Workout, 'id' | 'createdAt' | 'userId'>): Promise<Workout> => {
+    const newWorkout: Workout = {
+      ...workoutData,
+      id: `workout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date().toISOString(),
+      userId: authUser?.id || 'local_user',
+    };
+
+    const updatedWorkouts = [...workouts, newWorkout];
+    setWorkouts(updatedWorkouts);
+    await AsyncStorage.setItem(STORAGE_KEYS.WORKOUTS, JSON.stringify(updatedWorkouts));
+
+    // Try to sync with Supabase if authenticated
+    if (isAuthenticated) {
+      try {
+        await supabase.from('workouts').insert([{
+          ...newWorkout,
+          user_id: authUser?.id,
+        }]);
+      } catch (error) {
+        console.error('Failed to sync workout with Supabase:', error);
+      }
+    }
+
+    return newWorkout;
+  };
+
+  const updateWorkout = async (id: string, updates: Partial<Workout>): Promise<void> => {
+    const updatedWorkouts = workouts.map(w => 
+      w.id === id ? { ...w, ...updates } : w
+    );
+    setWorkouts(updatedWorkouts);
+    await AsyncStorage.setItem(STORAGE_KEYS.WORKOUTS, JSON.stringify(updatedWorkouts));
+
+    // Try to sync with Supabase if authenticated
+    if (isAuthenticated) {
+      try {
+        await supabase.from('workouts').update(updates).eq('id', id);
+      } catch (error) {
+        console.error('Failed to sync workout update with Supabase:', error);
+      }
+    }
+  };
+
+  const deleteWorkout = async (id: string): Promise<void> => {
+    const updatedWorkouts = workouts.filter(w => w.id !== id);
+    setWorkouts(updatedWorkouts);
+    await AsyncStorage.setItem(STORAGE_KEYS.WORKOUTS, JSON.stringify(updatedWorkouts));
+
+    // Try to sync with Supabase if authenticated
+    if (isAuthenticated) {
+      try {
+        await supabase.from('workouts').delete().eq('id', id);
+      } catch (error) {
+        console.error('Failed to sync workout deletion with Supabase:', error);
+      }
+    }
+  };
+
+  // Template methods
+  const addTemplate = async (templateData: Omit<WorkoutTemplate, 'id' | 'createdAt'>): Promise<WorkoutTemplate> => {
+    const newTemplate: WorkoutTemplate = {
+      ...templateData,
+      id: `template_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedTemplates = [...templates, newTemplate];
+    setTemplates(updatedTemplates);
+    await AsyncStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(updatedTemplates));
+
+    // Try to sync with Supabase if authenticated
+    if (isAuthenticated) {
+      try {
+        await supabase.from('workout_templates').insert([newTemplate]);
+      } catch (error) {
+        console.error('Failed to sync template with Supabase:', error);
+      }
+    }
+
+    return newTemplate;
+  };
+
+  const updateTemplate = async (id: string, updates: Partial<WorkoutTemplate>): Promise<void> => {
+    const updatedTemplates = templates.map(t => 
+      t.id === id ? { ...t, ...updates } : t
+    );
+    setTemplates(updatedTemplates);
+    await AsyncStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(updatedTemplates));
+
+    // Try to sync with Supabase if authenticated
+    if (isAuthenticated) {
+      try {
+        await supabase.from('workout_templates').update(updates).eq('id', id);
+      } catch (error) {
+        console.error('Failed to sync template update with Supabase:', error);
+      }
+    }
+  };
+
+  const deleteTemplate = async (id: string): Promise<void> => {
+    const updatedTemplates = templates.filter(t => t.id !== id);
+    setTemplates(updatedTemplates);
+    await AsyncStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(updatedTemplates));
+
+    // Try to sync with Supabase if authenticated
+    if (isAuthenticated) {
+      try {
+        await supabase.from('workout_templates').delete().eq('id', id);
+      } catch (error) {
+        console.error('Failed to sync template deletion with Supabase:', error);
+      }
+    }
+  };
+
+  // Progress methods
+  const addProgressEntry = async (entryData: Omit<ProgressEntry, 'id' | 'userId'>): Promise<ProgressEntry> => {
+    const newEntry: ProgressEntry = {
+      ...entryData,
+      id: `progress_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      userId: authUser?.id || 'local_user',
+    };
+
+    const updatedProgress = [...progressEntries, newEntry];
+    setProgressEntries(updatedProgress);
+    await AsyncStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(updatedProgress));
+
+    // Try to sync with Supabase if authenticated
+    if (isAuthenticated) {
+      try {
+        await supabase.from('progress_entries').insert([{
+          ...newEntry,
+          user_id: authUser?.id,
+        }]);
+      } catch (error) {
+        console.error('Failed to sync progress with Supabase:', error);
+      }
+    }
+
+    return newEntry;
+  };
+
+  const getExerciseProgress = (exerciseId: string): ProgressEntry[] => {
+    return progressEntries
+      .filter(entry => entry.exerciseId === exerciseId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  // Analytics
+  const getWorkoutStats = () => {
+    const totalWorkouts = workouts.length;
+    const totalVolume = progressEntries.reduce((sum, entry) => sum + entry.volume, 0);
+    const averageDuration = workouts.reduce((sum, w) => sum + (w.duration || 0), 0) / totalWorkouts || 0;
+    
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const workoutsThisWeek = workouts.filter(w => 
+      new Date(w.createdAt) >= oneWeekAgo
+    ).length;
+
+    return {
+      totalWorkouts,
+      totalVolume,
+      averageDuration,
+      workoutsThisWeek,
+    };
+  };
 
   const value: DataContextType = {
-    workouts,
-    achievements,
     exercises,
-    loading,
+    getExercise,
+    addExercise,
+    updateExercise,
+    workouts,
+    addWorkout,
+    updateWorkout,
+    deleteWorkout,
+    templates,
+    addTemplate,
+    updateTemplate,
+    deleteTemplate,
+    progressEntries,
+    addProgressEntry,
+    getExerciseProgress,
+    getWorkoutStats,
+    isLoading,
     error,
-    refreshData,
   };
 
   return (
@@ -200,4 +507,12 @@ export function DataProvider({ children }: DataProviderProps) {
       {children}
     </DataContext.Provider>
   );
+}
+
+export function useData() {
+  const context = useContext(DataContext);
+  if (context === undefined) {
+    throw new Error('useData must be used within a DataProvider');
+  }
+  return context;
 }
