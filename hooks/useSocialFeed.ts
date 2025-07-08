@@ -1,340 +1,334 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import {
-  SocialFeedPost,
-  PostComment,
-  getSocialFeedWithStats,
-  togglePostLike,
-  addPostComment,
-  getPostComments,
-  createWorkoutPost,
-  createAchievementPost,
-  createProgressPost,
-  deletePost,
-  getUserPosts,
-  searchPosts,
-} from '@/lib/socialFeed';
+import { useSocial, SocialPost } from '@/contexts/SocialContext';
 
-export function useSocialFeed(userId?: string) {
-  const [posts, setPosts] = useState<SocialFeedPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+export interface FeedFilter {
+  type?: SocialPost['type'] | 'all';
+  timeRange?: 'today' | 'week' | 'month' | 'all';
+  users?: string[]; // Filter by specific users
+  tags?: string[]; // Filter by tags
+}
+
+export interface FeedSort {
+  by: 'timestamp' | 'likes' | 'comments' | 'engagement';
+  order: 'asc' | 'desc';
+}
+
+export interface UseSocialFeedReturn {
+  // Feed data
+  posts: SocialPost[];
+  filteredPosts: SocialPost[];
+  myPosts: SocialPost[];
+  
+  // Feed state
+  isLoading: boolean;
+  isRefreshing: boolean;
+  hasMorePosts: boolean;
+  error: string | null;
+  
+  // Filters and sorting
+  activeFilter: FeedFilter;
+  activeSort: FeedSort;
+  
+  // Actions
+  refreshFeed: () => Promise<void>;
+  loadMorePosts: () => Promise<void>;
+  setFilter: (filter: FeedFilter) => void;
+  setSort: (sort: FeedSort) => void;
+  clearFilters: () => void;
+  
+  // Post interactions
+  likePost: (postId: string) => Promise<void>;
+  unlikePost: (postId: string) => Promise<void>;
+  sharePost: (postId: string) => Promise<void>;
+  deletePost: (postId: string) => Promise<void>;
+  
+  // Search
+  searchPosts: (query: string) => SocialPost[];
+  
+  // Analytics
+  getFeedAnalytics: () => {
+    totalPosts: number;
+    totalLikes: number;
+    totalComments: number;
+    totalShares: number;
+    engagementRate: number;
+    topPostTypes: Array<{ type: SocialPost['type']; count: number }>;
+    activityByDay: Array<{ date: string; posts: number }>;
+  };
+}
+
+export function useSocialFeed(): UseSocialFeedReturn {
+  const {
+    posts,
+    myPosts,
+    isLoading,
+    hasMorePosts,
+    refreshFeed: contextRefreshFeed,
+    loadMorePosts: contextLoadMorePosts,
+    likePost: contextLikePost,
+    unlikePost: contextUnlikePost,
+    sharePost: contextSharePost,
+    deletePost: contextDeletePost,
+  } = useSocial();
+
+  // State
+  const [filteredPosts, setFilteredPosts] = useState<SocialPost[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FeedFilter>({ type: 'all', timeRange: 'all' });
+  const [activeSort, setActiveSort] = useState<FeedSort>({ by: 'timestamp', order: 'desc' });
 
-  // Load initial feed
-  const loadFeed = useCallback(async () => {
-    try {
-      setError(null);
-      const feedPosts = await getSocialFeedWithStats(userId);
-      setPosts(feedPosts);
-    } catch (err) {
-      console.error('Error loading social feed:', err);
-      setError('Failed to load social feed');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  // Refresh feed
-  const refreshFeed = useCallback(async () => {
-    setRefreshing(true);
-    await loadFeed();
-    setRefreshing(false);
-  }, [loadFeed]);
-
-  // Set up realtime subscriptions
+  // Apply filters and sorting when posts or filters change
   useEffect(() => {
-    loadFeed();
+    applyFiltersAndSort();
+  }, [posts, activeFilter, activeSort]);
 
-    // Subscribe to new posts
-    const postsSubscription = supabase
-      .channel('social_posts_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'social_posts',
-          filter: 'is_public=eq.true',
-        },
-        async (payload) => {
-          console.log('Post change detected:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            // Add new post to the beginning of the feed
-            const newPost = await getSocialFeedWithStats(userId, 1);
-            if (newPost.length > 0) {
-              setPosts(prevPosts => [newPost[0], ...prevPosts]);
-            }
-          } else if (payload.eventType === 'DELETE') {
-            // Remove deleted post from feed
-            setPosts(prevPosts => 
-              prevPosts.filter(post => post.id !== payload.old.id)
-            );
-          } else if (payload.eventType === 'UPDATE') {
-            // Update existing post
-            setPosts(prevPosts =>
-              prevPosts.map(post =>
-                post.id === payload.new.id
-                  ? { ...post, ...payload.new }
-                  : post
-              )
-            );
-          }
-        }
-      )
-      .subscribe();
+  const applyFiltersAndSort = useCallback(() => {
+    let filtered = [...posts];
 
-    // Subscribe to likes changes
-    const likesSubscription = supabase
-      .channel('post_likes_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'post_likes',
-        },
-        async (payload) => {
-          console.log('Like change detected:', payload);
-          
-          const postId = payload.new?.post_id || payload.old?.post_id;
-          if (!postId) return;
+    // Apply type filter
+    if (activeFilter.type && activeFilter.type !== 'all') {
+      filtered = filtered.filter(post => post.type === activeFilter.type);
+    }
 
-          // Update the likes count for the affected post
-          setPosts(prevPosts =>
-            prevPosts.map(post => {
-              if (post.id === postId) {
-                if (payload.eventType === 'INSERT') {
-                  return {
-                    ...post,
-                    likes_count: post.likes_count + 1,
-                    user_has_liked: payload.new.user_id === userId ? true : post.user_has_liked,
-                  };
-                } else if (payload.eventType === 'DELETE') {
-                  return {
-                    ...post,
-                    likes_count: Math.max(0, post.likes_count - 1),
-                    user_has_liked: payload.old.user_id === userId ? false : post.user_has_liked,
-                  };
-                }
-              }
-              return post;
-            })
-          );
-        }
-      )
-      .subscribe();
+    // Apply time range filter
+    if (activeFilter.timeRange && activeFilter.timeRange !== 'all') {
+      const now = new Date();
+      let cutoffDate = new Date();
 
-    // Subscribe to comments changes
-    const commentsSubscription = supabase
-      .channel('post_comments_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'post_comments',
-        },
-        async (payload) => {
-          console.log('Comment change detected:', payload);
-          
-          const postId = payload.new?.post_id || payload.old?.post_id;
-          if (!postId) return;
+      switch (activeFilter.timeRange) {
+        case 'today':
+          cutoffDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          cutoffDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          cutoffDate.setMonth(now.getMonth() - 1);
+          break;
+      }
 
-          // Update the comments count for the affected post
-          setPosts(prevPosts =>
-            prevPosts.map(post => {
-              if (post.id === postId) {
-                if (payload.eventType === 'INSERT') {
-                  return {
-                    ...post,
-                    comments_count: post.comments_count + 1,
-                  };
-                } else if (payload.eventType === 'DELETE') {
-                  return {
-                    ...post,
-                    comments_count: Math.max(0, post.comments_count - 1),
-                  };
-                }
-              }
-              return post;
-            })
-          );
-        }
-      )
-      .subscribe();
+      filtered = filtered.filter(post => new Date(post.timestamp) >= cutoffDate);
+    }
 
-    // Cleanup subscriptions
-    return () => {
-      supabase.removeChannel(postsSubscription);
-      supabase.removeChannel(likesSubscription);
-      supabase.removeChannel(commentsSubscription);
-    };
-  }, [loadFeed, userId]);
+    // Apply user filter
+    if (activeFilter.users && activeFilter.users.length > 0) {
+      filtered = filtered.filter(post => activeFilter.users!.includes(post.userId));
+    }
 
-  // Like/unlike a post
-  const handleToggleLike = async (postId: number) => {
-    if (!userId) return;
-
-    try {
-      const isLiked = await togglePostLike(postId, userId);
-      
-      // Optimistically update the UI
-      setPosts(prevPosts =>
-        prevPosts.map(post =>
-          post.id === postId
-            ? {
-                ...post,
-                likes_count: isLiked ? post.likes_count + 1 : post.likes_count - 1,
-                user_has_liked: isLiked,
-              }
-            : post
-        )
+    // Apply tag filter
+    if (activeFilter.tags && activeFilter.tags.length > 0) {
+      filtered = filtered.filter(post => 
+        post.tags && post.tags.some(tag => activeFilter.tags!.includes(tag))
       );
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      setError('Failed to update like');
     }
-  };
 
-  // Add a comment to a post
-  const handleAddComment = async (postId: number, content: string) => {
-    if (!userId) return null;
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: number;
+      let bValue: number;
 
-    try {
-      const comment = await addPostComment(postId, userId, content);
-      
-      if (comment) {
-        // Optimistically update the comments count
-        setPosts(prevPosts =>
-          prevPosts.map(post =>
-            post.id === postId
-              ? { ...post, comments_count: post.comments_count + 1 }
-              : post
-          )
-        );
+      switch (activeSort.by) {
+        case 'timestamp':
+          aValue = new Date(a.timestamp).getTime();
+          bValue = new Date(b.timestamp).getTime();
+          break;
+        case 'likes':
+          aValue = a.likes;
+          bValue = b.likes;
+          break;
+        case 'comments':
+          aValue = a.comments.length;
+          bValue = b.comments.length;
+          break;
+        case 'engagement':
+          aValue = a.likes + a.comments.length + a.shares;
+          bValue = b.likes + b.comments.length + b.shares;
+          break;
+        default:
+          aValue = new Date(a.timestamp).getTime();
+          bValue = new Date(b.timestamp).getTime();
       }
-      
-      return comment;
-    } catch (error) {
-      console.error('Error adding comment:', error);
-      setError('Failed to add comment');
-      return null;
-    }
-  };
 
-  // Create a new workout post
-  const handleCreateWorkoutPost = async (content: string, workoutSessionId?: number) => {
-    if (!userId) return null;
+      return activeSort.order === 'desc' ? bValue - aValue : aValue - bValue;
+    });
 
+    setFilteredPosts(filtered);
+  }, [posts, activeFilter, activeSort]);
+
+  // Actions
+  const refreshFeed = async () => {
+    setIsRefreshing(true);
+    setError(null);
+    
     try {
-      const post = await createWorkoutPost(userId, content, workoutSessionId);
-      if (post) {
-        // The realtime subscription will handle adding it to the feed
-        return post;
-      }
-    } catch (error) {
-      console.error('Error creating workout post:', error);
-      setError('Failed to create post');
-    }
-    return null;
-  };
-
-  // Create a new achievement post
-  const handleCreateAchievementPost = async (content: string, achievementId: number) => {
-    if (!userId) return null;
-
-    try {
-      const post = await createAchievementPost(userId, content, achievementId);
-      if (post) {
-        // The realtime subscription will handle adding it to the feed
-        return post;
-      }
-    } catch (error) {
-      console.error('Error creating achievement post:', error);
-      setError('Failed to create post');
-    }
-    return null;
-  };
-
-  // Create a new progress post
-  const handleCreateProgressPost = async (content: string, mediaUrls?: string[]) => {
-    if (!userId) return null;
-
-    try {
-      const post = await createProgressPost(userId, content, mediaUrls);
-      if (post) {
-        // The realtime subscription will handle adding it to the feed
-        return post;
-      }
-    } catch (error) {
-      console.error('Error creating progress post:', error);
-      setError('Failed to create post');
-    }
-    return null;
-  };
-
-  // Delete a post
-  const handleDeletePost = async (postId: number) => {
-    if (!userId) return false;
-
-    try {
-      const success = await deletePost(postId, userId);
-      if (success) {
-        // Optimistically remove from UI
-        setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-      }
-      return success;
-    } catch (error) {
-      console.error('Error deleting post:', error);
-      setError('Failed to delete post');
-      return false;
-    }
-  };
-
-  // Search posts
-  const handleSearchPosts = async (query: string) => {
-    try {
-      setLoading(true);
-      const searchResults = await searchPosts(query, userId);
-      setPosts(searchResults);
-    } catch (error) {
-      console.error('Error searching posts:', error);
-      setError('Failed to search posts');
+      await contextRefreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh feed');
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
-  // Get user's own posts
-  const handleGetUserPosts = async (targetUserId: string) => {
+  const loadMorePosts = async () => {
     try {
-      setLoading(true);
-      const userPosts = await getUserPosts(targetUserId);
-      setPosts(userPosts);
-    } catch (error) {
-      console.error('Error fetching user posts:', error);
-      setError('Failed to fetch user posts');
-    } finally {
-      setLoading(false);
+      await contextLoadMorePosts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load more posts');
     }
   };
+
+  const setFilter = (filter: FeedFilter) => {
+    setActiveFilter(prev => ({ ...prev, ...filter }));
+  };
+
+  const setSort = (sort: FeedSort) => {
+    setActiveSort(sort);
+  };
+
+  const clearFilters = () => {
+    setActiveFilter({ type: 'all', timeRange: 'all' });
+    setActiveSort({ by: 'timestamp', order: 'desc' });
+  };
+
+  // Post interactions
+  const likePost = async (postId: string) => {
+    try {
+      await contextLikePost(postId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to like post');
+    }
+  };
+
+  const unlikePost = async (postId: string) => {
+    try {
+      await contextUnlikePost(postId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to unlike post');
+    }
+  };
+
+  const sharePost = async (postId: string) => {
+    try {
+      await contextSharePost(postId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to share post');
+    }
+  };
+
+  const deletePost = async (postId: string) => {
+    try {
+      await contextDeletePost(postId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete post');
+    }
+  };
+
+  // Search
+  const searchPosts = useCallback((query: string): SocialPost[] => {
+    if (!query.trim()) return filteredPosts;
+
+    const lowercaseQuery = query.toLowerCase();
+    return filteredPosts.filter(post => 
+      post.content.toLowerCase().includes(lowercaseQuery) ||
+      post.username.toLowerCase().includes(lowercaseQuery) ||
+      (post.tags && post.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))) ||
+      (post.workoutData?.name.toLowerCase().includes(lowercaseQuery)) ||
+      (post.achievementData?.name.toLowerCase().includes(lowercaseQuery)) ||
+      (post.recordData?.exerciseName.toLowerCase().includes(lowercaseQuery))
+    );
+  }, [filteredPosts]);
+
+  // Analytics
+  const getFeedAnalytics = useCallback(() => {
+    const totalPosts = posts.length;
+    const totalLikes = posts.reduce((sum, post) => sum + post.likes, 0);
+    const totalComments = posts.reduce((sum, post) => sum + post.comments.length, 0);
+    const totalShares = posts.reduce((sum, post) => sum + post.shares, 0);
+    
+    const engagementRate = totalPosts > 0 
+      ? ((totalLikes + totalComments + totalShares) / totalPosts) 
+      : 0;
+
+    // Count post types
+    const postTypeCounts: Record<SocialPost['type'], number> = {
+      workout_complete: 0,
+      achievement: 0,
+      progress_photo: 0,
+      milestone: 0,
+      personal_record: 0,
+      text: 0,
+    };
+
+    posts.forEach(post => {
+      postTypeCounts[post.type]++;
+    });
+
+    const topPostTypes = Object.entries(postTypeCounts)
+      .map(([type, count]) => ({ type: type as SocialPost['type'], count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Activity by day (last 7 days)
+    const activityByDay: Array<{ date: string; posts: number }> = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateString = date.toISOString().split('T')[0];
+      
+      const postsOnDay = posts.filter(post => 
+        post.timestamp.split('T')[0] === dateString
+      ).length;
+
+      activityByDay.push({
+        date: dateString,
+        posts: postsOnDay,
+      });
+    }
+
+    return {
+      totalPosts,
+      totalLikes,
+      totalComments,
+      totalShares,
+      engagementRate,
+      topPostTypes,
+      activityByDay,
+    };
+  }, [posts]);
 
   return {
+    // Feed data
     posts,
-    loading,
-    refreshing,
+    filteredPosts,
+    myPosts,
+    
+    // Feed state
+    isLoading,
+    isRefreshing,
+    hasMorePosts,
     error,
+    
+    // Filters and sorting
+    activeFilter,
+    activeSort,
+    
+    // Actions
     refreshFeed,
-    toggleLike: handleToggleLike,
-    addComment: handleAddComment,
-    createWorkoutPost: handleCreateWorkoutPost,
-    createAchievementPost: handleCreateAchievementPost,
-    createProgressPost: handleCreateProgressPost,
-    deletePost: handleDeletePost,
-    searchPosts: handleSearchPosts,
-    getUserPosts: handleGetUserPosts,
-    clearError: () => setError(null),
+    loadMorePosts,
+    setFilter,
+    setSort,
+    clearFilters,
+    
+    // Post interactions
+    likePost,
+    unlikePost,
+    sharePost,
+    deletePost,
+    
+    // Search
+    searchPosts,
+    
+    // Analytics
+    getFeedAnalytics,
   };
 }

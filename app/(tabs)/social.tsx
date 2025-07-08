@@ -35,6 +35,18 @@ import { PostCard } from '@/components/ui/PostCard';
 import { ChallengeCard } from '@/components/ui/ChallengeCard';
 import { LeaderboardCard } from '@/components/ui/LeaderboardCard';
 import { Button } from '@/components/ui/Button';
+import { SocialFeedPost } from '@/components/social/SocialFeedPost';
+import { CreatePostModal } from '@/components/social/CreatePostModal';
+import { PostCommentsModal } from '@/components/social/PostCommentsModal';
+import { SocialFeedFilters } from '@/components/social/SocialFeedFilters';
+import { SocialSearchModal } from '@/components/social/SocialSearchModal';
+import { SocialStatsCard } from '@/components/social/SocialStatsCard';
+import { NotificationCenter } from '@/components/social/NotificationCenter';
+import { RealTimeUpdates } from '@/components/social/RealTimeUpdates';
+import { SocialNotificationBadge } from '@/components/social/SocialNotificationBadge';
+import { useSocial, SocialPost } from '@/contexts/SocialContext';
+import { useSocialFeed } from '@/hooks/useSocialFeed';
+import { useNotifications } from '@/hooks/useNotifications';
 import * as Haptics from 'expo-haptics';
 
 // Mock data interfaces
@@ -45,36 +57,6 @@ interface User {
   avatar: string;
   isVerified?: boolean;
   level?: number;
-}
-
-interface Post {
-  id: string;
-  user: User;
-  type: 'workout_complete' | 'achievement' | 'progress_photo' | 'milestone' | 'challenge';
-  content: string;
-  workout?: string;
-  stats?: {
-    duration: number;
-    calories: number;
-    exercises?: number;
-    sets?: number;
-  };
-  achievement?: {
-    name: string;
-    icon: string;
-    rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  };
-  media?: {
-    type: 'image' | 'video';
-    url: string;
-    thumbnail?: string;
-  };
-  likes: number;
-  comments: number;
-  shares: number;
-  timeAgo: string;
-  isLiked?: boolean;
-  location?: string;
 }
 
 interface Challenge {
@@ -126,97 +108,33 @@ interface LeaderboardUser {
 
 export default function SocialScreen() {
   const router = useRouter();
+  const { posts, currentUser } = useSocial();
+  const {
+    filteredPosts,
+    isRefreshing,
+    activeFilter,
+    activeSort,
+    refreshFeed,
+    setFilter,
+    setSort,
+    clearFilters,
+    likePost,
+    sharePost,
+    getFeedAnalytics,
+  } = useSocialFeed();
+  const { unreadCount } = useNotifications();
+
+  // State
   const [activeTab, setActiveTab] = useState<'feed' | 'challenges' | 'leaderboard'>('feed');
-  const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Mock data
-  const feedPosts: Post[] = [
-    {
-      id: '1',
-      user: {
-        id: '1',
-        name: 'Sarah Johnson',
-        username: '@sarahfits',
-        avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
-        isVerified: true,
-        level: 15,
-      },
-      type: 'workout_complete',
-      content: 'Just crushed my leg day! 💪 New PR on squats - 185lbs! Feeling stronger than ever and ready to take on the world. The grind never stops! 🔥',
-      workout: 'Leg Day Destroyer',
-      stats: { duration: 45, calories: 320, exercises: 8, sets: 24 },
-      likes: 47,
-      comments: 12,
-      shares: 3,
-      timeAgo: '2h ago',
-      isLiked: false,
-      location: 'PowerHouse Gym',
-    },
-    {
-      id: '2',
-      user: {
-        id: '2',
-        name: 'Mike Chen',
-        username: '@mikelifts',
-        avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
-        level: 22,
-      },
-      type: 'achievement',
-      content: 'Unlocked the "Consistency King" achievement! 30 days straight of workouts! 🔥 This journey has been incredible and I\'m just getting started. Thanks to everyone for the motivation!',
-      achievement: {
-        name: 'Consistency King',
-        icon: '👑',
-        rarity: 'epic',
-      },
-      likes: 89,
-      comments: 23,
-      shares: 8,
-      timeAgo: '4h ago',
-      isLiked: true,
-    },
-    {
-      id: '3',
-      user: {
-        id: '3',
-        name: 'Emma Wilson',
-        username: '@emmawellness',
-        avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
-        isVerified: true,
-        level: 18,
-      },
-      type: 'progress_photo',
-      content: '3 months transformation! Feeling stronger than ever 💪 The journey isn\'t just about the physical changes, but the mental strength I\'ve gained along the way.',
-      media: {
-        type: 'image',
-        url: 'https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=400',
-      },
-      likes: 156,
-      comments: 34,
-      shares: 12,
-      timeAgo: '6h ago',
-      isLiked: false,
-    },
-    {
-      id: '4',
-      user: {
-        id: '4',
-        name: 'Alex Rodriguez',
-        username: '@alexfitness',
-        avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
-        level: 25,
-      },
-      type: 'milestone',
-      content: 'Hit my 1000th workout today! 🎯 What started as a New Year\'s resolution has become a lifestyle. Here\'s to the next 1000! 💪',
-      likes: 203,
-      comments: 45,
-      shares: 18,
-      timeAgo: '8h ago',
-      isLiked: true,
-    },
-  ];
-
   const challenges: Challenge[] = [
     {
       id: '1',
@@ -365,26 +283,25 @@ export default function SocialScreen() {
   ];
 
   const onRefresh = async () => {
-    setRefreshing(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Simulate API call
-    setTimeout(() => setRefreshing(false), 1000);
+    await refreshFeed();
   };
 
   const handlePostLike = async (postId: string) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Handle like logic
+    await likePost(postId);
   };
 
   const handlePostComment = (postId: string) => {
-    router.push({
-      pathname: '/post-detail',
-      params: { postId }
-    });
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      setSelectedPost(post);
+      setShowComments(true);
+    }
   };
 
-  const handlePostShare = (postId: string) => {
-    Alert.alert('Share Post', 'Share this post with your friends!');
+  const handlePostShare = async (postId: string) => {
+    await sharePost(postId);
   };
 
   const handleUserPress = (userId: string) => {
@@ -395,10 +312,11 @@ export default function SocialScreen() {
   };
 
   const handlePostPress = (postId: string) => {
-    router.push({
-      pathname: '/post-detail',
-      params: { postId }
-    });
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      setSelectedPost(post);
+      setShowComments(true);
+    }
   };
 
   const handleChallengePress = (challengeId: string) => {
@@ -411,6 +329,15 @@ export default function SocialScreen() {
   const handleChallengeJoin = async (challengeId: string) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert('Join Challenge', 'You have joined the challenge!');
+  };
+
+  const handleNotificationPress = () => {
+    setShowNotifications(true);
+  };
+
+  const handleActivityPress = (activityId: string) => {
+    // Handle activity press - navigate to relevant content
+    setShowNotifications(false);
   };
 
   const renderTabButton = (tab: typeof activeTab, title: string, icon: React.ComponentType<any>, count?: number) => {
@@ -438,8 +365,8 @@ export default function SocialScreen() {
     );
   };
 
-  const renderFeedPost = ({ item }: { item: Post }) => (
-    <PostCard
+  const renderFeedPost = ({ item }: { item: SocialPost }) => (
+    <SocialFeedPost
       post={item}
       onLike={handlePostLike}
       onComment={handlePostComment}
@@ -467,9 +394,19 @@ export default function SocialScreen() {
     />
   );
 
+  // Get feed analytics
+  const feedAnalytics = getFeedAnalytics();
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
+        {/* Real-time Updates */}
+        <RealTimeUpdates
+          onNotificationPress={handleNotificationPress}
+          position="top"
+          showBadge={false}
+        />
+
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -477,42 +414,72 @@ export default function SocialScreen() {
             <Text style={styles.subtitle}>Connect with your fitness community</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerButton}>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => setShowSearch(true)}
+            >
+              <Search size={24} color={DesignTokens.colors.text.secondary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={handleNotificationPress}
+            >
               <Bell size={24} color={DesignTokens.colors.text.secondary} />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadgeContainer}>
+                  <SocialNotificationBadge count={unreadCount} variant="small" />
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.createButton}
-              onPress={() => router.push('/create-post')}
+              onPress={() => setShowCreatePost(true)}
             >
               <Plus size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Search and Filters */}
-        <View style={styles.searchSection}>
-          <View style={styles.searchContainer}>
-            <Search size={20} color={DesignTokens.colors.text.secondary} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search posts, users, challenges..."
-              placeholderTextColor={DesignTokens.colors.text.secondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
           <TouchableOpacity 
-            style={[styles.filterButton, showFilters && styles.filterButtonActive]}
-            onPress={() => setShowFilters(!showFilters)}
+            style={[styles.filterButton, (activeFilter.type !== 'all' || activeFilter.timeRange !== 'all') && styles.filterButtonActive]}
+            onPress={() => setShowFilters(true)}
           >
-            <Filter size={20} color={showFilters ? '#FFFFFF' : DesignTokens.colors.text.secondary} />
+            <Filter size={20} color={(activeFilter.type !== 'all' || activeFilter.timeRange !== 'all') ? '#FFFFFF' : DesignTokens.colors.text.secondary} />
+            <Text style={[
+              styles.filterButtonText,
+              (activeFilter.type !== 'all' || activeFilter.timeRange !== 'all') && styles.filterButtonTextActive
+            ]}>
+              Filter
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.sortButton}
+            onPress={() => {
+              const sortOptions: Array<{ by: typeof activeSort.by; label: string }> = [
+                { by: 'timestamp', label: 'Recent' },
+                { by: 'likes', label: 'Popular' },
+                { by: 'engagement', label: 'Trending' },
+              ];
+              const currentIndex = sortOptions.findIndex(s => s.by === activeSort.by);
+              const nextIndex = (currentIndex + 1) % sortOptions.length;
+              setSort({ by: sortOptions[nextIndex].by, order: 'desc' });
+            }}
+          >
+            <TrendingUp size={16} color={DesignTokens.colors.text.secondary} />
+            <Text style={styles.sortButtonText}>
+              {activeSort.by === 'timestamp' ? 'Recent' : 
+               activeSort.by === 'likes' ? 'Popular' : 'Trending'}
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Tab Navigation */}
         <View style={styles.tabNavigation}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll}>
-            {renderTabButton('feed', 'Feed', Users, 5)}
+            {renderTabButton('feed', 'Feed', Users, filteredPosts.length)}
             {renderTabButton('challenges', 'Challenges', Trophy, 3)}
             {renderTabButton('leaderboard', 'Leaderboard', TrendingUp)}
           </ScrollView>
@@ -521,28 +488,66 @@ export default function SocialScreen() {
         {/* Tab Content */}
         <View style={styles.content}>
           {activeTab === 'feed' && (
-            <FlatList
-              data={feedPosts}
-              renderItem={renderFeedPost}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-              contentContainerStyle={styles.feedContent}
-              ListHeaderComponent={
-                <View style={styles.feedHeader}>
-                  <Text style={styles.feedHeaderText}>Latest from your community</Text>
-                </View>
-              }
-            />
+            <>
+              {/* Feed Stats */}
+              <SocialStatsCard
+                title="Your Social Activity"
+                stats={{
+                  posts: feedAnalytics.totalPosts,
+                  likes: feedAnalytics.totalLikes,
+                  comments: feedAnalytics.totalComments,
+                  shares: feedAnalytics.totalShares,
+                  engagementRate: feedAnalytics.engagementRate,
+                }}
+                trend={{
+                  direction: 'up',
+                  percentage: 12.5,
+                  timeframe: 'last week',
+                }}
+                variant="compact"
+              />
+
+              <FlatList
+                data={filteredPosts}
+                renderItem={renderFeedPost}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+                }
+                contentContainerStyle={styles.feedContent}
+                ListHeaderComponent={
+                  <View style={styles.feedHeader}>
+                    <Text style={styles.feedHeaderText}>
+                      {filteredPosts.length} posts • Sorted by {activeSort.by === 'timestamp' ? 'recent' : activeSort.by}
+                    </Text>
+                  </View>
+                }
+                ListEmptyComponent={
+                  <View style={styles.emptyFeed}>
+                    <Users size={48} color={DesignTokens.colors.text.tertiary} />
+                    <Text style={styles.emptyFeedTitle}>No posts found</Text>
+                    <Text style={styles.emptyFeedText}>
+                      Try adjusting your filters or create your first post!
+                    </Text>
+                    <Button
+                      title="Create Post"
+                      onPress={() => setShowCreatePost(true)}
+                      variant="primary"
+                      size="medium"
+                      icon={<Plus size={16} color="#FFFFFF" />}
+                    />
+                  </View>
+                }
+              />
+            </>
           )}
 
           {activeTab === 'challenges' && (
             <ScrollView
               showsVerticalScrollIndicator={false}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
               }
             >
               {/* Featured Challenge */}
@@ -587,7 +592,7 @@ export default function SocialScreen() {
             <ScrollView
               showsVerticalScrollIndicator={false}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
               }
             >
               {/* Leaderboard Header */}
@@ -628,6 +633,42 @@ export default function SocialScreen() {
             </ScrollView>
           )}
         </View>
+
+        {/* Modals */}
+        <CreatePostModal
+          visible={showCreatePost}
+          onClose={() => setShowCreatePost(false)}
+        />
+
+        <PostCommentsModal
+          visible={showComments}
+          onClose={() => setShowComments(false)}
+          post={selectedPost}
+        />
+
+        <SocialFeedFilters
+          visible={showFilters}
+          onClose={() => setShowFilters(false)}
+          currentFilter={activeFilter}
+          currentSort={activeSort}
+          onApplyFilter={setFilter}
+          onApplySort={setSort}
+          onClearFilters={clearFilters}
+        />
+
+        <SocialSearchModal
+          visible={showSearch}
+          onClose={() => setShowSearch(false)}
+          onPostPress={handlePostPress}
+          onUserPress={handleUserPress}
+        />
+
+        <NotificationCenter
+          visible={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          onActivityPress={handleActivityPress}
+          onUserPress={handleUserPress}
+        />
       </LinearGradient>
     </SafeAreaView>
   );
@@ -668,6 +709,12 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: DesignTokens.spacing[2],
+    position: 'relative',
+  },
+  notificationBadgeContainer: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
   },
   createButton: {
     backgroundColor: DesignTokens.colors.primary[500],
@@ -678,38 +725,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...DesignTokens.shadow.base,
   },
-  searchSection: {
+  quickActions: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: DesignTokens.spacing[5],
     marginBottom: DesignTokens.spacing[4],
     gap: DesignTokens.spacing[3],
   },
-  searchContainer: {
-    flex: 1,
+  filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: DesignTokens.colors.surface.secondary,
-    borderRadius: DesignTokens.borderRadius.lg,
-    paddingHorizontal: DesignTokens.spacing[4],
-    paddingVertical: DesignTokens.spacing[3],
-    gap: DesignTokens.spacing[3],
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-  },
-  filterButton: {
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: DesignTokens.borderRadius.md,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    gap: DesignTokens.spacing[2],
   },
   filterButtonActive: {
     backgroundColor: DesignTokens.colors.primary[500],
+  },
+  filterButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  filterButtonTextActive: {
+    color: DesignTokens.colors.text.primary,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    gap: DesignTokens.spacing[2],
+  },
+  sortButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
   tabNavigation: {
     paddingHorizontal: DesignTokens.spacing[5],
@@ -767,12 +822,32 @@ const styles = StyleSheet.create({
   },
   feedHeader: {
     paddingHorizontal: DesignTokens.spacing[5],
-    paddingBottom: DesignTokens.spacing[4],
+    paddingBottom: DesignTokens.spacing[3],
   },
   feedHeaderText: {
-    fontSize: DesignTokens.typography.fontSize.lg,
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  emptyFeed: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: DesignTokens.spacing[8],
+    paddingHorizontal: DesignTokens.spacing[8],
+    gap: DesignTokens.spacing[4],
+  },
+  emptyFeedTitle: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    textAlign: 'center',
+  },
+  emptyFeedText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: DesignTokens.spacing[4],
   },
   section: {
     paddingHorizontal: DesignTokens.spacing[5],

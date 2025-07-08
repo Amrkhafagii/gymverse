@@ -1,550 +1,842 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Modal,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { RestDayRecommendation } from '@/lib/services/aiService';
+import {
+  Brain,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  TrendingDown,
+  TrendingUp,
+  Activity,
+  Heart,
+  Zap,
+  Shield,
+  X,
+  RefreshCw,
+  Calendar,
+  Target,
+} from 'lucide-react-native';
+import { DesignTokens } from '@/design-system/tokens';
+import { useRestDayRecommendations, RestDayRecommendation } from '@/hooks/useRestDayRecommendations';
+import { FatigueIndicator, FatigueAlert } from '@/lib/ai/fatigueDetection';
+import { RecoveryInsight } from '@/lib/ai/recoveryAnalysis';
 
 interface RestDayRecommendationsProps {
-  visible: boolean;
-  onClose: () => void;
-  recommendation: RestDayRecommendation | null;
-  loading: boolean;
-  error: string | null;
+  compactMode?: boolean;
+  showTrends?: boolean;
+  onRecommendationFollowed?: (recommendationId: string) => void;
 }
 
-export default function RestDayRecommendations({
-  visible,
-  onClose,
-  recommendation,
-  loading,
-  error
+export function RestDayRecommendations({
+  compactMode = false,
+  showTrends = true,
+  onRecommendationFollowed,
 }: RestDayRecommendationsProps) {
-  const getPriorityColor = (priority: RestDayRecommendation['priority']) => {
-    switch (priority) {
-      case 'high': return ['#ef4444', '#dc2626'];
-      case 'medium': return ['#f59e0b', '#d97706'];
-      case 'low': return ['#10b981', '#059669'];
-      default: return ['#6b7280', '#4b5563'];
-    }
-  };
+  const {
+    recoveryMetrics,
+    fatigueIndicators,
+    fatigueAlerts,
+    recoveryInsights,
+    restDayRecommendations,
+    recoveryPlan,
+    isLoading,
+    lastUpdated,
+    refreshAnalysis,
+    dismissAlert,
+    markRecommendationFollowed,
+    shouldTakeRestDay,
+    fatigueLevel,
+    recoveryTrendData,
+  } = useRestDayRecommendations();
 
-  const getPriorityIcon = (priority: RestDayRecommendation['priority']) => {
-    switch (priority) {
-      case 'high': return 'warning';
-      case 'medium': return 'information-circle';
-      case 'low': return 'checkmark-circle';
-      default: return 'help-circle';
-    }
-  };
+  const [expandedRecommendation, setExpandedRecommendation] = useState<string | null>(null);
+  const [expandedIndicators, setExpandedIndicators] = useState(false);
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'complete_rest': return 'bed';
-      case 'active_recovery': return 'walk';
-      case 'light_activity': return 'bicycle';
-      default: return 'fitness';
-    }
-  };
-
-  const renderRecoveryIndicators = () => {
-    if (!recommendation) return null;
-
-    const indicators = [
-      { label: 'Muscle Fatigue', value: recommendation.recovery_indicators.muscle_fatigue, icon: 'body' },
-      { label: 'Intensity Overload', value: recommendation.recovery_indicators.intensity_overload, icon: 'flash' },
-      { label: 'Frequency Concern', value: recommendation.recovery_indicators.frequency_concern, icon: 'time' },
-      { label: 'Overall Stress', value: recommendation.recovery_indicators.overall_stress, icon: 'pulse' }
-    ];
-
-    return (
-      <View style={styles.indicatorsSection}>
-        <Text style={styles.sectionTitle}>Recovery Indicators</Text>
-        <View style={styles.indicatorsGrid}>
-          {indicators.map((indicator, index) => (
-            <View key={index} style={styles.indicatorCard}>
-              <View style={styles.indicatorHeader}>
-                <Ionicons name={indicator.icon as any} size={20} color="#9E7FFF" />
-                <Text style={styles.indicatorLabel}>{indicator.label}</Text>
-              </View>
-              <View style={styles.indicatorBar}>
-                <View style={styles.indicatorBarBackground}>
-                  <LinearGradient
-                    colors={indicator.value >= 7 ? ['#ef4444', '#dc2626'] : 
-                           indicator.value >= 5 ? ['#f59e0b', '#d97706'] : 
-                           ['#10b981', '#059669']}
-                    style={[styles.indicatorBarFill, { width: `${indicator.value * 10}%` }]}
-                  />
-                </View>
-                <Text style={styles.indicatorValue}>{indicator.value.toFixed(1)}/10</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
+  const handleFollowRecommendation = (recommendation: RestDayRecommendation) => {
+    Alert.alert(
+      'Follow Recommendation',
+      `Are you planning to follow this recommendation: "${recommendation.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, Following',
+          onPress: () => {
+            markRecommendationFollowed(recommendation.id);
+            onRecommendationFollowed?.(recommendation.id);
+          },
+        },
+      ]
     );
   };
 
-  const renderSuggestedActivities = () => {
-    if (!recommendation) return null;
+  const getFatigueLevelColor = (level: string) => {
+    switch (level) {
+      case 'low': return DesignTokens.colors.success[500];
+      case 'moderate': return DesignTokens.colors.warning[500];
+      case 'high': return DesignTokens.colors.error[400];
+      case 'critical': return DesignTokens.colors.error[600];
+      default: return DesignTokens.colors.text.secondary;
+    }
+  };
 
+  const getRecommendationIcon = (type: RestDayRecommendation['type']) => {
+    switch (type) {
+      case 'immediate': return <AlertTriangle size={20} color="#ef4444" />;
+      case 'planned': return <Calendar size={20} color="#f59e0b" />;
+      case 'optional': return <CheckCircle size={20} color="#10b981" />;
+      default: return <Clock size={20} color="#6b7280" />;
+    }
+  };
+
+  const getIndicatorIcon = (status: FatigueIndicator['status']) => {
+    switch (status) {
+      case 'low': return <CheckCircle size={16} color={DesignTokens.colors.success[500]} />;
+      case 'moderate': return <Clock size={16} color={DesignTokens.colors.warning[500]} />;
+      case 'high': return <AlertTriangle size={16} color={DesignTokens.colors.error[400]} />;
+      case 'critical': return <AlertTriangle size={16} color={DesignTokens.colors.error[600]} />;
+      default: return <Activity size={16} color={DesignTokens.colors.text.secondary} />;
+    }
+  };
+
+  if (!recoveryMetrics) {
     return (
-      <View style={styles.activitiesSection}>
-        <Text style={styles.sectionTitle}>Suggested Activities</Text>
-        {recommendation.suggested_activities.map((activityGroup, index) => (
-          <View key={index} style={styles.activityGroup}>
-            <View style={styles.activityHeader}>
-              <Ionicons name={getActivityIcon(activityGroup.type) as any} size={20} color="#9E7FFF" />
-              <Text style={styles.activityType}>
-                {activityGroup.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+      <View style={styles.emptyContainer}>
+        <Brain size={48} color={DesignTokens.colors.text.tertiary} />
+        <Text style={styles.emptyTitle}>No Recovery Data</Text>
+        <Text style={styles.emptyText}>
+          Complete some workouts to get AI-powered recovery insights
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      style={[styles.container, compactMode && styles.compactContainer]}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={isLoading} onRefresh={refreshAnalysis} />
+      }
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Brain size={24} color={DesignTokens.colors.primary[500]} />
+          <View>
+            <Text style={styles.headerTitle}>Recovery Insights</Text>
+            {lastUpdated && (
+              <Text style={styles.headerSubtitle}>
+                Updated {new Date(lastUpdated).toLocaleTimeString()}
               </Text>
-              {activityGroup.duration_minutes && (
-                <Text style={styles.activityDuration}>{activityGroup.duration_minutes} min</Text>
-              )}
-            </View>
-            <View style={styles.activityList}>
-              {activityGroup.activities.map((activity, actIndex) => (
-                <Text key={actIndex} style={styles.activityItem}>• {activity}</Text>
-              ))}
+            )}
+          </View>
+        </View>
+        <TouchableOpacity onPress={refreshAnalysis} style={styles.refreshButton}>
+          <RefreshCw size={20} color={DesignTokens.colors.text.secondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Recovery Status Overview */}
+      <View style={styles.statusCard}>
+        <LinearGradient
+          colors={['#1a1a1a', '#2a2a2a']}
+          style={styles.statusGradient}
+        >
+          <View style={styles.statusHeader}>
+            <Text style={styles.statusTitle}>Recovery Status</Text>
+            <View style={[
+              styles.statusBadge,
+              { backgroundColor: getFatigueLevelColor(fatigueLevel) }
+            ]}>
+              <Text style={styles.statusBadgeText}>
+                {fatigueLevel.toUpperCase()}
+              </Text>
             </View>
           </View>
-        ))}
-      </View>
-    );
-  };
-
-  const renderNextWorkoutSuggestions = () => {
-    if (!recommendation) return null;
-
-    const { next_workout_suggestions } = recommendation;
-
-    return (
-      <View style={styles.nextWorkoutSection}>
-        <Text style={styles.sectionTitle}>Next Workout Guidance</Text>
-        <View style={styles.nextWorkoutCard}>
-          <LinearGradient
-            colors={['#1f2937', '#111827']}
-            style={styles.nextWorkoutGradient}
-          >
-            <View style={styles.nextWorkoutRow}>
-              <Text style={styles.nextWorkoutLabel}>Recommended Intensity:</Text>
-              <View style={[styles.intensityBadge, { 
-                backgroundColor: next_workout_suggestions.recommended_intensity === 'high' ? '#ef4444' :
-                                next_workout_suggestions.recommended_intensity === 'moderate' ? '#f59e0b' : '#10b981'
-              }]}>
-                <Text style={styles.intensityText}>
-                  {next_workout_suggestions.recommended_intensity.toUpperCase()}
-                </Text>
-              </View>
+          
+          <View style={styles.statusMetrics}>
+            <View style={styles.statusMetric}>
+              <Text style={styles.statusMetricValue}>
+                {recoveryMetrics.fatigueLevel}%
+              </Text>
+              <Text style={styles.statusMetricLabel}>Fatigue</Text>
             </View>
+            <View style={styles.statusMetric}>
+              <Text style={styles.statusMetricValue}>
+                {recoveryMetrics.recoveryScore}%
+              </Text>
+              <Text style={styles.statusMetricLabel}>Recovery</Text>
+            </View>
+            <View style={styles.statusMetric}>
+              <Text style={styles.statusMetricValue}>
+                {recoveryMetrics.recommendedRestDays}
+              </Text>
+              <Text style={styles.statusMetricLabel}>Rest Days</Text>
+            </View>
+          </View>
 
-            {next_workout_suggestions.focus_areas.length > 0 && (
-              <View style={styles.nextWorkoutRow}>
-                <Text style={styles.nextWorkoutLabel}>Focus Areas:</Text>
-                <View style={styles.focusTags}>
-                  {next_workout_suggestions.focus_areas.map((area, index) => (
-                    <View key={index} style={styles.focusTag}>
-                      <Text style={styles.focusTagText}>{area}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {next_workout_suggestions.avoid_muscle_groups.length > 0 && (
-              <View style={styles.nextWorkoutRow}>
-                <Text style={styles.nextWorkoutLabel}>Avoid:</Text>
-                <View style={styles.avoidTags}>
-                  {next_workout_suggestions.avoid_muscle_groups.map((group, index) => (
-                    <View key={index} style={styles.avoidTag}>
-                      <Text style={styles.avoidTagText}>{group}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-          </LinearGradient>
-        </View>
+          {shouldTakeRestDay && (
+            <View style={styles.restDayAlert}>
+              <Shield size={16} color="#ef4444" />
+              <Text style={styles.restDayAlertText}>
+                Rest day recommended
+              </Text>
+            </View>
+          )}
+        </LinearGradient>
       </View>
-    );
+
+      {/* Critical Alerts */}
+      {fatigueAlerts.length > 0 && (
+        <View style={styles.alertsSection}>
+          <Text style={styles.sectionTitle}>Alerts</Text>
+          {fatigueAlerts.map((alert) => (
+            <AlertCard
+              key={alert.id}
+              alert={alert}
+              onDismiss={() => dismissAlert(alert.id)}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Rest Day Recommendations */}
+      {restDayRecommendations.length > 0 && (
+        <View style={styles.recommendationsSection}>
+          <Text style={styles.sectionTitle}>Recommendations</Text>
+          {restDayRecommendations.map((recommendation) => (
+            <RecommendationCard
+              key={recommendation.id}
+              recommendation={recommendation}
+              isExpanded={expandedRecommendation === recommendation.id}
+              onToggleExpand={() => 
+                setExpandedRecommendation(
+                  expandedRecommendation === recommendation.id 
+                    ? null 
+                    : recommendation.id
+                )
+              }
+              onFollow={() => handleFollowRecommendation(recommendation)}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Recovery Plan */}
+      {recoveryPlan && (
+        <View style={styles.planSection}>
+          <Text style={styles.sectionTitle}>Recovery Plan</Text>
+          <RecoveryPlanCard plan={recoveryPlan} />
+        </View>
+      )}
+
+      {/* Fatigue Indicators */}
+      {!compactMode && fatigueIndicators.length > 0 && (
+        <View style={styles.indicatorsSection}>
+          <TouchableOpacity
+            style={styles.indicatorsHeader}
+            onPress={() => setExpandedIndicators(!expandedIndicators)}
+          >
+            <Text style={styles.sectionTitle}>Fatigue Indicators</Text>
+            <Text style={styles.expandText}>
+              {expandedIndicators ? 'Hide' : 'Show'}
+            </Text>
+          </TouchableOpacity>
+          
+          {expandedIndicators && (
+            <View style={styles.indicatorsList}>
+              {fatigueIndicators.map((indicator) => (
+                <IndicatorCard key={indicator.id} indicator={indicator} />
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Recovery Insights */}
+      {!compactMode && recoveryInsights.length > 0 && (
+        <View style={styles.insightsSection}>
+          <Text style={styles.sectionTitle}>Insights</Text>
+          {recoveryInsights.slice(0, 3).map((insight) => (
+            <InsightCard key={insight.id} insight={insight} />
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+// Alert Card Component
+function AlertCard({ 
+  alert, 
+  onDismiss 
+}: { 
+  alert: FatigueAlert; 
+  onDismiss: () => void;
+}) {
+  const getAlertColor = (type: FatigueAlert['type']) => {
+    switch (type) {
+      case 'critical': return '#ef4444';
+      case 'warning': return '#f59e0b';
+      case 'info': return '#3b82f6';
+      default: return '#6b7280';
+    }
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+    <View style={[styles.alertCard, { borderLeftColor: getAlertColor(alert.type) }]}>
+      <View style={styles.alertHeader}>
+        <View style={styles.alertTitleContainer}>
+          <AlertTriangle size={16} color={getAlertColor(alert.type)} />
+          <Text style={styles.alertTitle}>{alert.title}</Text>
+        </View>
+        <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
+          <X size={16} color={DesignTokens.colors.text.secondary} />
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.alertMessage}>{alert.message}</Text>
+      {alert.recommendations.length > 0 && (
+        <View style={styles.alertRecommendations}>
+          {alert.recommendations.slice(0, 2).map((rec, index) => (
+            <Text key={index} style={styles.alertRecommendation}>
+              • {rec}
+            </Text>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// Recommendation Card Component
+function RecommendationCard({
+  recommendation,
+  isExpanded,
+  onToggleExpand,
+  onFollow,
+}: {
+  recommendation: RestDayRecommendation;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onFollow: () => void;
+}) {
+  const getPriorityColor = (priority: RestDayRecommendation['priority']) => {
+    switch (priority) {
+      case 'critical': return '#ef4444';
+      case 'high': return '#f59e0b';
+      case 'medium': return '#3b82f6';
+      case 'low': return '#10b981';
+      default: return '#6b7280';
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.recommendationCard,
+        { borderLeftColor: getPriorityColor(recommendation.priority) }
+      ]}
+      onPress={onToggleExpand}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Rest Day Analysis</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color="#FFFFFF" />
+      <View style={styles.recommendationHeader}>
+        {getRecommendationIcon(recommendation.type)}
+        <View style={styles.recommendationTitleContainer}>
+          <Text style={styles.recommendationTitle}>{recommendation.title}</Text>
+          <Text style={styles.recommendationDays}>
+            {recommendation.daysRecommended} day{recommendation.daysRecommended !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      </View>
+      
+      <Text style={styles.recommendationDescription}>
+        {recommendation.description}
+      </Text>
+
+      {isExpanded && (
+        <View style={styles.recommendationDetails}>
+          {recommendation.reasoning.length > 0 && (
+            <View style={styles.reasoningSection}>
+              <Text style={styles.detailsTitle}>Why this recommendation:</Text>
+              {recommendation.reasoning.map((reason, index) => (
+                <Text key={index} style={styles.reasoningItem}>
+                  • {reason}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          {recommendation.alternatives.length > 0 && (
+            <View style={styles.alternativesSection}>
+              <Text style={styles.detailsTitle}>Alternatives:</Text>
+              {recommendation.alternatives.map((alt, index) => (
+                <Text key={index} style={styles.alternativeItem}>
+                  • {alt}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          <TouchableOpacity style={styles.followButton} onPress={onFollow}>
+            <CheckCircle size={16} color="#10b981" />
+            <Text style={styles.followButtonText}>Mark as Following</Text>
           </TouchableOpacity>
         </View>
+      )}
+    </TouchableOpacity>
+  );
+}
 
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Analyzing your recovery needs...</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : recommendation ? (
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Main Recommendation */}
-            <View style={styles.mainRecommendation}>
-              <LinearGradient
-                colors={getPriorityColor(recommendation.priority)}
-                style={styles.recommendationGradient}
-              >
-                <View style={styles.recommendationHeader}>
-                  <Ionicons 
-                    name={getPriorityIcon(recommendation.priority) as any} 
-                    size={32} 
-                    color="#FFFFFF" 
-                  />
-                  <View style={styles.recommendationText}>
-                    <Text style={styles.recommendationTitle}>{recommendation.title}</Text>
-                    <Text style={styles.recommendationType}>
-                      {recommendation.recommendation_type.replace('_', ' ').toUpperCase()} • {recommendation.priority.toUpperCase()} PRIORITY
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.recommendationDescription}>
-                  {recommendation.description}
-                </Text>
-                <View style={styles.recoveryTime}>
-                  <Ionicons name="time" size={16} color="#FFFFFF" />
-                  <Text style={styles.recoveryTimeText}>
-                    Estimated recovery: {recommendation.estimated_recovery_time} hours
-                  </Text>
-                </View>
-              </LinearGradient>
-            </View>
+// Recovery Plan Card Component
+function RecoveryPlanCard({ plan }: { plan: any }) {
+  const getPhaseColor = (phase: string) => {
+    switch (phase) {
+      case 'recovery': return '#ef4444';
+      case 'deload': return '#f59e0b';
+      case 'maintenance': return '#3b82f6';
+      case 'active': return '#10b981';
+      default: return '#6b7280';
+    }
+  };
 
-            {/* Reasoning */}
-            <View style={styles.reasoningSection}>
-              <Text style={styles.sectionTitle}>Why This Recommendation?</Text>
-              <View style={styles.reasoningList}>
-                {recommendation.reasoning.map((reason, index) => (
-                  <View key={index} style={styles.reasoningItem}>
-                    <Ionicons name="checkmark-circle" size={16} color="#9E7FFF" />
-                    <Text style={styles.reasoningText}>{reason}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {renderRecoveryIndicators()}
-            {renderSuggestedActivities()}
-            {renderNextWorkoutSuggestions()}
-          </ScrollView>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No recommendation data available</Text>
-          </View>
+  return (
+    <View style={styles.planCard}>
+      <View style={styles.planHeader}>
+        <View style={[
+          styles.phaseBadge,
+          { backgroundColor: getPhaseColor(plan.currentPhase) }
+        ]}>
+          <Text style={styles.phaseBadgeText}>
+            {plan.currentPhase.toUpperCase()}
+          </Text>
+        </View>
+        {plan.recommendedDuration > 0 && (
+          <Text style={styles.planDuration}>
+            {plan.recommendedDuration} days
+          </Text>
         )}
       </View>
-    </Modal>
+
+      {plan.activities.length > 0 && (
+        <View style={styles.planSection}>
+          <Text style={styles.planSectionTitle}>Recommended Activities:</Text>
+          {plan.activities.map((activity: string, index: number) => (
+            <Text key={index} style={styles.planItem}>
+              • {activity}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {plan.restrictions.length > 0 && (
+        <View style={styles.planSection}>
+          <Text style={styles.planSectionTitle}>Restrictions:</Text>
+          {plan.restrictions.map((restriction: string, index: number) => (
+            <Text key={index} style={styles.planItem}>
+              • {restriction}
+            </Text>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// Indicator Card Component
+function IndicatorCard({ indicator }: { indicator: FatigueIndicator }) {
+  return (
+    <View style={styles.indicatorCard}>
+      <View style={styles.indicatorHeader}>
+        {getIndicatorIcon(indicator.status)}
+        <Text style={styles.indicatorName}>{indicator.name}</Text>
+        <Text style={styles.indicatorValue}>{indicator.value}%</Text>
+      </View>
+      <Text style={styles.indicatorDescription}>{indicator.description}</Text>
+    </View>
+  );
+}
+
+// Insight Card Component
+function InsightCard({ insight }: { insight: RecoveryInsight }) {
+  const getInsightIcon = (type: RecoveryInsight['type']) => {
+    switch (type) {
+      case 'warning': return <AlertTriangle size={16} color="#f59e0b" />;
+      case 'positive': return <CheckCircle size={16} color="#10b981" />;
+      case 'suggestion': return <Target size={16} color="#3b82f6" />;
+      default: return <Activity size={16} color="#6b7280" />;
+    }
+  };
+
+  return (
+    <View style={styles.insightCard}>
+      <View style={styles.insightHeader}>
+        {getInsightIcon(insight.type)}
+        <Text style={styles.insightTitle}>{insight.title}</Text>
+      </View>
+      <Text style={styles.insightDescription}>{insight.description}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: DesignTokens.colors.background.primary,
+  },
+  compactContainer: {
+    paddingHorizontal: DesignTokens.spacing[4],
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: DesignTokens.spacing[12],
+    paddingHorizontal: DesignTokens.spacing[5],
+  },
+  emptyTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[2],
+  },
+  emptyText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2F2F2F',
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[4],
   },
-  title: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[3],
   },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#2F2F2F',
-    justifyContent: 'center',
+  headerTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+  headerSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginTop: DesignTokens.spacing[1],
+  },
+  refreshButton: {
+    padding: DesignTokens.spacing[2],
+  },
+  statusCard: {
+    marginHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[4],
+    borderRadius: DesignTokens.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  statusGradient: {
+    padding: DesignTokens.spacing[4],
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[4],
+  },
+  statusTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+  },
+  statusBadge: {
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+  statusBadgeText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+  statusMetrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statusMetric: {
     alignItems: 'center',
   },
-  content: {
-    flex: 1,
-    padding: 20,
+  statusMetricValue: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  statusMetricLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginTop: DesignTokens.spacing[1],
+  },
+  restDayAlert: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 40,
+    gap: DesignTokens.spacing[2],
+    marginTop: DesignTokens.spacing[4],
+    paddingTop: DesignTokens.spacing[4],
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[800],
   },
-  loadingText: {
-    fontSize: 16,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  errorText: {
-    fontSize: 16,
+  restDayAlertText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
     color: '#ef4444',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  sectionTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[3],
+    paddingHorizontal: DesignTokens.spacing[5],
+  },
+  alertsSection: {
+    marginBottom: DesignTokens.spacing[6],
+  },
+  alertCard: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    marginHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[3],
+    padding: DesignTokens.spacing[4],
+    borderRadius: DesignTokens.borderRadius.lg,
+    borderLeftWidth: 4,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 40,
+    marginBottom: DesignTokens.spacing[2],
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
+  alertTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    flex: 1,
   },
-  mainRecommendation: {
-    marginBottom: 24,
+  alertTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
   },
-  recommendationGradient: {
-    borderRadius: 16,
-    padding: 20,
+  dismissButton: {
+    padding: DesignTokens.spacing[1],
+  },
+  alertMessage: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginBottom: DesignTokens.spacing[2],
+    lineHeight: 20,
+  },
+  alertRecommendations: {
+    marginTop: DesignTokens.spacing[2],
+  },
+  alertRecommendation: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  recommendationsSection: {
+    marginBottom: DesignTokens.spacing[6],
+  },
+  recommendationCard: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    marginHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[3],
+    padding: DesignTokens.spacing[4],
+    borderRadius: DesignTokens.borderRadius.lg,
+    borderLeftWidth: 4,
   },
   recommendationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[2],
   },
-  recommendationText: {
+  recommendationTitleContainer: {
     flex: 1,
-    marginLeft: 16,
   },
   recommendationTitle: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 4,
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
   },
-  recommendationType: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontFamily: 'Inter-Medium',
+  recommendationDays: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginTop: DesignTokens.spacing[1],
   },
   recommendationDescription: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Regular',
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-  recoveryTime: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recoveryTimeText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
-  },
-  reasoningSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 12,
-  },
-  reasoningList: {
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    padding: 16,
-  },
-  reasoningItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  reasoningText: {
-    fontSize: 14,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    marginLeft: 8,
-    flex: 1,
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
     lineHeight: 20,
   },
-  indicatorsSection: {
-    marginBottom: 24,
+  recommendationDetails: {
+    marginTop: DesignTokens.spacing[4],
+    paddingTop: DesignTokens.spacing[4],
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[800],
   },
-  indicatorsGrid: {
+  reasoningSection: {
+    marginBottom: DesignTokens.spacing[4],
+  },
+  alternativesSection: {
+    marginBottom: DesignTokens.spacing[4],
+  },
+  detailsTitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[2],
+  },
+  reasoningItem: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  alternativeItem: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  followButton: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -6,
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[2],
+  },
+  followButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: '#10b981',
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  planSection: {
+    marginBottom: DesignTokens.spacing[6],
+  },
+  planCard: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    marginHorizontal: DesignTokens.spacing[5],
+    padding: DesignTokens.spacing[4],
+    borderRadius: DesignTokens.borderRadius.lg,
+  },
+  planHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[4],
+  },
+  phaseBadge: {
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+  phaseBadgeText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+  planDuration: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  planSectionTitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[2],
+  },
+  planItem: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  indicatorsSection: {
+    marginBottom: DesignTokens.spacing[6],
+  },
+  indicatorsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[3],
+  },
+  expandText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  indicatorsList: {
+    paddingHorizontal: DesignTokens.spacing[5],
   },
   indicatorCard: {
-    width: '48%',
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    padding: 12,
-    margin: 6,
+    backgroundColor: DesignTokens.colors.surface.primary,
+    padding: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
+    marginBottom: DesignTokens.spacing[2],
   },
   indicatorHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[1],
   },
-  indicatorLabel: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
+  indicatorName: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.primary,
     flex: 1,
-  },
-  indicatorBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  indicatorBarBackground: {
-    flex: 1,
-    height: 6,
-    backgroundColor: '#374151',
-    borderRadius: 3,
-    marginRight: 8,
-  },
-  indicatorBarFill: {
-    height: '100%',
-    borderRadius: 3,
   },
   indicatorValue: {
-    fontSize: 10,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Medium',
-    minWidth: 30,
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
   },
-  activitiesSection: {
-    marginBottom: 24,
+  indicatorDescription: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 16,
   },
-  activityGroup: {
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+  insightsSection: {
+    marginBottom: DesignTokens.spacing[6],
   },
-  activityHeader: {
+  insightCard: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    marginHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[3],
+    padding: DesignTokens.spacing[4],
+    borderRadius: DesignTokens.borderRadius.lg,
+  },
+  insightHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[2],
   },
-  activityType: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
-    flex: 1,
+  insightTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
   },
-  activityDuration: {
-    fontSize: 12,
-    color: '#9E7FFF',
-    fontFamily: 'Inter-Medium',
-  },
-  activityList: {
-    marginLeft: 28,
-  },
-  activityItem: {
-    fontSize: 14,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    marginBottom: 4,
+  insightDescription: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
     lineHeight: 20,
-  },
-  nextWorkoutSection: {
-    marginBottom: 24,
-  },
-  nextWorkoutCard: {
-    marginBottom: 8,
-  },
-  nextWorkoutGradient: {
-    borderRadius: 12,
-    padding: 16,
-  },
-  nextWorkoutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  nextWorkoutLabel: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    minWidth: 120,
-  },
-  intensityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  intensityText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-  },
-  focusTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    flex: 1,
-  },
-  focusTag: {
-    backgroundColor: '#9E7FFF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  focusTagText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-  },
-  avoidTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    flex: 1,
-  },
-  avoidTag: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  avoidTagText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
   },
 });

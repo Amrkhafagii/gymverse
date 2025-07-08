@@ -5,6 +5,7 @@ import { AchievementProvider } from '@/contexts/AchievementContext';
 import { MeasurementProvider } from '@/contexts/MeasurementContext';
 import { PersonalRecordProvider } from '@/contexts/PersonalRecordContext';
 import { ProgressPhotoProvider } from '@/contexts/ProgressPhotoContext';
+import { SocialProvider } from '@/contexts/SocialContext';
 import { AchievementNotificationProvider } from '@/components/achievements/AchievementNotificationProvider';
 
 export default function RootLayout() {
@@ -15,11 +16,13 @@ export default function RootLayout() {
           <AchievementProvider>
             <MeasurementProvider>
               <ProgressPhotoProvider>
-                <AchievementNotificationProvider>
-                  <Stack>
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  </Stack>
-                </AchievementNotificationProvider>
+                <SocialProvider>
+                  <AchievementNotificationProvider>
+                    <Stack>
+                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    </Stack>
+                  </AchievementNotificationProvider>
+                </SocialProvider>
               </ProgressPhotoProvider>
             </MeasurementProvider>
           </AchievementProvider>

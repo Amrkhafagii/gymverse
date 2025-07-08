@@ -20,7 +20,8 @@ import {
   Plus,
   Brain,
   Award,
-  Camera
+  Camera,
+  Shield
 } from 'lucide-react-native';
 
 // Import components
@@ -29,22 +30,26 @@ import { StatCard } from '@/components/ui/StatCard';
 import { RecentWorkoutCard } from '@/components/dashboard/RecentWorkoutCard';
 import { AchievementCard } from '@/components/achievements/AchievementCard';
 import { AIWorkoutSuggestions } from '@/components/ai/AIWorkoutSuggestions';
+import { RestDayRecommendations } from '@/components/ai/RestDayRecommendations';
 
 // Import hooks and contexts
 import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext';
 import { useAchievements } from '@/contexts/AchievementContext';
 import { usePersonalRecords } from '@/hooks/usePersonalRecords';
 import { useProgressPhotoContext } from '@/contexts/ProgressPhotoContext';
+import { useRestDayRecommendations } from '@/hooks/useRestDayRecommendations';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [showAISuggestions, setShowAISuggestions] = useState(true);
+  const [showRecoveryInsights, setShowRecoveryInsights] = useState(true);
 
   const { workouts, refreshHistory } = useWorkoutHistory();
   const { achievements, unlockedAchievements } = useAchievements();
   const { personalRecords } = usePersonalRecords();
   const { photos } = useProgressPhotoContext();
+  const { shouldTakeRestDay, fatigueLevel, recoveryMetrics } = useRestDayRecommendations();
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -99,7 +104,12 @@ export default function HomeScreen() {
   const recentAchievements = unlockedAchievements.slice(0, 2);
 
   const handleStartQuickWorkout = () => {
-    router.push('/(tabs)/workouts');
+    if (shouldTakeRestDay) {
+      // Show rest day warning but allow override
+      router.push('/(tabs)/workouts');
+    } else {
+      router.push('/(tabs)/workouts');
+    }
   };
 
   const handleViewProgress = () => {
@@ -141,6 +151,24 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </LinearGradient>
+
+        {/* Recovery Status Alert */}
+        {shouldTakeRestDay && recoveryMetrics && (
+          <View style={styles.recoveryAlert}>
+            <LinearGradient
+              colors={['#ef4444', '#dc2626']}
+              style={styles.recoveryAlertGradient}
+            >
+              <Shield size={20} color="#FFFFFF" />
+              <View style={styles.recoveryAlertContent}>
+                <Text style={styles.recoveryAlertTitle}>Rest Day Recommended</Text>
+                <Text style={styles.recoveryAlertText}>
+                  Fatigue level: {recoveryMetrics.fatigueLevel}% • Consider taking a rest day
+                </Text>
+              </View>
+            </LinearGradient>
+          </View>
+        )}
 
         {/* Quick Stats */}
         <View style={styles.statsSection}>
@@ -195,10 +223,10 @@ export default function HomeScreen() {
           <View style={styles.quickActionsGrid}>
             <QuickStartCard
               title="Start Workout"
-              subtitle="Begin your training session"
-              icon={<Zap size={24} color="#FF6B35" />}
+              subtitle={shouldTakeRestDay ? "Rest day recommended" : "Begin your training session"}
+              icon={shouldTakeRestDay ? <Shield size={24} color="#ef4444" /> : <Zap size={24} color="#FF6B35" />}
               onPress={handleStartQuickWorkout}
-              gradient={['#FF6B35', '#FF8C42']}
+              gradient={shouldTakeRestDay ? ['#ef4444', '#dc2626'] : ['#FF6B35', '#FF8C42']}
             />
             <QuickStartCard
               title="Create Workout"
@@ -224,8 +252,30 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Recovery Insights */}
+        {showRecoveryInsights && workouts.length > 2 && (
+          <View style={styles.recoverySection}>
+            <View style={styles.recoverySectionHeader}>
+              <View style={styles.recoveryTitleContainer}>
+                <Brain size={20} color={DesignTokens.colors.primary[500]} />
+                <Text style={styles.sectionTitle}>Recovery Insights</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowRecoveryInsights(false)}>
+                <Text style={styles.dismissText}>Dismiss</Text>
+              </TouchableOpacity>
+            </View>
+            <RestDayRecommendations 
+              compactMode={true}
+              showTrends={false}
+              onRecommendationFollowed={(recommendationId) => {
+                console.log('Followed recommendation:', recommendationId);
+              }}
+            />
+          </View>
+        )}
+
         {/* AI Recommendations */}
-        {showAISuggestions && workouts.length > 0 && (
+        {showAISuggestions && workouts.length > 0 && !shouldTakeRestDay && (
           <View style={styles.aiSection}>
             <View style={styles.aiSectionHeader}>
               <View style={styles.aiTitleContainer}>
@@ -370,6 +420,32 @@ const styles = StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
   },
+  recoveryAlert: {
+    marginHorizontal: DesignTokens.spacing[5],
+    marginTop: DesignTokens.spacing[4],
+    borderRadius: DesignTokens.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  recoveryAlertGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: DesignTokens.spacing[4],
+    gap: DesignTokens.spacing[3],
+  },
+  recoveryAlertContent: {
+    flex: 1,
+  },
+  recoveryAlertTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+    marginBottom: DesignTokens.spacing[1],
+  },
+  recoveryAlertText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
   statsSection: {
     paddingHorizontal: DesignTokens.spacing[5],
     marginTop: DesignTokens.spacing[6],
@@ -393,6 +469,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: DesignTokens.spacing[3],
+  },
+  recoverySection: {
+    marginTop: DesignTokens.spacing[8],
+  },
+  recoverySectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[4],
+  },
+  recoveryTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
   },
   aiSection: {
     marginTop: DesignTokens.spacing[8],
