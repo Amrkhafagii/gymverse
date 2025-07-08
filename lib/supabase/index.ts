@@ -13,7 +13,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Export commonly used types and utilities
 export type { Database } from './types';
-export * from './auth';
 export * from './workouts';
 export * from './measurements';
 export * from './achievements';
