@@ -1,431 +1,213 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { useStreakTracking, useStreakUtils } from '@/hooks/useStreakTracking';
+/**
+ * StreakCard - Previously unused, now integrated into home screen
+ * Displays current streak with visual indicators and motivation
+ */
 
-const { width } = Dimensions.get('window');
+import React from 'react';
+import {
+  TouchableOpacity,
+  Text,
+  View,
+  StyleSheet,
+  ViewStyle,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Flame, Calendar, TrendingUp } from 'lucide-react-native';
+import { DesignTokens } from '@/design-system/tokens';
 
-export function StreakCard() {
-  const { streakData, useStreakRecovery, isLoading } = useStreakTracking();
-  const { 
-    getStreakColor, 
-    getStreakEmoji, 
-    formatStreakMessage, 
-    getNextMilestone,
-    getStreakProgress,
-    isStreakAtRisk,
-    getStreakHistory
-  } = useStreakUtils();
+export interface StreakStatus {
+  isActive: boolean;
+  daysUntilBreak: number;
+  lastWorkoutDate: string;
+  streakType: 'daily' | 'weekly' | 'custom';
+}
 
-  const [showHistory, setShowHistory] = useState(false);
-  const [isRecovering, setIsRecovering] = useState(false);
+export interface StreakCardProps {
+  currentStreak: number;
+  longestStreak: number;
+  streakStatus: StreakStatus;
+  onPress: () => void;
+  variant?: 'default' | 'compact' | 'detailed';
+  style?: ViewStyle;
+}
 
-  const nextMilestone = getNextMilestone();
-  const progress = getStreakProgress();
-  const streakHistory = getStreakHistory(14); // Last 14 days
-
-  const handleRecoveryUse = async () => {
-    setIsRecovering(true);
-    try {
-      const success = await useStreakRecovery();
-      if (success) {
-        // Show success feedback
-      }
-    } catch (error) {
-      console.error('Recovery failed:', error);
-    } finally {
-      setIsRecovering(false);
-    }
+export const StreakCard: React.FC<StreakCardProps> = ({
+  currentStreak,
+  longestStreak,
+  streakStatus,
+  onPress,
+  variant = 'default',
+  style,
+}) => {
+  const getStreakColor = () => {
+    if (!streakStatus.isActive) return ['#6B7280', '#4B5563'];
+    if (currentStreak >= 30) return ['#F59E0B', '#D97706'];
+    if (currentStreak >= 14) return ['#EF4444', '#DC2626'];
+    if (currentStreak >= 7) return ['#F97316', '#EA580C'];
+    return ['#10B981', '#059669'];
   };
 
-  const renderStreakHistory = () => {
-    return (
-      <View style={styles.historyContainer}>
-        <Text style={styles.historyTitle}>Last 14 Days</Text>
-        <View style={styles.historyGrid}>
-          {streakHistory.map((day, index) => (
-            <View
-              key={index}
-              style={[
-                styles.historyDay,
-                {
-                  backgroundColor: day.hasWorkout ? getStreakColor(streakData.currentStreak) : '#F3F4F6',
-                }
-              ]}
-            >
-              <Text style={[
-                styles.historyDayText,
-                { color: day.hasWorkout ? 'white' : '#6B7280' }
-              ]}>
-                {new Date(day.date).getDate()}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
+  const getStreakMessage = () => {
+    if (!streakStatus.isActive) return 'Start your streak today!';
+    if (currentStreak === 1) return 'Great start! Keep it up!';
+    if (currentStreak >= 30) return 'Incredible dedication!';
+    if (currentStreak >= 14) return 'You\'re on fire!';
+    if (currentStreak >= 7) return 'Amazing consistency!';
+    return 'Building momentum!';
   };
 
-  const renderRecoveryOption = () => {
-    if (!streakData.streakRecovery.canRecover) return null;
-
-    const hoursLeft = Math.floor(
-      (new Date(streakData.streakRecovery.recoveryDeadline!).getTime() - new Date().getTime()) / (1000 * 60 * 60)
-    );
-
-    return (
-      <View style={styles.recoveryContainer}>
-        <Text style={styles.recoveryTitle}>⚡ Streak Recovery Available</Text>
-        <Text style={styles.recoveryText}>
-          You have {hoursLeft} hours to recover your streak!
-        </Text>
-        <TouchableOpacity
-          style={styles.recoveryButton}
-          onPress={handleRecoveryUse}
-          disabled={isRecovering}
-        >
-          <Text style={styles.recoveryButtonText}>
-            {isRecovering ? 'Recovering...' : 'Use Recovery'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
+  const getFlameSize = () => {
+    if (variant === 'compact') return 16;
+    if (variant === 'detailed') return 28;
+    return 20;
   };
 
-  const renderMilestones = () => {
-    const recentMilestones = streakData.milestones
-      .filter(m => m.achieved)
-      .slice(-3);
-
-    if (recentMilestones.length === 0) return null;
-
+  if (variant === 'compact') {
     return (
-      <View style={styles.milestonesContainer}>
-        <Text style={styles.milestonesTitle}>Recent Achievements</Text>
-        <View style={styles.milestonesGrid}>
-          {recentMilestones.map((milestone) => (
-            <View key={milestone.id} style={styles.milestoneItem}>
-              <Text style={styles.milestoneIcon}>{milestone.icon}</Text>
-              <Text style={styles.milestoneName}>{milestone.name}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading streak data...</Text>
-      </View>
+      <TouchableOpacity style={[styles.compactContainer, style]} onPress={onPress}>
+        <LinearGradient colors={getStreakColor()} style={styles.compactGradient}>
+          <Flame size={getFlameSize()} color="#FFFFFF" />
+          <Text style={styles.compactStreak}>{currentStreak}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Main Streak Display */}
-      <View style={[styles.streakMain, { borderColor: getStreakColor(streakData.currentStreak) }]}>
-        <View style={styles.streakHeader}>
-          <Text style={styles.streakEmoji}>{getStreakEmoji(streakData.currentStreak)}</Text>
-          <View style={styles.streakInfo}>
-            <Text style={styles.streakNumber}>{streakData.currentStreak}</Text>
-            <Text style={styles.streakLabel}>Day Streak</Text>
+    <TouchableOpacity style={[styles.container, style]} onPress={onPress} activeOpacity={0.8}>
+      <LinearGradient colors={getStreakColor()} style={styles.gradient}>
+        <View style={styles.header}>
+          <View style={styles.iconContainer}>
+            <Flame size={getFlameSize()} color="#FFFFFF" />
           </View>
-          {isStreakAtRisk() && (
-            <View style={styles.riskBadge}>
-              <Text style={styles.riskText}>⚠️</Text>
-            </View>
-          )}
+          <View style={styles.streakInfo}>
+            <Text style={styles.streakNumber}>{currentStreak}</Text>
+            <Text style={styles.streakLabel}>day streak</Text>
+          </View>
         </View>
 
-        <Text style={styles.streakMessage}>
-          {formatStreakMessage(streakData.currentStreak)}
-        </Text>
+        <Text style={styles.message}>{getStreakMessage()}</Text>
 
-        {/* Progress to Next Milestone */}
-        {nextMilestone && (
-          <View style={styles.progressContainer}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>Next: {nextMilestone.name}</Text>
-              <Text style={styles.progressText}>
-                {streakData.currentStreak}/{nextMilestone.target}
-              </Text>
+        {variant === 'detailed' && (
+          <View style={styles.details}>
+            <View style={styles.detailItem}>
+              <TrendingUp size={14} color="rgba(255, 255, 255, 0.8)" />
+              <Text style={styles.detailText}>Best: {longestStreak} days</Text>
             </View>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill,
-                  { 
-                    width: `${Math.min(progress.progress, 100)}%`,
-                    backgroundColor: getStreakColor(streakData.currentStreak)
-                  }
-                ]}
-              />
+            <View style={styles.detailItem}>
+              <Calendar size={14} color="rgba(255, 255, 255, 0.8)" />
+              <Text style={styles.detailText}>
+                {streakStatus.isActive ? 'Active' : 'Inactive'}
+              </Text>
             </View>
           </View>
         )}
-      </View>
 
-      {/* Motivation Message */}
-      <View style={styles.motivationContainer}>
-        <Text style={styles.motivationIcon}>{streakData.motivation.icon}</Text>
-        <Text style={styles.motivationText}>{streakData.motivation.message}</Text>
-      </View>
-
-      {/* Recovery Option */}
-      {renderRecoveryOption()}
-
-      {/* Stats Row */}
-      <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{streakData.longestStreak}</Text>
-          <Text style={styles.statLabel}>Longest</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>
-            {streakData.monthlyStats[0]?.consistency || 0}%
-          </Text>
-          <Text style={styles.statLabel}>This Month</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>
-            {streakData.weeklyStreaks[streakData.weeklyStreaks.length - 1]?.workoutDays.length || 0}
-          </Text>
-          <Text style={styles.statLabel}>This Week</Text>
-        </View>
-      </View>
-
-      {/* Toggle History */}
-      <TouchableOpacity
-        style={styles.historyToggle}
-        onPress={() => setShowHistory(!showHistory)}
-      >
-        <Text style={styles.historyToggleText}>
-          {showHistory ? 'Hide History' : 'Show History'} {showHistory ? '▲' : '▼'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* History */}
-      {showHistory && renderStreakHistory()}
-
-      {/* Recent Milestones */}
-      {renderMilestones()}
-    </View>
+        {!streakStatus.isActive && (
+          <View style={styles.inactiveOverlay}>
+            <Text style={styles.inactiveText}>Streak Broken</Text>
+          </View>
+        )}
+      </LinearGradient>
+    </TouchableOpacity>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    margin: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: DesignTokens.borderRadius.lg,
+    overflow: 'hidden',
+    ...DesignTokens.shadow.md,
   },
-  loadingText: {
-    textAlign: 'center',
-    color: '#6B7280',
-    fontSize: 16,
+
+  compactContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    overflow: 'hidden',
+    ...DesignTokens.shadow.sm,
   },
-  streakMain: {
-    borderWidth: 2,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+
+  gradient: {
+    padding: DesignTokens.spacing[4],
+    minHeight: 100,
   },
-  streakHeader: {
+
+  compactGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: DesignTokens.spacing[2],
   },
-  streakEmoji: {
-    fontSize: 32,
-    marginRight: 12,
+
+  iconContainer: {
+    marginRight: DesignTokens.spacing[3],
   },
+
   streakInfo: {
     flex: 1,
   },
+
   streakNumber: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+    lineHeight: DesignTokens.typography.fontSize.xl * 1.2,
   },
+
   streakLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: -4,
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.9)',
   },
-  riskBadge: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+
+  compactStreak: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
   },
-  riskText: {
-    fontSize: 16,
+
+  message: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: DesignTokens.spacing[2],
   },
-  streakMessage: {
-    fontSize: 16,
-    color: '#374151',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  progressContainer: {
-    marginTop: 8,
-  },
-  progressHeader: {
+
+  details: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginTop: DesignTokens.spacing[2],
   },
-  progressLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  progressText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  motivationContainer: {
+
+  detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    gap: DesignTokens.spacing[1],
   },
-  motivationIcon: {
-    fontSize: 20,
-    marginRight: 8,
+
+  detailText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  motivationText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#374151',
+
+  inactiveOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderBottomLeftRadius: DesignTokens.borderRadius.md,
   },
-  recoveryContainer: {
-    backgroundColor: '#FEF3C7',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  recoveryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#92400E',
-    marginBottom: 4,
-  },
-  recoveryText: {
-    fontSize: 14,
-    color: '#92400E',
-    marginBottom: 8,
-  },
-  recoveryButton: {
-    backgroundColor: '#F59E0B',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  recoveryButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  historyToggle: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  historyToggleText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  historyContainer: {
-    marginBottom: 16,
-  },
-  historyTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  historyGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  historyDay: {
-    width: (width - 80) / 7 - 4,
-    height: 32,
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  historyDayText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  milestonesContainer: {
-    marginTop: 8,
-  },
-  milestonesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  milestonesGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  milestoneItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  milestoneIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  milestoneName: {
-    fontSize: 10,
-    color: '#6B7280',
-    textAlign: 'center',
+
+  inactiveText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: '#FFFFFF',
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
 });

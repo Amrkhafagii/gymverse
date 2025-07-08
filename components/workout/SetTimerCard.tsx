@@ -1,42 +1,58 @@
+/**
+ * SetTimerCard - Previously unused, now integrated into workout sessions
+ * Individual set tracking with timer, weight/reps input, and rest management
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
+  StyleSheet,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
-  Play, 
-  Pause, 
   Check, 
-  Timer, 
-  Weight,
-  RotateCcw,
-  Edit3,
+  Clock, 
+  TrendingUp, 
+  Target,
+  Timer,
+  Zap,
+  Award,
 } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-import { WorkoutSet } from '@/contexts/WorkoutSessionContext';
 import * as Haptics from 'expo-haptics';
 
-interface SetTimerCardProps {
+export interface WorkoutSet {
+  id: string;
+  set_number: number;
+  target_weight_kg?: number;
+  target_reps: number[];
+  actual_weight_kg?: number;
+  actual_reps?: number;
+  is_completed: boolean;
+  completed_at?: string;
+  rest_duration_seconds?: number;
+  notes?: string;
+}
+
+export interface SetTimerCardProps {
   set: WorkoutSet;
   exerciseName: string;
-  exerciseType: 'strength' | 'cardio' | 'flexibility' | 'plyometric';
+  exerciseType: 'strength' | 'cardio' | 'bodyweight' | 'time';
   onUpdateSet: (updates: Partial<WorkoutSet>) => void;
   onStartRest: (duration: number) => void;
   restSeconds: number;
   previousBest?: {
     weight?: number;
     reps?: number;
-    duration?: number;
   };
   isActive?: boolean;
 }
 
-export function SetTimerCard({
+export const SetTimerCard: React.FC<SetTimerCardProps> = ({
   set,
   exerciseName,
   exerciseType,
@@ -45,393 +61,382 @@ export function SetTimerCard({
   restSeconds,
   previousBest,
   isActive = false,
-}: SetTimerCardProps) {
+}) => {
+  const [weight, setWeight] = useState(set.actual_weight_kg?.toString() || set.target_weight_kg?.toString() || '');
+  const [reps, setReps] = useState(set.actual_reps?.toString() || '');
   const [isEditing, setIsEditing] = useState(false);
-  const [editValues, setEditValues] = useState({
-    weight: set.actual_weight_kg?.toString() || set.target_weight_kg?.toString() || '',
-    reps: set.actual_reps?.toString() || set.target_reps.toString(),
-    duration: set.actual_duration_seconds?.toString() || set.target_duration_seconds?.toString() || '',
-  });
-  const [setTimer, setSetTimer] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [showPersonalBest, setShowPersonalBest] = useState(false);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isTimerRunning) {
-      interval = setInterval(() => {
-        setSetTimer(prev => prev + 1);
-      }, 1000);
+    // Check for personal best
+    if (set.actual_weight_kg && previousBest?.weight && set.actual_weight_kg > previousBest.weight) {
+      setShowPersonalBest(true);
+    } else if (set.actual_reps && previousBest?.reps && set.actual_reps > previousBest.reps) {
+      setShowPersonalBest(true);
+    }
+  }, [set.actual_weight_kg, set.actual_reps, previousBest]);
+
+  const handleCompleteSet = () => {
+    const weightValue = parseFloat(weight) || 0;
+    const repsValue = parseInt(reps) || 0;
+
+    if (exerciseType === 'strength' && (!weightValue || !repsValue)) {
+      Alert.alert('Missing Data', 'Please enter both weight and reps to complete the set.');
+      return;
     }
 
-    return () => clearInterval(interval);
-  }, [isTimerRunning]);
-
-  const handleStartTimer = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsTimerRunning(true);
-    setSetTimer(0);
-  };
-
-  const handlePauseTimer = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsTimerRunning(false);
-  };
-
-  const handleCompleteSet = async () => {
-    if (isTimerRunning) {
-      setIsTimerRunning(false);
+    if (exerciseType === 'bodyweight' && !repsValue) {
+      Alert.alert('Missing Data', 'Please enter the number of reps to complete the set.');
+      return;
     }
+
+    // Haptic feedback for completion
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     const updates: Partial<WorkoutSet> = {
+      actual_weight_kg: weightValue || undefined,
+      actual_reps: repsValue || undefined,
       is_completed: true,
       completed_at: new Date().toISOString(),
     };
 
-    // Add actual values based on exercise type
-    if (exerciseType === 'strength') {
-      updates.actual_weight_kg = parseFloat(editValues.weight) || set.target_weight_kg;
-      updates.actual_reps = parseInt(editValues.reps) || set.target_reps;
-    } else if (exerciseType === 'cardio') {
-      updates.actual_duration_seconds = parseInt(editValues.duration) || set.target_duration_seconds;
-    }
-
-    if (setTimer > 0) {
-      updates.actual_duration_seconds = setTimer;
-    }
-
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onUpdateSet(updates);
-
-    // Start rest timer if not the last set
-    if (restSeconds > 0) {
-      setTimeout(() => {
-        onStartRest(restSeconds);
-      }, 500);
-    }
-
     setIsEditing(false);
+
+    // Auto-start rest timer
+    setTimeout(() => {
+      onStartRest(restSeconds);
+    }, 500);
   };
 
-  const handleResetSet = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  const handleUncompleteSet = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    Alert.alert(
-      'Reset Set',
-      'Are you sure you want to reset this set?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            setIsTimerRunning(false);
-            setSetTimer(0);
-            onUpdateSet({
-              is_completed: false,
-              actual_reps: undefined,
-              actual_weight_kg: undefined,
-              actual_duration_seconds: undefined,
-              completed_at: undefined,
-            });
-            setEditValues({
-              weight: set.target_weight_kg?.toString() || '',
-              reps: set.target_reps.toString(),
-              duration: set.target_duration_seconds?.toString() || '',
-            });
-          },
-        },
-      ]
-    );
+    onUpdateSet({
+      is_completed: false,
+      completed_at: undefined,
+    });
   };
 
-  const handleSaveEdit = () => {
-    setIsEditing(false);
-    // Values will be saved when set is completed
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getSetTypeColor = () => {
-    if (set.is_warmup) return ['#f59e0b', '#d97706'];
-    if (set.is_completed) return ['#10b981', '#059669'];
-    if (isActive) return ['#3b82f6', '#2563eb'];
-    return ['#6b7280', '#4b5563'];
-  };
-
-  const isPR = () => {
-    if (!previousBest || !set.is_completed) return false;
-    
-    if (exerciseType === 'strength') {
-      const currentWeight = set.actual_weight_kg || 0;
-      const currentReps = set.actual_reps || 0;
-      return currentWeight > (previousBest.weight || 0) || 
-             (currentWeight === previousBest.weight && currentReps > (previousBest.reps || 0));
+  const getTargetRepsDisplay = (): string => {
+    if (set.target_reps.length === 1) {
+      return set.target_reps[0].toString();
     }
-    
-    return false;
+    return `${Math.min(...set.target_reps)}-${Math.max(...set.target_reps)}`;
+  };
+
+  const getSetStatusColor = (): string[] => {
+    if (set.is_completed) {
+      if (showPersonalBest) return ['#FFD700', '#FFA500']; // Gold for PR
+      return ['#10B981', '#059669']; // Green for completed
+    }
+    if (isActive) return ['#3B82F6', '#2563EB']; // Blue for active
+    return ['#374151', '#1F2937']; // Gray for pending
+  };
+
+  const getSetStatusIcon = () => {
+    if (set.is_completed) {
+      if (showPersonalBest) return <Award size={16} color="#FFFFFF" />;
+      return <Check size={16} color="#FFFFFF" />;
+    }
+    if (isActive) return <Zap size={16} color="#FFFFFF" />;
+    return <Target size={16} color="#9CA3AF" />;
   };
 
   return (
     <View style={[styles.container, isActive && styles.activeContainer]}>
-      <LinearGradient
-        colors={getSetTypeColor()}
-        style={styles.gradient}
-      >
-        <View style={styles.content}>
-          {/* Set Header */}
-          <View style={styles.header}>
-            <View style={styles.setInfo}>
-              <Text style={styles.setNumber}>Set {set.set_number}</Text>
-              {set.is_warmup && <Text style={styles.warmupLabel}>Warmup</Text>}
-              {isPR() && <Text style={styles.prLabel}>PR!</Text>}
+      <LinearGradient colors={getSetStatusColor()} style={styles.gradient}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.setInfo}>
+            <View style={styles.setNumber}>
+              {getSetStatusIcon()}
+              <Text style={styles.setNumberText}>Set {set.set_number}</Text>
             </View>
-            
-            <View style={styles.timerDisplay}>
-              <Timer size={16} color="#fff" />
-              <Text style={styles.timerText}>{formatTime(setTimer)}</Text>
-            </View>
-          </View>
-
-          {/* Set Values */}
-          <View style={styles.values}>
-            {exerciseType === 'strength' && (
-              <>
-                <View style={styles.valueGroup}>
-                  <Weight size={16} color="#fff" />
-                  <Text style={styles.valueLabel}>Weight</Text>
-                  {isEditing ? (
-                    <TextInput
-                      style={styles.valueInput}
-                      value={editValues.weight}
-                      onChangeText={(text) => setEditValues(prev => ({ ...prev, weight: text }))}
-                      keyboardType="numeric"
-                      placeholder={set.target_weight_kg?.toString() || '0'}
-                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                    />
-                  ) : (
-                    <Text style={styles.valueText}>
-                      {set.actual_weight_kg || set.target_weight_kg || 0} kg
-                    </Text>
-                  )}
-                </View>
-
-                <View style={styles.valueGroup}>
-                  <Text style={styles.valueLabel}>Reps</Text>
-                  {isEditing ? (
-                    <TextInput
-                      style={styles.valueInput}
-                      value={editValues.reps}
-                      onChangeText={(text) => setEditValues(prev => ({ ...prev, reps: text }))}
-                      keyboardType="numeric"
-                      placeholder={set.target_reps.toString()}
-                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                    />
-                  ) : (
-                    <Text style={styles.valueText}>
-                      {set.actual_reps || set.target_reps} reps
-                    </Text>
-                  )}
-                </View>
-              </>
-            )}
-
-            {exerciseType === 'cardio' && (
-              <View style={styles.valueGroup}>
-                <Timer size={16} color="#fff" />
-                <Text style={styles.valueLabel}>Duration</Text>
-                {isEditing ? (
-                  <TextInput
-                    style={styles.valueInput}
-                    value={editValues.duration}
-                    onChangeText={(text) => setEditValues(prev => ({ ...prev, duration: text }))}
-                    keyboardType="numeric"
-                    placeholder={set.target_duration_seconds?.toString() || '0'}
-                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  />
-                ) : (
-                  <Text style={styles.valueText}>
-                    {formatTime(set.actual_duration_seconds || set.target_duration_seconds || 0)}
-                  </Text>
-                )}
+            {showPersonalBest && (
+              <View style={styles.prBadge}>
+                <Text style={styles.prText}>PR!</Text>
               </View>
             )}
           </View>
-
-          {/* Controls */}
-          <View style={styles.controls}>
-            {!set.is_completed ? (
-              <>
-                <TouchableOpacity
-                  style={styles.controlButton}
-                  onPress={() => setIsEditing(!isEditing)}
-                >
-                  <Edit3 size={16} color="#fff" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.controlButton}
-                  onPress={isTimerRunning ? handlePauseTimer : handleStartTimer}
-                >
-                  {isTimerRunning ? (
-                    <Pause size={16} color="#fff" />
-                  ) : (
-                    <Play size={16} color="#fff" />
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.controlButton, styles.completeButton]}
-                  onPress={handleCompleteSet}
-                >
-                  <Check size={16} color="#fff" />
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity
-                style={styles.controlButton}
-                onPress={handleResetSet}
-              >
-                <RotateCcw size={16} color="#fff" />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Previous Best Comparison */}
-          {previousBest && exerciseType === 'strength' && (
-            <View style={styles.previousBest}>
-              <Text style={styles.previousBestText}>
-                Previous: {previousBest.weight}kg × {previousBest.reps}
-              </Text>
-            </View>
+          
+          {set.is_completed && (
+            <TouchableOpacity onPress={handleUncompleteSet} style={styles.undoButton}>
+              <Text style={styles.undoText}>Undo</Text>
+            </TouchableOpacity>
           )}
         </View>
+
+        {/* Target vs Actual */}
+        <View style={styles.dataSection}>
+          {exerciseType === 'strength' && (
+            <View style={styles.dataRow}>
+              <View style={styles.dataItem}>
+                <Text style={styles.dataLabel}>Weight</Text>
+                <View style={styles.dataValue}>
+                  <Text style={styles.targetText}>
+                    Target: {set.target_weight_kg || 0}kg
+                  </Text>
+                  {set.is_completed ? (
+                    <Text style={styles.actualText}>
+                      Actual: {set.actual_weight_kg || 0}kg
+                    </Text>
+                  ) : (
+                    <TextInput
+                      style={styles.input}
+                      value={weight}
+                      onChangeText={setWeight}
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="numeric"
+                      editable={!set.is_completed}
+                    />
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.dataRow}>
+            <View style={styles.dataItem}>
+              <Text style={styles.dataLabel}>Reps</Text>
+              <View style={styles.dataValue}>
+                <Text style={styles.targetText}>
+                  Target: {getTargetRepsDisplay()}
+                </Text>
+                {set.is_completed ? (
+                  <Text style={styles.actualText}>
+                    Actual: {set.actual_reps || 0}
+                  </Text>
+                ) : (
+                  <TextInput
+                    style={styles.input}
+                    value={reps}
+                    onChangeText={setReps}
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    editable={!set.is_completed}
+                  />
+                )}
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Previous Best Comparison */}
+        {previousBest && (
+          <View style={styles.comparisonSection}>
+            <TrendingUp size={14} color="rgba(255, 255, 255, 0.7)" />
+            <Text style={styles.comparisonText}>
+              Previous best: {previousBest.weight ? `${previousBest.weight}kg × ` : ''}{previousBest.reps || 0} reps
+            </Text>
+          </View>
+        )}
+
+        {/* Action Button */}
+        {!set.is_completed && (
+          <TouchableOpacity 
+            style={styles.completeButton} 
+            onPress={handleCompleteSet}
+            disabled={!weight && !reps}
+          >
+            <Check size={16} color="#FFFFFF" />
+            <Text style={styles.completeButtonText}>Complete Set</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Rest Timer Info */}
+        {set.is_completed && (
+          <View style={styles.restInfo}>
+            <Clock size={14} color="rgba(255, 255, 255, 0.7)" />
+            <Text style={styles.restText}>
+              Rest: {Math.floor(restSeconds / 60)}:{(restSeconds % 60).toString().padStart(2, '0')}
+            </Text>
+          </View>
+        )}
+
+        {/* Set Duration */}
+        {set.completed_at && (
+          <View style={styles.completionInfo}>
+            <Timer size={12} color="rgba(255, 255, 255, 0.6)" />
+            <Text style={styles.completionText}>
+              Completed at {new Date(set.completed_at).toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </Text>
+          </View>
+        )}
       </LinearGradient>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     marginBottom: DesignTokens.spacing[3],
     borderRadius: DesignTokens.borderRadius.lg,
     overflow: 'hidden',
+    ...DesignTokens.shadow.sm,
   },
+
   activeContainer: {
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    ...DesignTokens.shadow.md,
+    transform: [{ scale: 1.02 }],
   },
+
   gradient: {
     padding: DesignTokens.spacing[4],
   },
-  content: {
-    gap: DesignTokens.spacing[3],
-  },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: DesignTokens.spacing[3],
   },
+
   setInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: DesignTokens.spacing[2],
   },
+
   setNumber: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: '#fff',
-    fontWeight: DesignTokens.typography.fontWeight.bold,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
   },
-  warmupLabel: {
+
+  setNumberText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: '#FFFFFF',
+  },
+
+  prBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.full,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+
+  prText: {
     fontSize: DesignTokens.typography.fontSize.xs,
-    color: '#fff',
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFD700',
+  },
+
+  undoButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: DesignTokens.spacing[2],
+    paddingHorizontal: DesignTokens.spacing[3],
     paddingVertical: DesignTokens.spacing[1],
-    borderRadius: DesignTokens.borderRadius.sm,
+    borderRadius: DesignTokens.borderRadius.md,
   },
-  prLabel: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: '#fff',
-    backgroundColor: '#ef4444',
-    paddingHorizontal: DesignTokens.spacing[2],
-    paddingVertical: DesignTokens.spacing[1],
-    borderRadius: DesignTokens.borderRadius.sm,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  timerDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
-  },
-  timerText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: '#fff',
-    fontFamily: 'SF Mono',
+
+  undoText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: '#FFFFFF',
     fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  values: {
-    flexDirection: 'row',
-    gap: DesignTokens.spacing[4],
-  },
-  valueGroup: {
-    flex: 1,
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
-  },
-  valueLabel: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textTransform: 'uppercase',
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  valueText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: '#fff',
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-  },
-  valueInput: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: '#fff',
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: DesignTokens.spacing[2],
-    paddingVertical: DesignTokens.spacing[1],
-    borderRadius: DesignTokens.borderRadius.sm,
-    textAlign: 'center',
-    minWidth: 60,
-  },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+
+  dataSection: {
     gap: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[3],
   },
-  controlButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+
+  dataRow: {
+    flexDirection: 'row',
+  },
+
+  dataItem: {
+    flex: 1,
+  },
+
+  dataLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  dataValue: {
+    gap: DesignTokens.spacing[1],
+  },
+
+  targetText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+
+  actualText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: '#FFFFFF',
+  },
+
+  input: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: DesignTokens.borderRadius.md,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: '#FFFFFF',
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+
+  comparisonSection: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[3],
   },
-  completeButton: {
-    backgroundColor: 'rgba(16, 185, 129, 0.8)',
-  },
-  previousBest: {
-    alignItems: 'center',
-    paddingTop: DesignTokens.spacing[2],
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  previousBestText: {
+
+  comparisonText: {
     fontSize: DesignTokens.typography.fontSize.xs,
     color: 'rgba(255, 255, 255, 0.7)',
+  },
+
+  completeButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
+    marginTop: DesignTokens.spacing[2],
+  },
+
+  completeButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: '#FFFFFF',
+  },
+
+  restInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    marginTop: DesignTokens.spacing[2],
+  },
+
+  restText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+
+  completionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+    marginTop: DesignTokens.spacing[1],
+  },
+
+  completionText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });

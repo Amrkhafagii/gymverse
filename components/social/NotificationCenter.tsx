@@ -1,62 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
   FlatList,
-  Switch,
-  Alert,
+  TouchableOpacity,
+  Image,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Bell,
   X,
-  Settings,
+  Bell,
   Heart,
   MessageCircle,
   UserPlus,
   Trophy,
   Target,
-  Volume2,
-  VolumeX,
-  Smartphone,
-  Mail,
-  CheckCircle,
-  Circle,
+  Users,
+  Calendar,
+  Settings,
+  Check,
+  Trash2,
 } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-import { SocialActivityFeed } from './SocialActivityFeed';
-import { Button } from '@/components/ui/Button';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications, SocialNotification } from '@/hooks/useNotifications';
 import * as Haptics from 'expo-haptics';
 
 interface NotificationCenterProps {
   visible: boolean;
   onClose: () => void;
-  onActivityPress?: (activityId: string) => void;
-  onUserPress?: (userId: string) => void;
-}
-
-interface NotificationSettings {
-  pushNotifications: boolean;
-  emailNotifications: boolean;
-  soundEnabled: boolean;
-  vibrationEnabled: boolean;
-  types: {
-    likes: boolean;
-    comments: boolean;
-    follows: boolean;
-    achievements: boolean;
-    workouts: boolean;
-    milestones: boolean;
-  };
-  quietHours: {
-    enabled: boolean;
-    start: string;
-    end: string;
-  };
+  onActivityPress: (activityId: string) => void;
+  onUserPress: (userId: string) => void;
 }
 
 export function NotificationCenter({
@@ -68,251 +44,177 @@ export function NotificationCenter({
   const {
     notifications,
     unreadCount,
+    isLoading,
     markAsRead,
     markAllAsRead,
-    clearAll,
-    settings,
-    updateSettings,
+    deleteNotification,
+    refreshNotifications,
   } = useNotifications();
 
-  const [activeTab, setActiveTab] = useState<'activity' | 'settings'>('activity');
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-    pushNotifications: true,
-    emailNotifications: false,
-    soundEnabled: true,
-    vibrationEnabled: true,
-    types: {
-      likes: true,
-      comments: true,
-      follows: true,
-      achievements: true,
-      workouts: false,
-      milestones: true,
-    },
-    quietHours: {
-      enabled: false,
-      start: '22:00',
-      end: '08:00',
-    },
-  });
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'all' | 'unread'>('all');
 
-  useEffect(() => {
-    if (settings) {
-      setNotificationSettings(settings);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshNotifications();
+    setRefreshing(false);
+  };
+
+  const handleNotificationPress = async (notification: SocialNotification) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    if (!notification.isRead) {
+      await markAsRead(notification.id);
     }
-  }, [settings]);
 
-  const handleSettingChange = async (key: string, value: boolean | object) => {
-    const updatedSettings = { ...notificationSettings, [key]: value };
-    setNotificationSettings(updatedSettings);
-    await updateSettings(updatedSettings);
+    // Navigate based on notification type
+    switch (notification.type) {
+      case 'like':
+      case 'comment':
+      case 'share':
+        if (notification.relatedId) {
+          onActivityPress(notification.relatedId);
+        }
+        break;
+      case 'follow':
+      case 'friend_request':
+        if (notification.fromUserId) {
+          onUserPress(notification.fromUserId);
+        }
+        break;
+      case 'achievement':
+      case 'milestone':
+      case 'challenge_invite':
+        if (notification.relatedId) {
+          onActivityPress(notification.relatedId);
+        }
+        break;
+    }
+    
+    onClose();
+  };
+
+  const handleMarkAllRead = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await markAllAsRead();
+  };
+
+  const handleDeleteNotification = async (notificationId: string) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await deleteNotification(notificationId);
   };
 
-  const handleTypeSettingChange = async (type: keyof NotificationSettings['types'], value: boolean) => {
-    const updatedTypes = { ...notificationSettings.types, [type]: value };
-    const updatedSettings = { ...notificationSettings, types: updatedTypes };
-    setNotificationSettings(updatedSettings);
-    await updateSettings(updatedSettings);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const getNotificationIcon = (type: SocialNotification['type']) => {
+    switch (type) {
+      case 'like':
+        return <Heart size={16} color={DesignTokens.colors.error[500]} />;
+      case 'comment':
+        return <MessageCircle size={16} color={DesignTokens.colors.primary[500]} />;
+      case 'follow':
+        return <UserPlus size={16} color={DesignTokens.colors.success[500]} />;
+      case 'achievement':
+        return <Trophy size={16} color="#FFD700" />;
+      case 'milestone':
+        return <Target size={16} color={DesignTokens.colors.warning[500]} />;
+      case 'challenge_invite':
+        return <Users size={16} color={DesignTokens.colors.info[500]} />;
+      case 'friend_request':
+        return <UserPlus size={16} color={DesignTokens.colors.primary[500]} />;
+      case 'share':
+        return <Users size={16} color={DesignTokens.colors.success[500]} />;
+      default:
+        return <Bell size={16} color={DesignTokens.colors.text.secondary} />;
+    }
   };
 
-  const handleClearAll = () => {
-    Alert.alert(
-      'Clear All Notifications',
-      'Are you sure you want to clear all notifications? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            await clearAll();
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          },
-        },
-      ]
-    );
+  const formatTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const notificationTime = new Date(timestamp);
+    const diffInMinutes = Math.floor((now.getTime() - notificationTime.getTime()) / (1000 * 60));
+
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    return notificationTime.toLocaleDateString();
   };
 
-  const renderTabButton = (tab: typeof activeTab, title: string, icon: React.ComponentType<any>) => {
-    const IconComponent = icon;
-    return (
-      <TouchableOpacity
-        style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
-        onPress={() => setActiveTab(tab)}
-      >
-        <IconComponent 
-          size={20} 
-          color={activeTab === tab ? DesignTokens.colors.primary[500] : DesignTokens.colors.text.secondary} 
-        />
-        <Text style={[
-          styles.tabButtonText,
-          activeTab === tab && styles.tabButtonTextActive
-        ]}>
-          {title}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  const filteredNotifications = selectedTab === 'unread' 
+    ? notifications.filter(n => !n.isRead)
+    : notifications;
 
-  const renderSettingItem = (
-    title: string,
-    description: string,
-    value: boolean,
-    onToggle: (value: boolean) => void,
-    icon?: React.ComponentType<any>
-  ) => {
-    const IconComponent = icon;
-    return (
-      <View style={styles.settingItem}>
-        <View style={styles.settingContent}>
-          {IconComponent && (
-            <View style={styles.settingIcon}>
-              <IconComponent size={20} color={DesignTokens.colors.text.secondary} />
-            </View>
-          )}
-          <View style={styles.settingText}>
-            <Text style={styles.settingTitle}>{title}</Text>
-            <Text style={styles.settingDescription}>{description}</Text>
+  const renderNotification = ({ item }: { item: SocialNotification }) => (
+    <TouchableOpacity
+      style={[
+        styles.notificationItem,
+        !item.isRead && styles.notificationItemUnread
+      ]}
+      onPress={() => handleNotificationPress(item)}
+    >
+      <View style={styles.notificationContent}>
+        <View style={styles.notificationHeader}>
+          <View style={styles.notificationIcon}>
+            {getNotificationIcon(item.type)}
           </View>
-        </View>
-        <Switch
-          value={value}
-          onValueChange={onToggle}
-          trackColor={{ false: DesignTokens.colors.neutral[700], true: DesignTokens.colors.primary[500] }}
-          thumbColor="#FFFFFF"
-        />
-      </View>
-    );
-  };
-
-  const renderSettings = () => (
-    <View style={styles.settingsContainer}>
-      {/* General Settings */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>General</Text>
-        
-        {renderSettingItem(
-          'Push Notifications',
-          'Receive notifications on your device',
-          notificationSettings.pushNotifications,
-          (value) => handleSettingChange('pushNotifications', value),
-          Smartphone
-        )}
-        
-        {renderSettingItem(
-          'Email Notifications',
-          'Receive notifications via email',
-          notificationSettings.emailNotifications,
-          (value) => handleSettingChange('emailNotifications', value),
-          Mail
-        )}
-        
-        {renderSettingItem(
-          'Sound',
-          'Play sound for notifications',
-          notificationSettings.soundEnabled,
-          (value) => handleSettingChange('soundEnabled', value),
-          notificationSettings.soundEnabled ? Volume2 : VolumeX
-        )}
-        
-        {renderSettingItem(
-          'Vibration',
-          'Vibrate for notifications',
-          notificationSettings.vibrationEnabled,
-          (value) => handleSettingChange('vibrationEnabled', value),
-          Smartphone
-        )}
-      </View>
-
-      {/* Notification Types */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>Notification Types</Text>
-        
-        {renderSettingItem(
-          'Likes',
-          'When someone likes your posts',
-          notificationSettings.types.likes,
-          (value) => handleTypeSettingChange('likes', value),
-          Heart
-        )}
-        
-        {renderSettingItem(
-          'Comments',
-          'When someone comments on your posts',
-          notificationSettings.types.comments,
-          (value) => handleTypeSettingChange('comments', value),
-          MessageCircle
-        )}
-        
-        {renderSettingItem(
-          'New Followers',
-          'When someone follows you',
-          notificationSettings.types.follows,
-          (value) => handleTypeSettingChange('follows', value),
-          UserPlus
-        )}
-        
-        {renderSettingItem(
-          'Achievements',
-          'When you unlock new achievements',
-          notificationSettings.types.achievements,
-          (value) => handleTypeSettingChange('achievements', value),
-          Trophy
-        )}
-        
-        {renderSettingItem(
-          'Workout Reminders',
-          'Daily workout reminders',
-          notificationSettings.types.workouts,
-          (value) => handleTypeSettingChange('workouts', value),
-          Target
-        )}
-        
-        {renderSettingItem(
-          'Milestones',
-          'When you reach fitness milestones',
-          notificationSettings.types.milestones,
-          (value) => handleTypeSettingChange('milestones', value),
-          Trophy
-        )}
-      </View>
-
-      {/* Quiet Hours */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>Quiet Hours</Text>
-        
-        {renderSettingItem(
-          'Enable Quiet Hours',
-          'Pause notifications during specified hours',
-          notificationSettings.quietHours.enabled,
-          (value) => handleSettingChange('quietHours', { 
-            ...notificationSettings.quietHours, 
-            enabled: value 
-          })
-        )}
-        
-        {notificationSettings.quietHours.enabled && (
-          <View style={styles.quietHoursContainer}>
-            <Text style={styles.quietHoursText}>
-              Notifications paused from {notificationSettings.quietHours.start} to {notificationSettings.quietHours.end}
+          {item.fromUserAvatar && (
+            <Image 
+              source={{ uri: item.fromUserAvatar }} 
+              style={styles.notificationAvatar} 
+            />
+          )}
+          <View style={styles.notificationInfo}>
+            <Text style={styles.notificationTitle}>{item.title}</Text>
+            <Text style={styles.notificationMessage}>{item.message}</Text>
+            <Text style={styles.notificationTime}>
+              {formatTimeAgo(item.timestamp)}
             </Text>
           </View>
-        )}
+          {!item.isRead && <View style={styles.unreadDot} />}
+        </View>
       </View>
+      
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => handleDeleteNotification(item.id)}
+      >
+        <Trash2 size={16} color={DesignTokens.colors.text.tertiary} />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
 
-      {/* Actions */}
-      <View style={styles.settingsSection}>
-        <Button
-          title="Clear All Notifications"
-          variant="secondary"
-          size="large"
-          onPress={handleClearAll}
-          icon={<X size={20} color={DesignTokens.colors.error[500]} />}
-        />
-      </View>
-    </View>
+  const TabButton = ({ 
+    tab, 
+    label, 
+    count 
+  }: { 
+    tab: 'all' | 'unread'; 
+    label: string; 
+    count?: number;
+  }) => (
+    <TouchableOpacity
+      style={[
+        styles.tabButton,
+        selectedTab === tab && styles.tabButtonActive
+      ]}
+      onPress={() => setSelectedTab(tab)}
+    >
+      <Text style={[
+        styles.tabButtonText,
+        selectedTab === tab && styles.tabButtonTextActive
+      ]}>
+        {label}
+      </Text>
+      {count !== undefined && count > 0 && (
+        <View style={styles.tabBadge}>
+          <Text style={styles.tabBadgeText}>{count > 99 ? '99+' : count}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 
   return (
@@ -328,46 +230,51 @@ export function NotificationCenter({
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <X size={24} color={DesignTokens.colors.text.primary} />
           </TouchableOpacity>
-          
-          <View style={styles.headerCenter}>
-            <Bell size={24} color={DesignTokens.colors.primary[500]} />
-            <Text style={styles.headerTitle}>Notifications</Text>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          <View style={styles.headerActions}>
             {unreadCount > 0 && (
-              <View style={styles.headerBadge}>
-                <Text style={styles.headerBadgeText}>{unreadCount}</Text>
-              </View>
+              <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllButton}>
+                <Check size={20} color={DesignTokens.colors.primary[500]} />
+              </TouchableOpacity>
             )}
-          </View>
-          
-          {activeTab === 'activity' && unreadCount > 0 && (
-            <TouchableOpacity
-              style={styles.markAllButton}
-              onPress={markAllAsRead}
-            >
-              <CheckCircle size={20} color={DesignTokens.colors.primary[500]} />
+            <TouchableOpacity style={styles.settingsButton}>
+              <Settings size={20} color={DesignTokens.colors.text.secondary} />
             </TouchableOpacity>
-          )}
+          </View>
         </View>
 
-        {/* Tab Navigation */}
-        <View style={styles.tabNavigation}>
-          {renderTabButton('activity', 'Activity', Bell)}
-          {renderTabButton('settings', 'Settings', Settings)}
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TabButton tab="all" label="All" count={notifications.length} />
+          <TabButton tab="unread" label="Unread" count={unreadCount} />
         </View>
 
-        {/* Content */}
+        {/* Notifications List */}
         <View style={styles.content}>
-          {activeTab === 'activity' ? (
-            <SocialActivityFeed
-              onActivityPress={(activity) => {
-                markAsRead(activity.id);
-                onActivityPress?.(activity.id);
-              }}
-              onUserPress={onUserPress}
-              variant="full"
-            />
+          {filteredNotifications.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Bell size={48} color={DesignTokens.colors.text.tertiary} />
+              <Text style={styles.emptyStateTitle}>
+                {selectedTab === 'unread' ? 'No unread notifications' : 'No notifications'}
+              </Text>
+              <Text style={styles.emptyStateText}>
+                {selectedTab === 'unread' 
+                  ? 'All caught up! Check back later for new updates.'
+                  : 'When you get notifications, they\'ll appear here.'
+                }
+              </Text>
+            </View>
           ) : (
-            renderSettings()
+            <FlatList
+              data={filteredNotifications}
+              renderItem={renderNotification}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }
+              contentContainerStyle={styles.notificationsList}
+            />
           )}
         </View>
       </LinearGradient>
@@ -391,123 +298,149 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: DesignTokens.spacing[2],
   },
-  headerCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[2],
-  },
   headerTitle: {
     fontSize: DesignTokens.typography.fontSize.lg,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
   },
-  headerBadge: {
-    backgroundColor: DesignTokens.colors.error[500],
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: DesignTokens.spacing[2],
-  },
-  headerBadgeText: {
-    fontSize: 12,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
+  headerActions: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[2],
   },
   markAllButton: {
     padding: DesignTokens.spacing[2],
   },
-  tabNavigation: {
+  settingsButton: {
+    padding: DesignTokens.spacing[2],
+  },
+  tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: DesignTokens.spacing[5],
     paddingVertical: DesignTokens.spacing[3],
     borderBottomWidth: 1,
     borderBottomColor: DesignTokens.colors.neutral[800],
-    gap: DesignTokens.spacing[4],
+    gap: DesignTokens.spacing[1],
   },
   tabButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: DesignTokens.spacing[2],
-    paddingHorizontal: DesignTokens.spacing[3],
-    borderRadius: DesignTokens.borderRadius.md,
     gap: DesignTokens.spacing[2],
+    paddingHorizontal: DesignTokens.spacing[4],
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    position: 'relative',
   },
   tabButtonActive: {
-    backgroundColor: DesignTokens.colors.primary[500] + '20',
+    backgroundColor: DesignTokens.colors.primary[500],
   },
   tabButtonText: {
-    fontSize: DesignTokens.typography.fontSize.base,
+    fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
     fontWeight: DesignTokens.typography.fontWeight.medium,
   },
   tabButtonTextActive: {
-    color: DesignTokens.colors.primary[500],
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+  },
+  tabBadge: {
+    backgroundColor: DesignTokens.colors.error[500],
+    borderRadius: 10,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[1],
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
   content: {
     flex: 1,
   },
-  settingsContainer: {
+  emptyState: {
     flex: 1,
-    padding: DesignTokens.spacing[5],
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[8],
+    gap: DesignTokens.spacing[4],
   },
-  settingsSection: {
-    marginBottom: DesignTokens.spacing[6],
-  },
-  sectionTitle: {
-    fontSize: DesignTokens.typography.fontSize.lg,
+  emptyStateTitle: {
+    fontSize: DesignTokens.typography.fontSize.xl,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
-    marginBottom: DesignTokens.spacing[4],
+    textAlign: 'center',
   },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: DesignTokens.spacing[4],
-    borderBottomWidth: 1,
-    borderBottomColor: DesignTokens.colors.neutral[800],
+  emptyStateText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
-  settingContent: {
+  notificationsList: {
+    padding: DesignTokens.spacing[5],
+  },
+  notificationItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[3],
+    gap: DesignTokens.spacing[3],
+  },
+  notificationItemUnread: {
+    backgroundColor: DesignTokens.colors.primary[500] + '10',
+    borderLeftWidth: 3,
+    borderLeftColor: DesignTokens.colors.primary[500],
+  },
+  notificationContent: {
     flex: 1,
-    marginRight: DesignTokens.spacing[4],
   },
-  settingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  notificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: DesignTokens.spacing[3],
+  },
+  notificationIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: DesignTokens.colors.surface.secondary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: DesignTokens.spacing[3],
   },
-  settingText: {
+  notificationAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  notificationInfo: {
     flex: 1,
   },
-  settingTitle: {
+  notificationTitle: {
     fontSize: DesignTokens.typography.fontSize.base,
     fontWeight: DesignTokens.typography.fontWeight.semibold,
     color: DesignTokens.colors.text.primary,
     marginBottom: DesignTokens.spacing[1],
   },
-  settingDescription: {
+  notificationMessage: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
     lineHeight: 18,
+    marginBottom: DesignTokens.spacing[1],
   },
-  quietHoursContainer: {
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    borderRadius: DesignTokens.borderRadius.md,
-    padding: DesignTokens.spacing[3],
-    marginTop: DesignTokens.spacing[2],
+  notificationTime: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.tertiary,
   },
-  quietHoursText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: DesignTokens.colors.primary[500],
+  },
+  deleteButton: {
+    padding: DesignTokens.spacing[2],
   },
 });

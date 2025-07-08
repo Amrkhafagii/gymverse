@@ -1,185 +1,278 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { WorkoutRecommendation, AIInsight, UserProfile } from '@/types/aiRecommendation';
-import { WorkoutRecommendationEngine } from '@/lib/ai/workoutRecommendations';
-import { PatternAnalysis } from '@/lib/ai/patternAnalysis';
-import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext';
-import { usePersonalRecords } from '@/hooks/usePersonalRecords';
+import { useState, useEffect } from 'react';
+import { useWorkout } from '@/contexts/WorkoutContext';
+import { useProgress } from '@/contexts/ProgressContext';
+import { useAchievements } from '@/contexts/AchievementContext';
+
+interface WorkoutSuggestion {
+  id: string;
+  name: string;
+  type: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedDuration: number; // minutes
+  estimatedCalories: number;
+  targetMuscles: string[];
+  exercises: {
+    name: string;
+    sets: number;
+    reps: string;
+    weight?: number;
+    duration?: number;
+  }[];
+  reasoning: string[];
+  confidence: number;
+}
 
 export function useAIWorkoutSuggestions() {
-  const { workouts, isLoading: workoutsLoading } = useWorkoutHistory();
-  const { personalRecords, isLoading: prsLoading } = usePersonalRecords();
-  
-  const [recommendations, setRecommendations] = useState<WorkoutRecommendation[]>([]);
-  const [insights, setInsights] = useState<AIInsight[]>([]);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { workoutHistory, currentWorkout } = useWorkout();
+  const { progressData } = useProgress();
+  const { achievements } = useAchievements();
+
+  const [suggestions, setSuggestions] = useState<WorkoutSuggestion[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [lastGenerated, setLastGenerated] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [confidence, setConfidence] = useState(0.8);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-  // Generate recommendations and insights
-  const generateRecommendations = useCallback(async () => {
-    if (workoutsLoading || prsLoading) return;
+  const analyzeWorkoutPatterns = () => {
+    const recentWorkouts = workoutHistory.slice(-10);
+    const muscleGroupFrequency = new Map<string, number>();
+    const workoutTypeFrequency = new Map<string, number>();
+    const difficultyProgression = [];
 
+    recentWorkouts.forEach(workout => {
+      // Analyze muscle groups
+      workout.exercises?.forEach(exercise => {
+        const muscle = exercise.primaryMuscle || 'unknown';
+        muscleGroupFrequency.set(muscle, (muscleGroupFrequency.get(muscle) || 0) + 1);
+      });
+
+      // Analyze workout types
+      const type = workout.type || 'strength';
+      workoutTypeFrequency.set(type, (workoutTypeFrequency.get(type) || 0) + 1);
+
+      // Track difficulty progression
+      difficultyProgression.push(workout.difficulty || 'intermediate');
+    });
+
+    return {
+      muscleGroupFrequency,
+      workoutTypeFrequency,
+      difficultyProgression,
+      recentWorkouts,
+    };
+  };
+
+  const calculateUserFitnessLevel = () => {
+    const totalWorkouts = workoutHistory.length;
+    const recentConsistency = workoutHistory.slice(-7).length; // Last 7 days
+    const achievementCount = achievements.filter(a => a.isUnlocked).length;
+
+    let level: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
+    
+    if (totalWorkouts > 50 && recentConsistency >= 4 && achievementCount > 10) {
+      level = 'advanced';
+    } else if (totalWorkouts > 20 && recentConsistency >= 3 && achievementCount > 5) {
+      level = 'intermediate';
+    }
+
+    return {
+      level,
+      totalWorkouts,
+      recentConsistency,
+      achievementCount,
+    };
+  };
+
+  const generateWorkoutSuggestions = async () => {
+    setIsGenerating(true);
+    
     try {
-      setIsGenerating(true);
-      setError(null);
+      const patterns = analyzeWorkoutPatterns();
+      const fitnessLevel = calculateUserFitnessLevel();
+      
+      // Simulate AI processing delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Create user profile from workout history
-      const profile = PatternAnalysis.createUserProfile(workouts);
-      setUserProfile(profile);
+      const suggestions: WorkoutSuggestion[] = [];
 
-      // Generate AI insights
-      const aiInsights = PatternAnalysis.generateInsights(workouts, personalRecords);
-      setInsights(aiInsights);
+      // Suggestion 1: Address muscle imbalances
+      const underworkedMuscles = ['chest', 'back', 'legs', 'shoulders', 'arms']
+        .filter(muscle => (patterns.muscleGroupFrequency.get(muscle) || 0) < 2)
+        .slice(0, 2);
 
-      // Generate workout recommendations
-      const workoutRecommendations = WorkoutRecommendationEngine.generateRecommendations(
-        workouts,
-        personalRecords,
-        profile
-      );
-      setRecommendations(workoutRecommendations);
+      if (underworkedMuscles.length > 0) {
+        suggestions.push({
+          id: 'balance-workout',
+          name: `${underworkedMuscles.join(' & ')} Focus`,
+          type: 'strength',
+          difficulty: fitnessLevel.level,
+          estimatedDuration: 45,
+          estimatedCalories: 280,
+          targetMuscles: underworkedMuscles,
+          exercises: generateExercisesForMuscles(underworkedMuscles, fitnessLevel.level),
+          reasoning: [
+            `You haven't trained ${underworkedMuscles.join(' and ')} much recently`,
+            'Balanced muscle development prevents injuries',
+            'This workout addresses your current imbalances',
+          ],
+          confidence: 0.85,
+        });
+      }
 
-      setLastGenerated(new Date().toISOString());
-    } catch (err) {
-      console.error('Failed to generate AI recommendations:', err);
-      setError('Failed to generate recommendations. Please try again.');
+      // Suggestion 2: Progressive overload
+      const lastSimilarWorkout = patterns.recentWorkouts.find(w => w.type === 'strength');
+      if (lastSimilarWorkout) {
+        suggestions.push({
+          id: 'progressive-workout',
+          name: 'Progressive Strength Training',
+          type: 'strength',
+          difficulty: fitnessLevel.level,
+          estimatedDuration: 50,
+          estimatedCalories: 320,
+          targetMuscles: ['chest', 'back', 'legs'],
+          exercises: generateProgressiveExercises(lastSimilarWorkout, fitnessLevel.level),
+          reasoning: [
+            'Based on your recent strength gains',
+            'Gradually increasing intensity for continued progress',
+            'Targets your strongest muscle groups for maximum gains',
+          ],
+          confidence: 0.9,
+        });
+      }
+
+      // Suggestion 3: Recovery/Active rest
+      const workoutFrequency = patterns.recentWorkouts.length;
+      if (workoutFrequency >= 4) {
+        suggestions.push({
+          id: 'recovery-workout',
+          name: 'Active Recovery Session',
+          type: 'recovery',
+          difficulty: 'beginner',
+          estimatedDuration: 30,
+          estimatedCalories: 150,
+          targetMuscles: ['full-body'],
+          exercises: generateRecoveryExercises(),
+          reasoning: [
+            'You\'ve been training consistently',
+            'Active recovery promotes muscle repair',
+            'Prevents overtraining and burnout',
+          ],
+          confidence: 0.75,
+        });
+      }
+
+      // Suggestion 4: Cardio variation
+      const cardioFrequency = patterns.workoutTypeFrequency.get('cardio') || 0;
+      if (cardioFrequency < 2) {
+        suggestions.push({
+          id: 'cardio-workout',
+          name: 'HIIT Cardio Blast',
+          type: 'cardio',
+          difficulty: fitnessLevel.level,
+          estimatedDuration: 25,
+          estimatedCalories: 300,
+          targetMuscles: ['cardiovascular'],
+          exercises: generateCardioExercises(fitnessLevel.level),
+          reasoning: [
+            'Cardiovascular health is important for overall fitness',
+            'HIIT burns calories efficiently',
+            'Complements your strength training routine',
+          ],
+          confidence: 0.8,
+        });
+      }
+
+      setSuggestions(suggestions.slice(0, 3)); // Limit to top 3 suggestions
+      setConfidence(suggestions.reduce((sum, s) => sum + s.confidence, 0) / suggestions.length);
+      setLastUpdated(new Date().toISOString());
+      
+    } catch (error) {
+      console.error('Error generating workout suggestions:', error);
     } finally {
       setIsGenerating(false);
     }
-  }, [workouts, personalRecords, workoutsLoading, prsLoading]);
+  };
 
-  // Auto-generate recommendations when data changes
-  useEffect(() => {
-    if (!workoutsLoading && !prsLoading && workouts.length > 0) {
-      generateRecommendations();
-    }
-  }, [workouts.length, personalRecords.length, workoutsLoading, prsLoading]);
-
-  // Get recommendations by priority
-  const getRecommendationsByPriority = useCallback((priority: 'high' | 'medium' | 'low') => {
-    return recommendations.filter(rec => rec.priority === priority);
-  }, [recommendations]);
-
-  // Get recommendations by type
-  const getRecommendationsByType = useCallback((workoutType: string) => {
-    return recommendations.filter(rec => rec.workoutType === workoutType);
-  }, [recommendations]);
-
-  // Get insights by type
-  const getInsightsByType = useCallback((type: 'pattern' | 'improvement' | 'warning' | 'suggestion') => {
-    return insights.filter(insight => insight.type === type);
-  }, [insights]);
-
-  // Check if recommendations need refresh (older than 24 hours)
-  const needsRefresh = useMemo(() => {
-    if (!lastGenerated) return true;
-    const lastGen = new Date(lastGenerated);
-    const now = new Date();
-    const hoursDiff = (now.getTime() - lastGen.getTime()) / (1000 * 60 * 60);
-    return hoursDiff > 24;
-  }, [lastGenerated]);
-
-  // Get recommendation confidence level
-  const getAverageConfidence = useMemo(() => {
-    if (recommendations.length === 0) return 0;
-    const totalConfidence = recommendations.reduce((sum, rec) => sum + rec.confidence, 0);
-    return Math.round(totalConfidence / recommendations.length);
-  }, [recommendations]);
-
-  // Get workout frequency analysis
-  const frequencyAnalysis = useMemo(() => {
-    if (workouts.length === 0) return null;
-    return PatternAnalysis.analyzeWorkoutFrequency(workouts);
-  }, [workouts]);
-
-  // Get muscle group analysis
-  const muscleGroupAnalysis = useMemo(() => {
-    if (workouts.length === 0) return null;
-    return PatternAnalysis.analyzeMuscleGroupPatterns(workouts);
-  }, [workouts]);
-
-  // Get intensity analysis
-  const intensityAnalysis = useMemo(() => {
-    if (workouts.length === 0) return null;
-    return PatternAnalysis.analyzeIntensityPatterns(workouts);
-  }, [workouts]);
-
-  // Get progress analysis
-  const progressAnalysis = useMemo(() => {
-    return PatternAnalysis.analyzeProgressTrends(personalRecords);
-  }, [personalRecords]);
-
-  // Dismiss a recommendation
-  const dismissRecommendation = useCallback((recommendationId: string) => {
-    setRecommendations(prev => prev.filter(rec => rec.id !== recommendationId));
-  }, []);
-
-  // Mark insight as read
-  const markInsightAsRead = useCallback((insightIndex: number) => {
-    setInsights(prev => prev.filter((_, index) => index !== insightIndex));
-  }, []);
-
-  // Force refresh recommendations
-  const refreshRecommendations = useCallback(() => {
-    generateRecommendations();
-  }, [generateRecommendations]);
-
-  // Get recommendation summary stats
-  const summaryStats = useMemo(() => {
-    const highPriority = recommendations.filter(r => r.priority === 'high').length;
-    const mediumPriority = recommendations.filter(r => r.priority === 'medium').length;
-    const lowPriority = recommendations.filter(r => r.priority === 'low').length;
-    
-    const warningInsights = insights.filter(i => i.type === 'warning').length;
-    const suggestionInsights = insights.filter(i => i.type === 'suggestion').length;
-    const improvementInsights = insights.filter(i => i.type === 'improvement').length;
-
-    return {
-      totalRecommendations: recommendations.length,
-      highPriority,
-      mediumPriority,
-      lowPriority,
-      totalInsights: insights.length,
-      warningInsights,
-      suggestionInsights,
-      improvementInsights,
-      averageConfidence: getAverageConfidence
+  const generateExercisesForMuscles = (muscles: string[], difficulty: string) => {
+    const exerciseDatabase = {
+      chest: [
+        { name: 'Push-ups', sets: 3, reps: '8-12' },
+        { name: 'Bench Press', sets: 3, reps: '8-10', weight: 135 },
+        { name: 'Chest Flyes', sets: 3, reps: '10-12', weight: 25 },
+      ],
+      back: [
+        { name: 'Pull-ups', sets: 3, reps: '5-8' },
+        { name: 'Bent-over Rows', sets: 3, reps: '8-10', weight: 95 },
+        { name: 'Lat Pulldowns', sets: 3, reps: '10-12', weight: 80 },
+      ],
+      legs: [
+        { name: 'Squats', sets: 3, reps: '10-12', weight: 155 },
+        { name: 'Lunges', sets: 3, reps: '8-10 each leg' },
+        { name: 'Leg Press', sets: 3, reps: '12-15', weight: 200 },
+      ],
+      shoulders: [
+        { name: 'Shoulder Press', sets: 3, reps: '8-10', weight: 65 },
+        { name: 'Lateral Raises', sets: 3, reps: '10-12', weight: 15 },
+        { name: 'Front Raises', sets: 3, reps: '10-12', weight: 15 },
+      ],
+      arms: [
+        { name: 'Bicep Curls', sets: 3, reps: '10-12', weight: 25 },
+        { name: 'Tricep Dips', sets: 3, reps: '8-10' },
+        { name: 'Hammer Curls', sets: 3, reps: '10-12', weight: 20 },
+      ],
     };
-  }, [recommendations, insights, getAverageConfidence]);
+
+    const exercises = [];
+    muscles.forEach(muscle => {
+      const muscleExercises = exerciseDatabase[muscle] || [];
+      exercises.push(...muscleExercises.slice(0, 2));
+    });
+
+    return exercises;
+  };
+
+  const generateProgressiveExercises = (lastWorkout: any, difficulty: string) => {
+    // Mock progressive exercises based on last workout
+    return [
+      { name: 'Bench Press', sets: 4, reps: '6-8', weight: 145 },
+      { name: 'Squats', sets: 4, reps: '8-10', weight: 165 },
+      { name: 'Deadlifts', sets: 3, reps: '5-6', weight: 185 },
+      { name: 'Pull-ups', sets: 3, reps: '6-8' },
+    ];
+  };
+
+  const generateRecoveryExercises = () => {
+    return [
+      { name: 'Light Walking', sets: 1, reps: '15 minutes', duration: 15 },
+      { name: 'Dynamic Stretching', sets: 1, reps: '10 minutes', duration: 10 },
+      { name: 'Foam Rolling', sets: 1, reps: '5 minutes', duration: 5 },
+    ];
+  };
+
+  const generateCardioExercises = (difficulty: string) => {
+    return [
+      { name: 'Burpees', sets: 4, reps: '30 seconds on, 30 seconds rest' },
+      { name: 'Mountain Climbers', sets: 4, reps: '30 seconds on, 30 seconds rest' },
+      { name: 'Jump Squats', sets: 4, reps: '30 seconds on, 30 seconds rest' },
+      { name: 'High Knees', sets: 4, reps: '30 seconds on, 30 seconds rest' },
+    ];
+  };
+
+  const refreshSuggestions = async () => {
+    await generateWorkoutSuggestions();
+  };
+
+  const getReasoningExplanation = (suggestionId: string) => {
+    const suggestion = suggestions.find(s => s.id === suggestionId);
+    return suggestion?.reasoning.join('. ') || 'AI analysis based on your workout history and progress.';
+  };
 
   return {
-    // Data
-    recommendations,
-    insights,
-    userProfile,
-    summaryStats,
-    
-    // Analysis
-    frequencyAnalysis,
-    muscleGroupAnalysis,
-    intensityAnalysis,
-    progressAnalysis,
-    
-    // State
+    suggestions,
     isGenerating,
-    isLoading: workoutsLoading || prsLoading,
-    lastGenerated,
-    needsRefresh,
-    error,
-    
-    // Actions
-    generateRecommendations,
-    refreshRecommendations,
-    dismissRecommendation,
-    markInsightAsRead,
-    
-    // Utilities
-    getRecommendationsByPriority,
-    getRecommendationsByType,
-    getInsightsByType,
-    
-    // Clear error
-    clearError: () => setError(null),
+    confidence,
+    lastUpdated,
+    generateSuggestions: generateWorkoutSuggestions,
+    refreshSuggestions,
+    getReasoningExplanation,
   };
 }

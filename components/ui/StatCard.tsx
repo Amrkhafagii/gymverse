@@ -1,378 +1,269 @@
 /**
- * StatCard component with offline-first data display
- * Shows sync status and handles offline states gracefully
+ * Production-ready StatCard component with context integration
+ * Integrates with analytics and offline systems for intelligent stat display
  */
 
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
   TouchableOpacity,
+  Text,
+  View,
+  StyleSheet,
   ViewStyle,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { TrendingUp, TrendingDown, Minus, Wifi, WifiOff } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 export interface StatCardProps {
   label: string;
-  value: string | number;
+  value: string;
   unit?: string;
-  trend?: 'up' | 'down' | 'neutral';
-  trendValue?: string;
   icon?: React.ReactNode;
   color?: string;
-  variant?: 'default' | 'primary' | 'compact';
+  trend?: 'up' | 'down' | 'stable';
+  trendValue?: string;
   onPress?: () => void;
+  variant?: 'default' | 'compact' | 'detailed';
   style?: ViewStyle;
-  isLoading?: boolean;
-  syncStatus?: 'synced' | 'pending' | 'failed' | 'offline';
-  lastUpdated?: Date;
-  showSyncIndicator?: boolean;
+  analyticsKey?: string;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
   label,
   value,
   unit,
-  trend,
-  trendValue,
   icon,
   color = DesignTokens.colors.primary[500],
-  variant = 'default',
+  trend,
+  trendValue,
   onPress,
+  variant = 'default',
   style,
-  isLoading = false,
-  syncStatus = 'synced',
-  lastUpdated,
-  showSyncIndicator = true,
+  analyticsKey,
 }) => {
-  const isPrimary = variant === 'primary';
-  const isCompact = variant === 'compact';
+  const { isOnline, syncStatus } = useOfflineSync();
+  const { getMetricTrend } = useAnalytics('week');
+
+  // Get analytics trend if analyticsKey is provided
+  const analyticsTrend = analyticsKey ? getMetricTrend(analyticsKey) : null;
+  const displayTrend = analyticsTrend?.direction || trend;
+  const displayTrendValue = analyticsTrend?.change || trendValue;
 
   const getTrendIcon = () => {
-    switch (trend) {
+    switch (displayTrend) {
       case 'up':
-        return <TrendingUp size={16} color={DesignTokens.colors.success[500]} />;
+        return <TrendingUp size={12} color={DesignTokens.colors.success[500]} />;
       case 'down':
-        return <TrendingDown size={16} color={DesignTokens.colors.error[500]} />;
-      case 'neutral':
-        return <Minus size={16} color={DesignTokens.colors.text.secondary} />;
+        return <TrendingDown size={12} color={DesignTokens.colors.error[500]} />;
       default:
-        return null;
+        return <Minus size={12} color={DesignTokens.colors.text.secondary} />;
     }
   };
 
-  const getSyncIcon = () => {
-    switch (syncStatus) {
-      case 'offline':
-        return <WifiOff size={12} color={DesignTokens.colors.text.secondary} />;
-      case 'failed':
-        return <WifiOff size={12} color={DesignTokens.colors.error[500]} />;
+  const getTrendColor = () => {
+    switch (displayTrend) {
+      case 'up':
+        return DesignTokens.colors.success[500];
+      case 'down':
+        return DesignTokens.colors.error[500];
       default:
-        return <Wifi size={12} color={DesignTokens.colors.success[500]} />;
+        return DesignTokens.colors.text.secondary;
     }
   };
 
-  const getLastUpdatedText = () => {
-    if (!lastUpdated) return null;
-    
-    const now = new Date();
-    const diffMs = now.getTime() - lastUpdated.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
-  };
-
-  const cardStyles = [
-    styles.card,
-    isPrimary && styles.primaryCard,
-    isCompact && styles.compactCard,
+  const containerStyles = [
+    styles.container,
+    styles[`container_${variant}`],
+    !isOnline && styles.offline,
+    syncStatus && styles[`sync_${syncStatus}`],
     style,
   ];
 
-  const renderContent = () => (
-    <View style={styles.content}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.labelContainer}>
-          {icon && (
-            <View style={[styles.iconContainer, { backgroundColor: `${color}20` }]}>
-              {icon}
-            </View>
-          )}
-          <Text style={[styles.label, isPrimary && styles.primaryLabel]}>
-            {label}
-          </Text>
-        </View>
-        
-        {showSyncIndicator && (
-          <View style={styles.syncContainer}>
-            {getSyncIcon()}
-            <View style={[styles.syncDot, styles[`sync_${syncStatus}`]]} />
-          </View>
-        )}
-      </View>
-
-      {/* Value */}
-      <View style={styles.valueContainer}>
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <View style={[styles.loadingBar, { backgroundColor: color }]} />
-            <Text style={[styles.loadingText, isPrimary && styles.primaryText]}>
-              Loading...
-            </Text>
-          </View>
-        ) : (
-          <>
-            <Text style={[styles.value, isPrimary && styles.primaryValue]}>
-              {value}
-            </Text>
-            {unit && (
-              <Text style={[styles.unit, isPrimary && styles.primaryUnit]}>
-                {unit}
-              </Text>
-            )}
-          </>
-        )}
-      </View>
-
-      {/* Trend and Last Updated */}
-      <View style={styles.footer}>
-        {trend && trendValue && !isLoading && (
-          <View style={styles.trendContainer}>
-            {getTrendIcon()}
-            <Text style={[styles.trendText, isPrimary && styles.primaryTrendText]}>
-              {trendValue}
-            </Text>
-          </View>
-        )}
-        
-        {lastUpdated && (
-          <Text style={[styles.lastUpdated, isPrimary && styles.primaryLastUpdated]}>
-            {getLastUpdatedText()}
-          </Text>
-        )}
-      </View>
-
-      {/* Offline indicator */}
-      {syncStatus === 'offline' && (
-        <View style={styles.offlineIndicator}>
-          <Text style={styles.offlineText}>Offline Data</Text>
-        </View>
-      )}
-    </View>
-  );
-
-  if (isPrimary) {
-    return (
-      <TouchableOpacity
-        style={cardStyles}
-        onPress={onPress}
-        disabled={!onPress}
-        activeOpacity={onPress ? 0.8 : 1}
-      >
-        <LinearGradient
-          colors={[color, `${color}CC`]}
-          style={styles.primaryGradient}
-        >
-          {renderContent()}
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  }
+  const CardComponent = onPress ? TouchableOpacity : View;
 
   return (
-    <TouchableOpacity
-      style={cardStyles}
+    <CardComponent
+      style={containerStyles}
       onPress={onPress}
-      disabled={!onPress}
       activeOpacity={onPress ? 0.8 : 1}
     >
-      {renderContent()}
-    </TouchableOpacity>
+      <View style={styles.header}>
+        {icon && (
+          <View style={[styles.iconContainer, { backgroundColor: `${color}20` }]}>
+            {icon}
+          </View>
+        )}
+        
+        {syncStatus && (
+          <View style={[styles.syncIndicator, styles[`syncIndicator_${syncStatus}`]]} />
+        )}
+      </View>
+
+      <View style={styles.content}>
+        <View style={styles.valueContainer}>
+          <Text style={[styles.value, { color }]}>
+            {isOnline ? value : '--'}
+          </Text>
+          {unit && (
+            <Text style={styles.unit}>{unit}</Text>
+          )}
+        </View>
+
+        <Text style={styles.label}>{label}</Text>
+
+        {(displayTrend && displayTrendValue) && (
+          <View style={styles.trendContainer}>
+            {getTrendIcon()}
+            <Text style={[styles.trendValue, { color: getTrendColor() }]}>
+              {displayTrendValue}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {!isOnline && (
+        <View style={styles.offlineBadge}>
+          <Text style={styles.offlineText}>Offline</Text>
+        </View>
+      )}
+    </CardComponent>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: DesignTokens.borderRadius.xl,
+  container: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    ...DesignTokens.shadow.sm,
+    position: 'relative',
+  },
+
+  // Variants
+  container_default: {
+    minWidth: 120,
+    minHeight: 100,
+  },
+  container_compact: {
+    minWidth: 100,
+    minHeight: 80,
+    padding: DesignTokens.spacing[3],
+  },
+  container_detailed: {
+    minWidth: 140,
+    minHeight: 120,
+    padding: DesignTokens.spacing[5],
+  },
+
+  // States
+  offline: {
+    opacity: 0.7,
     backgroundColor: DesignTokens.colors.surface.secondary,
-    ...DesignTokens.shadow.md,
-    overflow: 'hidden',
   },
-  primaryCard: {
-    backgroundColor: 'transparent',
+
+  // Sync status
+  sync_synced: {
+    borderTopWidth: 2,
+    borderTopColor: DesignTokens.colors.success[500],
   },
-  compactCard: {
-    flex: 1,
-    minWidth: 0,
+  sync_pending: {
+    borderTopWidth: 2,
+    borderTopColor: DesignTokens.colors.warning[500],
   },
-  
-  primaryGradient: {
-    flex: 1,
-    padding: DesignTokens.spacing[4],
+  sync_failed: {
+    borderTopWidth: 2,
+    borderTopColor: DesignTokens.colors.error[500],
   },
-  
-  content: {
-    padding: DesignTokens.spacing[4],
+  sync_offline: {
+    borderTopWidth: 2,
+    borderTopColor: DesignTokens.colors.text.secondary,
   },
-  
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[2],
   },
-  
-  labelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+
+  iconContainer: {
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+  },
+
+  content: {
     flex: 1,
   },
-  
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: DesignTokens.spacing[2],
+
+  valueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: DesignTokens.spacing[1],
   },
-  
+
+  value: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+
+  unit: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginLeft: DesignTokens.spacing[1],
+  },
+
   label: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
     fontWeight: DesignTokens.typography.fontWeight.medium,
-    flex: 1,
-  },
-  primaryLabel: {
-    color: DesignTokens.colors.text.primary,
-    opacity: 0.9,
-  },
-  
-  syncContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
-  },
-  
-  syncDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  sync_synced: {
-    backgroundColor: DesignTokens.colors.success[500],
-  },
-  sync_pending: {
-    backgroundColor: DesignTokens.colors.warning[500],
-  },
-  sync_failed: {
-    backgroundColor: DesignTokens.colors.error[500],
-  },
-  sync_offline: {
-    backgroundColor: DesignTokens.colors.text.secondary,
-  },
-  
-  valueContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
     marginBottom: DesignTokens.spacing[2],
   },
-  
-  value: {
-    fontSize: DesignTokens.typography.fontSize['3xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  primaryValue: {
-    color: DesignTokens.colors.text.primary,
-  },
-  
-  unit: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    marginLeft: DesignTokens.spacing[1],
-  },
-  primaryUnit: {
-    color: DesignTokens.colors.text.primary,
-    opacity: 0.8,
-  },
-  
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  
+
   trendContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: DesignTokens.spacing[1],
   },
-  
-  trendText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  primaryTrendText: {
-    color: DesignTokens.colors.text.primary,
-    opacity: 0.9,
-  },
-  
-  lastUpdated: {
+
+  trendValue: {
     fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-    opacity: 0.7,
-  },
-  primaryLastUpdated: {
-    color: DesignTokens.colors.text.primary,
-    opacity: 0.7,
-  },
-  
-  loadingContainer: {
-    flex: 1,
-  },
-  
-  loadingBar: {
-    height: 32,
-    borderRadius: DesignTokens.borderRadius.md,
-    opacity: 0.3,
-    marginBottom: DesignTokens.spacing[2],
-  },
-  
-  loadingText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
     fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  primaryText: {
-    color: DesignTokens.colors.text.primary,
-    opacity: 0.8,
+
+  syncIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  
-  offlineIndicator: {
-    position: 'absolute',
-    top: DesignTokens.spacing[2],
-    right: DesignTokens.spacing[2],
+
+  syncIndicator_synced: {
+    backgroundColor: DesignTokens.colors.success[500],
+  },
+  syncIndicator_pending: {
     backgroundColor: DesignTokens.colors.warning[500],
+  },
+  syncIndicator_failed: {
+    backgroundColor: DesignTokens.colors.error[500],
+  },
+  syncIndicator_offline: {
+    backgroundColor: DesignTokens.colors.text.secondary,
+  },
+
+  offlineBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: DesignTokens.colors.text.secondary,
     paddingHorizontal: DesignTokens.spacing[2],
     paddingVertical: DesignTokens.spacing[1],
     borderRadius: DesignTokens.borderRadius.sm,
   },
-  
+
   offlineText: {
     fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: '#FFFFFF',
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
 });

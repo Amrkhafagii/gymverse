@@ -1,365 +1,561 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
-  Alert,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  Play, 
-  Pause, 
-  Square, 
-  Plus,
-  Timer,
+import {
+  Play,
+  Clock,
   Target,
-  Dumbbell,
-  Trophy,
+  TrendingUp,
+  Calendar,
+  Brain,
+  Moon,
+  Plus,
+  Filter,
+  Search,
 } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-import { useWorkoutSession } from '@/contexts/WorkoutSessionContext';
-import { useAchievements } from '@/contexts/AchievementContext';
-import { WorkoutTimer } from '@/components/workout/WorkoutTimer';
-import { ExerciseCard } from '@/components/workout/ExerciseCard';
-import { RestTimer } from '@/components/workout/RestTimer';
-import { WorkoutSummary } from '@/components/workout/WorkoutSummary';
+import { useWorkout } from '@/contexts/WorkoutContext';
+import { Button } from '@/components/ui/Button';
+import { AIWorkoutSuggestions } from '@/components/ai/AIWorkoutSuggestions';
+import { RestDayRecommendations } from '@/components/ai/RestDayRecommendations';
+import { RestTimerModal } from '@/components/workout/RestTimerModal';
+import { SetTimerCard } from '@/components/workout/SetTimerCard';
+import { ExerciseProgressChart } from '@/components/workout/ExerciseProgressChart';
+import { WorkoutStatsOverview } from '@/components/workout/WorkoutStatsOverview';
+import { PersonalRecordModal } from '@/components/PersonalRecordModal';
+import * as Haptics from 'expo-haptics';
 
 export default function WorkoutScreen() {
-  const {
-    currentWorkout,
-    isActive,
-    isPaused,
-    startWorkout,
-    pauseWorkout,
-    resumeWorkout,
+  const { 
+    workoutHistory, 
+    currentWorkout, 
+    startWorkout, 
     endWorkout,
-    addExercise,
-    updateExercise,
-    deleteExercise,
-  } = useWorkoutSession();
+    isWorkoutActive,
+    refreshWorkouts,
+  } = useWorkout();
 
-  const { triggerAchievementCheck } = useAchievements();
-  const [showSummary, setShowSummary] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showAISuggestions, setShowAISuggestions] = useState(true);
+  const [showRestRecommendations, setShowRestRecommendations] = useState(false);
+  const [showRestTimer, setShowRestTimer] = useState(false);
+  const [showPRModal, setShowPRModal] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
 
-  // Check achievements when workout ends
-  useEffect(() => {
-    if (currentWorkout?.completed_at) {
-      // Trigger achievement check after workout completion
-      setTimeout(() => {
-        triggerAchievementCheck();
-      }, 1000);
-    }
-  }, [currentWorkout?.completed_at]);
-
-  const handleStartWorkout = () => {
-    startWorkout('My Workout');
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshWorkouts();
+    setRefreshing(false);
   };
 
-  const handleEndWorkout = () => {
-    Alert.alert(
-      'End Workout',
-      'Are you sure you want to end this workout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'End Workout', 
-          style: 'destructive',
-          onPress: () => {
-            endWorkout();
-            setShowSummary(true);
-          }
-        },
-      ]
-    );
-  };
-
-  const handleAddExercise = () => {
-    const exerciseNames = [
-      'Bench Press',
-      'Squat',
-      'Deadlift',
-      'Overhead Press',
-      'Barbell Row',
-      'Pull-ups',
-      'Dips',
-      'Bicep Curls',
-      'Tricep Extensions',
-      'Lateral Raises',
-    ];
+  const handleStartWorkout = async (workoutId?: string) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    const randomExercise = exerciseNames[Math.floor(Math.random() * exerciseNames.length)];
-    addExercise(randomExercise);
-  };
-
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    if (workoutId) {
+      // Start AI suggested workout
+      await startWorkout({
+        id: workoutId,
+        name: 'AI Suggested Workout',
+        type: 'strength',
+        exercises: [],
+      });
+    } else {
+      // Start custom workout
+      await startWorkout({
+        id: Date.now().toString(),
+        name: 'Custom Workout',
+        type: 'strength',
+        exercises: [],
+      });
     }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (showSummary && currentWorkout?.completed_at) {
-    return (
-      <WorkoutSummary
-        workout={currentWorkout}
-        onClose={() => setShowSummary(false)}
-        onStartNew={handleStartWorkout}
-      />
-    );
-  }
+  const handleCreateCustom = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Navigate to workout builder or show workout creation modal
+    handleStartWorkout();
+  };
 
-  if (!currentWorkout) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.emptyState}>
-          <View style={styles.emptyStateIcon}>
-            <Dumbbell size={64} color={DesignTokens.colors.primary[500]} />
-          </View>
-          <Text style={styles.emptyStateTitle}>Ready to Work Out?</Text>
-          <Text style={styles.emptyStateText}>
-            Start your workout session and track your progress
-          </Text>
-          <TouchableOpacity style={styles.startButton} onPress={handleStartWorkout}>
-            <LinearGradient
-              colors={[DesignTokens.colors.primary[500], DesignTokens.colors.primary[600]]}
-              style={styles.startButtonGradient}
-            >
-              <Play size={24} color="#FFFFFF" />
-              <Text style={styles.startButtonText}>Start Workout</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const handleActivitySelect = async (activityId: string) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Handle recovery activity selection
+    console.log('Selected recovery activity:', activityId);
+  };
+
+  const handleScheduleRest = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Schedule rest day in calendar
+    console.log('Scheduling rest day');
+  };
+
+  const handleExerciseSelect = (exerciseName: string) => {
+    setSelectedExercise(exerciseName);
+  };
+
+  const handleRestTimerComplete = () => {
+    setShowRestTimer(false);
+  };
+
+  const toggleView = (view: 'ai' | 'rest') => {
+    if (view === 'ai') {
+      setShowAISuggestions(true);
+      setShowRestRecommendations(false);
+    } else {
+      setShowAISuggestions(false);
+      setShowRestRecommendations(true);
+    }
+  };
+
+  const recentWorkouts = workoutHistory.slice(0, 3);
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.workoutInfo}>
-            <Text style={styles.workoutName}>{currentWorkout.workout_name}</Text>
-            <Text style={styles.workoutDate}>
-              {new Date(currentWorkout.started_at).toLocaleDateString()}
+    <View style={styles.container}>
+      <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerTitle}>Workouts</Text>
+            <Text style={styles.headerSubtitle}>
+              {isWorkoutActive ? 'Workout in progress' : 'Ready to train'}
             </Text>
           </View>
-          
-          <View style={styles.headerStats}>
-            <View style={styles.statItem}>
-              <Timer size={16} color={DesignTokens.colors.text.secondary} />
-              <Text style={styles.statText}>
-                {formatDuration(currentWorkout.total_duration_seconds)}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Target size={16} color={DesignTokens.colors.text.secondary} />
-              <Text style={styles.statText}>
-                {currentWorkout.exercises.reduce((total, ex) => 
-                  total + ex.sets.filter(s => s.is_completed).length, 0
-                )} sets
-              </Text>
-            </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerButton}>
+              <Search size={20} color={DesignTokens.colors.text.secondary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerButton}>
+              <Filter size={20} color={DesignTokens.colors.text.secondary} />
+            </TouchableOpacity>
           </View>
         </View>
-        
-        {/* Workout Timer */}
-        <WorkoutTimer />
-      </View>
 
-      {/* Controls */}
-      <View style={styles.controls}>
-        {!isActive ? (
-          <TouchableOpacity style={styles.controlButton} onPress={handleStartWorkout}>
-            <Play size={20} color={DesignTokens.colors.primary[500]} />
-            <Text style={styles.controlButtonText}>Start</Text>
-          </TouchableOpacity>
-        ) : isPaused ? (
-          <TouchableOpacity style={styles.controlButton} onPress={resumeWorkout}>
-            <Play size={20} color={DesignTokens.colors.success[500]} />
-            <Text style={styles.controlButtonText}>Resume</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.controlButton} onPress={pauseWorkout}>
-            <Pause size={20} color={DesignTokens.colors.warning[500]} />
-            <Text style={styles.controlButtonText}>Pause</Text>
-          </TouchableOpacity>
-        )}
-        
-        <TouchableOpacity style={styles.controlButton} onPress={handleAddExercise}>
-          <Plus size={20} color={DesignTokens.colors.primary[500]} />
-          <Text style={styles.controlButtonText}>Add Exercise</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.controlButton} onPress={handleEndWorkout}>
-          <Square size={20} color={DesignTokens.colors.error[500]} />
-          <Text style={styles.controlButtonText}>End</Text>
-        </TouchableOpacity>
-      </View>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Current Workout Status */}
+          {isWorkoutActive && currentWorkout && (
+            <View style={styles.currentWorkoutContainer}>
+              <LinearGradient
+                colors={[DesignTokens.colors.primary[600], DesignTokens.colors.primary[500]]}
+                style={styles.currentWorkoutGradient}
+              >
+                <View style={styles.currentWorkoutHeader}>
+                  <View style={styles.currentWorkoutIcon}>
+                    <Play size={20} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.currentWorkoutInfo}>
+                    <Text style={styles.currentWorkoutTitle}>
+                      {currentWorkout.name}
+                    </Text>
+                    <Text style={styles.currentWorkoutTime}>
+                      In progress • {currentWorkout.duration || 0} min
+                    </Text>
+                  </View>
+                </View>
+                
+                <SetTimerCard
+                  exerciseName={selectedExercise || 'Current Exercise'}
+                  currentSet={1}
+                  totalSets={3}
+                  onSetComplete={() => {}}
+                  onRestStart={() => setShowRestTimer(true)}
+                />
+                
+                <View style={styles.currentWorkoutActions}>
+                  <Button
+                    title="End Workout"
+                    variant="secondary"
+                    size="small"
+                    onPress={endWorkout}
+                    style={styles.endWorkoutButton}
+                  />
+                </View>
+              </LinearGradient>
+            </View>
+          )}
 
-      {/* Exercises */}
-      <ScrollView style={styles.exercisesList} showsVerticalScrollIndicator={false}>
-        {currentWorkout.exercises.length === 0 ? (
-          <View style={styles.noExercises}>
-            <Text style={styles.noExercisesText}>No exercises added yet</Text>
-            <Text style={styles.noExercisesSubtext}>
-              Tap "Add Exercise" to get started
-            </Text>
+          {/* AI Toggle */}
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity
+              style={[
+                styles.toggleButton,
+                showAISuggestions && styles.toggleButtonActive,
+              ]}
+              onPress={() => toggleView('ai')}
+            >
+              <Brain size={16} color={showAISuggestions ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />
+              <Text style={[
+                styles.toggleButtonText,
+                showAISuggestions && styles.toggleButtonTextActive,
+              ]}>
+                AI Suggestions
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.toggleButton,
+                showRestRecommendations && styles.toggleButtonActive,
+              ]}
+              onPress={() => toggleView('rest')}
+            >
+              <Moon size={16} color={showRestRecommendations ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />
+              <Text style={[
+                styles.toggleButtonText,
+                showRestRecommendations && styles.toggleButtonTextActive,
+              ]}>
+                Recovery
+              </Text>
+            </TouchableOpacity>
           </View>
-        ) : (
-          currentWorkout.exercises.map((exercise, index) => (
-            <ExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              exerciseIndex={index}
-              onUpdate={updateExercise}
-              onDelete={deleteExercise}
-              isActive={isActive && !isPaused}
-            />
-          ))
-        )}
-      </ScrollView>
 
-      {/* Rest Timer */}
-      <RestTimer />
-    </SafeAreaView>
+          {/* AI Workout Suggestions */}
+          {showAISuggestions && (
+            <AIWorkoutSuggestions
+              onWorkoutSelect={handleStartWorkout}
+              onCreateCustom={handleCreateCustom}
+              maxSuggestions={3}
+              showRefresh={true}
+            />
+          )}
+
+          {/* Rest Day Recommendations */}
+          {showRestRecommendations && (
+            <RestDayRecommendations
+              onActivitySelect={handleActivitySelect}
+              onScheduleRest={handleScheduleRest}
+              showDetailed={true}
+            />
+          )}
+
+          {/* Quick Start Options */}
+          {!isWorkoutActive && (
+            <View style={styles.quickStartContainer}>
+              <Text style={styles.sectionTitle}>Quick Start</Text>
+              <View style={styles.quickStartGrid}>
+                <TouchableOpacity
+                  style={styles.quickStartCard}
+                  onPress={() => handleStartWorkout()}
+                >
+                  <View style={styles.quickStartIcon}>
+                    <Target size={24} color={DesignTokens.colors.primary[500]} />
+                  </View>
+                  <Text style={styles.quickStartTitle}>Strength</Text>
+                  <Text style={styles.quickStartSubtitle}>45-60 min</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.quickStartCard}
+                  onPress={() => handleStartWorkout()}
+                >
+                  <View style={styles.quickStartIcon}>
+                    <TrendingUp size={24} color={DesignTokens.colors.success[500]} />
+                  </View>
+                  <Text style={styles.quickStartTitle}>Cardio</Text>
+                  <Text style={styles.quickStartSubtitle}>20-30 min</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.quickStartCard}
+                  onPress={handleCreateCustom}
+                >
+                  <View style={styles.quickStartIcon}>
+                    <Plus size={24} color={DesignTokens.colors.warning[500]} />
+                  </View>
+                  <Text style={styles.quickStartTitle}>Custom</Text>
+                  <Text style={styles.quickStartSubtitle}>Your choice</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Workout Stats Overview */}
+          <WorkoutStatsOverview
+            onStatsPress={() => {}}
+            showTrends={true}
+          />
+
+          {/* Exercise Progress Chart */}
+          <ExerciseProgressChart
+            exerciseName="Bench Press"
+            onExerciseSelect={handleExerciseSelect}
+            showComparison={true}
+          />
+
+          {/* Recent Workouts */}
+          <View style={styles.recentWorkoutsContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Workouts</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.recentWorkoutsList}>
+              {recentWorkouts.map((workout, index) => (
+                <TouchableOpacity
+                  key={workout.id}
+                  style={styles.recentWorkoutCard}
+                  onPress={() => setShowPRModal(true)}
+                >
+                  <View style={styles.recentWorkoutIcon}>
+                    <Calendar size={20} color={DesignTokens.colors.primary[500]} />
+                  </View>
+                  <View style={styles.recentWorkoutInfo}>
+                    <Text style={styles.recentWorkoutName}>{workout.name}</Text>
+                    <Text style={styles.recentWorkoutDetails}>
+                      {workout.duration} min • {workout.exercises?.length || 0} exercises
+                    </Text>
+                    <Text style={styles.recentWorkoutDate}>
+                      {new Date(workout.date).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={styles.recentWorkoutStats}>
+                    <Text style={styles.recentWorkoutCalories}>
+                      {workout.caloriesBurned || 0} cal
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Rest Timer Modal */}
+        <RestTimerModal
+          visible={showRestTimer}
+          onClose={() => setShowRestTimer(false)}
+          onComplete={handleRestTimerComplete}
+          duration={90}
+          exerciseName={selectedExercise || 'Exercise'}
+        />
+
+        {/* Personal Record Modal */}
+        <PersonalRecordModal
+          visible={showPRModal}
+          onClose={() => setShowPRModal(false)}
+          exerciseName="Bench Press"
+          newRecord={{ weight: 185, reps: 8, date: new Date().toISOString() }}
+          previousRecord={{ weight: 180, reps: 8, date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}
+        />
+      </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: DesignTokens.colors.background.primary,
+  },
+  gradient: {
+    flex: 1,
   },
   header: {
-    backgroundColor: DesignTokens.colors.surface.secondary,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: DesignTokens.spacing[5],
-    paddingVertical: DesignTokens.spacing[4],
-    borderBottomWidth: 1,
-    borderBottomColor: DesignTokens.colors.neutral[800],
+    paddingTop: DesignTokens.spacing[12],
+    paddingBottom: DesignTokens.spacing[4],
   },
-  headerContent: {
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+  headerSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginTop: DesignTokens.spacing[1],
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[2],
+  },
+  headerButton: {
+    padding: DesignTokens.spacing[2],
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: DesignTokens.spacing[5],
+  },
+  currentWorkoutContainer: {
+    marginBottom: DesignTokens.spacing[5],
+    borderRadius: DesignTokens.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  currentWorkoutGradient: {
+    padding: DesignTokens.spacing[4],
+  },
+  currentWorkoutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[4],
+  },
+  currentWorkoutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  currentWorkoutInfo: {
+    flex: 1,
+  },
+  currentWorkoutTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+  },
+  currentWorkoutTime: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  currentWorkoutActions: {
+    marginTop: DesignTokens.spacing[4],
+  },
+  endWorkoutButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[1],
+    marginBottom: DesignTokens.spacing[5],
+  },
+  toggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
+  },
+  toggleButtonActive: {
+    backgroundColor: DesignTokens.colors.primary[500],
+  },
+  toggleButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.secondary,
+  },
+  toggleButtonTextActive: {
+    color: DesignTokens.colors.text.primary,
+  },
+  quickStartContainer: {
+    marginBottom: DesignTokens.spacing[5],
+  },
+  sectionTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[3],
+  },
+  quickStartGrid: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[3],
+  },
+  quickStartCard: {
+    flex: 1,
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    alignItems: 'center',
+  },
+  quickStartIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[3],
+  },
+  quickStartTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  quickStartSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+  },
+  recentWorkoutsContainer: {
+    marginBottom: DesignTokens.spacing[8],
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: DesignTokens.spacing[3],
   },
-  workoutInfo: {
+  seeAllText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  recentWorkoutsList: {
+    gap: DesignTokens.spacing[3],
+  },
+  recentWorkoutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    gap: DesignTokens.spacing[3],
+  },
+  recentWorkoutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recentWorkoutInfo: {
     flex: 1,
   },
-  workoutName: {
-    fontSize: DesignTokens.typography.fontSize.lg,
+  recentWorkoutName: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
     marginBottom: DesignTokens.spacing[1],
   },
-  workoutDate: {
+  recentWorkoutDetails: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
+    marginBottom: DesignTokens.spacing[1],
   },
-  headerStats: {
-    flexDirection: 'row',
-    gap: DesignTokens.spacing[4],
+  recentWorkoutDate: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.tertiary,
   },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
+  recentWorkoutStats: {
+    alignItems: 'flex-end',
   },
-  statText: {
+  recentWorkoutCalories: {
     fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  controls: {
-    flexDirection: 'row',
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingVertical: DesignTokens.spacing[3],
-    gap: DesignTokens.spacing[3],
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    borderBottomWidth: 1,
-    borderBottomColor: DesignTokens.colors.neutral[800],
-  },
-  controlButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: DesignTokens.spacing[2],
-    paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
-    backgroundColor: DesignTokens.colors.surface.tertiary,
-  },
-  controlButtonText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  exercisesList: {
-    flex: 1,
-    paddingHorizontal: DesignTokens.spacing[5],
-  },
-  noExercises: {
-    alignItems: 'center',
-    paddingVertical: DesignTokens.spacing[12],
-  },
-  noExercisesText: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    marginBottom: DesignTokens.spacing[2],
-  },
-  noExercisesSubtext: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: DesignTokens.spacing[8],
-  },
-  emptyStateIcon: {
-    marginBottom: DesignTokens.spacing[6],
-  },
-  emptyStateTitle: {
-    fontSize: DesignTokens.typography.fontSize['2xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[3],
-    textAlign: 'center',
-  },
-  emptyStateText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: DesignTokens.spacing[8],
-  },
-  startButton: {
-    borderRadius: DesignTokens.borderRadius.lg,
-    overflow: 'hidden',
-    ...DesignTokens.shadow.base,
-  },
-  startButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: DesignTokens.spacing[2],
-    paddingHorizontal: DesignTokens.spacing[8],
-    paddingVertical: DesignTokens.spacing[4],
-  },
-  startButtonText: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: '#FFFFFF',
-    fontWeight: DesignTokens.typography.fontWeight.bold,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.primary[500],
   },
 });

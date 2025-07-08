@@ -1,412 +1,190 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSocial, SocialActivity } from '@/contexts/SocialContext';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import { Platform } from 'react-native';
 
-export interface NotificationItem {
+export interface SocialNotification {
   id: string;
+  type: 'like' | 'comment' | 'follow' | 'share' | 'achievement' | 'milestone' | 'challenge_invite' | 'friend_request';
   title: string;
-  body: string;
-  data?: any;
+  message: string;
   timestamp: string;
   isRead: boolean;
-  type: 'social' | 'workout' | 'achievement' | 'reminder' | 'system';
-  priority: 'low' | 'normal' | 'high';
-  actionable?: boolean;
-  actions?: Array<{
-    id: string;
-    title: string;
-    type: 'primary' | 'secondary' | 'destructive';
-  }>;
+  fromUserId?: string;
+  fromUserName?: string;
+  fromUserAvatar?: string;
+  relatedId?: string; // Post ID, Achievement ID, etc.
+  actionUrl?: string;
 }
 
-export interface NotificationSettings {
-  pushNotifications: boolean;
-  emailNotifications: boolean;
-  soundEnabled: boolean;
-  vibrationEnabled: boolean;
-  types: {
-    likes: boolean;
-    comments: boolean;
-    follows: boolean;
-    achievements: boolean;
-    workouts: boolean;
-    milestones: boolean;
-  };
-  quietHours: {
-    enabled: boolean;
-    start: string;
-    end: string;
-  };
-}
-
-const STORAGE_KEYS = {
-  NOTIFICATIONS: '@notifications',
-  SETTINGS: '@notification_settings',
-  PUSH_TOKEN: '@push_token',
-};
-
-const DEFAULT_SETTINGS: NotificationSettings = {
-  pushNotifications: true,
-  emailNotifications: false,
-  soundEnabled: true,
-  vibrationEnabled: true,
-  types: {
-    likes: true,
-    comments: true,
-    follows: true,
-    achievements: true,
-    workouts: false,
-    milestones: true,
-  },
-  quietHours: {
-    enabled: false,
-    start: '22:00',
-    end: '08:00',
-  },
-};
+const NOTIFICATIONS_KEY = 'social_notifications';
+const NOTIFICATION_SETTINGS_KEY = 'notification_settings';
 
 export function useNotifications() {
-  const { activities } = useSocial();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
-  const [pushToken, setPushToken] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [notifications, setNotifications] = useState<SocialNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Initialize notifications
   useEffect(() => {
-    initializeNotifications();
+    loadNotifications();
+    generateMockNotifications(); // For demo purposes
   }, []);
 
-  // Convert social activities to notifications
   useEffect(() => {
-    if (isInitialized) {
-      convertActivitiesToNotifications();
-    }
-  }, [activities, isInitialized]);
+    const unread = notifications.filter(n => !n.isRead).length;
+    setUnreadCount(unread);
+  }, [notifications]);
 
-  const initializeNotifications = async () => {
+  const loadNotifications = async () => {
+    setIsLoading(true);
     try {
-      // Load stored data
-      const [storedNotifications, storedSettings, storedToken] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATIONS),
-        AsyncStorage.getItem(STORAGE_KEYS.SETTINGS),
-        AsyncStorage.getItem(STORAGE_KEYS.PUSH_TOKEN),
-      ]);
-
-      if (storedNotifications) {
-        setNotifications(JSON.parse(storedNotifications));
+      const stored = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setNotifications(parsed.sort((a: SocialNotification, b: SocialNotification) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        ));
       }
-
-      if (storedSettings) {
-        setSettings(JSON.parse(storedSettings));
-      }
-
-      if (storedToken) {
-        setPushToken(storedToken);
-      }
-
-      // Configure notification behavior
-      await Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: true,
-          shouldPlaySound: settings.soundEnabled,
-          shouldSetBadge: true,
-        }),
-      });
-
-      // Request permissions and get push token
-      if (settings.pushNotifications) {
-        await requestPermissions();
-      }
-
-      setIsInitialized(true);
     } catch (error) {
-      console.error('Error initializing notifications:', error);
-      setIsInitialized(true);
+      console.error('Error loading notifications:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const requestPermissions = async () => {
-    if (!Device.isDevice) {
-      console.log('Must use physical device for Push Notifications');
-      return;
-    }
-
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      console.log('Failed to get push token for push notification!');
-      return;
-    }
-
+  const saveNotifications = async (notifs: SocialNotification[]) => {
     try {
-      const token = (await Notifications.getExpoPushTokenAsync()).data;
-      setPushToken(token);
-      await AsyncStorage.setItem(STORAGE_KEYS.PUSH_TOKEN, token);
+      await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifs));
     } catch (error) {
-      console.error('Error getting push token:', error);
-    }
-
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-      });
+      console.error('Error saving notifications:', error);
     }
   };
 
-  const convertActivitiesToNotifications = useCallback(() => {
-    const newNotifications: NotificationItem[] = activities.map((activity) => ({
-      id: `activity_${activity.id}`,
-      title: getNotificationTitle(activity),
-      body: activity.content,
-      data: { activityId: activity.id, type: 'social_activity' },
-      timestamp: activity.timestamp,
-      isRead: activity.isRead,
-      type: 'social' as const,
-      priority: getPriority(activity.type),
-      actionable: true,
-      actions: getNotificationActions(activity),
-    }));
-
-    setNotifications(prev => {
-      // Merge with existing non-activity notifications
-      const nonActivityNotifications = prev.filter(n => !n.id.startsWith('activity_'));
-      return [...newNotifications, ...nonActivityNotifications].sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-    });
-  }, [activities]);
-
-  const getNotificationTitle = (activity: SocialActivity): string => {
-    switch (activity.type) {
-      case 'like':
-        return `${activity.username} liked your post`;
-      case 'comment':
-        return `${activity.username} commented on your post`;
-      case 'follow':
-        return `${activity.username} started following you`;
-      case 'achievement':
-        return 'New achievement unlocked!';
-      case 'workout':
-        return 'Workout completed!';
-      case 'milestone':
-        return 'Milestone reached!';
-      default:
-        return 'New activity';
-    }
-  };
-
-  const getPriority = (type: SocialActivity['type']): NotificationItem['priority'] => {
-    switch (type) {
-      case 'achievement':
-      case 'milestone':
-        return 'high';
-      case 'follow':
-      case 'comment':
-        return 'normal';
-      default:
-        return 'low';
-    }
-  };
-
-  const getNotificationActions = (activity: SocialActivity): NotificationItem['actions'] => {
-    switch (activity.type) {
-      case 'like':
-      case 'comment':
-        return [
-          { id: 'view', title: 'View Post', type: 'primary' },
-          { id: 'dismiss', title: 'Dismiss', type: 'secondary' },
-        ];
-      case 'follow':
-        return [
-          { id: 'view_profile', title: 'View Profile', type: 'primary' },
-          { id: 'follow_back', title: 'Follow Back', type: 'secondary' },
-        ];
-      default:
-        return [
-          { id: 'view', title: 'View', type: 'primary' },
-          { id: 'dismiss', title: 'Dismiss', type: 'secondary' },
-        ];
-    }
-  };
-
-  const createNotification = async (notification: Omit<NotificationItem, 'id' | 'timestamp' | 'isRead'>) => {
-    const newNotification: NotificationItem = {
+  const addNotification = (notification: Omit<SocialNotification, 'id' | 'timestamp'>) => {
+    const newNotification: SocialNotification = {
       ...notification,
-      id: `notification_${Date.now()}`,
+      id: Date.now().toString(),
       timestamp: new Date().toISOString(),
-      isRead: false,
     };
 
-    const updatedNotifications = [newNotification, ...notifications];
-    setNotifications(updatedNotifications);
-    await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updatedNotifications));
-
-    // Send push notification if enabled and not in quiet hours
-    if (settings.pushNotifications && !isInQuietHours() && shouldSendNotification(notification.type)) {
-      await sendPushNotification(newNotification);
-    }
-
-    return newNotification;
-  };
-
-  const isInQuietHours = (): boolean => {
-    if (!settings.quietHours.enabled) return false;
-
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-    
-    const [startHour, startMin] = settings.quietHours.start.split(':').map(Number);
-    const [endHour, endMin] = settings.quietHours.end.split(':').map(Number);
-    
-    const startTime = startHour * 60 + startMin;
-    const endTime = endHour * 60 + endMin;
-
-    if (startTime <= endTime) {
-      return currentTime >= startTime && currentTime <= endTime;
-    } else {
-      // Quiet hours span midnight
-      return currentTime >= startTime || currentTime <= endTime;
-    }
-  };
-
-  const shouldSendNotification = (type: string): boolean => {
-    switch (type) {
-      case 'social':
-        return true; // Social notifications are controlled by individual type settings
-      case 'workout':
-        return settings.types.workouts;
-      case 'achievement':
-        return settings.types.achievements;
-      default:
-        return true;
-    }
-  };
-
-  const sendPushNotification = async (notification: NotificationItem) => {
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: notification.title,
-          body: notification.body,
-          data: notification.data,
-          sound: settings.soundEnabled ? 'default' : undefined,
-        },
-        trigger: null, // Send immediately
-      });
-    } catch (error) {
-      console.error('Error sending push notification:', error);
-    }
+    setNotifications(prev => {
+      const updated = [newNotification, ...prev];
+      saveNotifications(updated);
+      return updated;
+    });
   };
 
   const markAsRead = async (notificationId: string) => {
-    const updatedNotifications = notifications.map(n =>
-      n.id === notificationId ? { ...n, isRead: true } : n
-    );
-    setNotifications(updatedNotifications);
-    await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updatedNotifications));
-  };
-
-  const markAllAsRead = async () => {
-    const updatedNotifications = notifications.map(n => ({ ...n, isRead: true }));
-    setNotifications(updatedNotifications);
-    await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updatedNotifications));
-  };
-
-  const clearAll = async () => {
-    setNotifications([]);
-    await AsyncStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
-  };
-
-  const deleteNotification = async (notificationId: string) => {
-    const updatedNotifications = notifications.filter(n => n.id !== notificationId);
-    setNotifications(updatedNotifications);
-    await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updatedNotifications));
-  };
-
-  const updateSettings = async (newSettings: NotificationSettings) => {
-    setSettings(newSettings);
-    await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
-
-    // Request/revoke permissions based on settings
-    if (newSettings.pushNotifications && !pushToken) {
-      await requestPermissions();
-    }
-
-    // Update notification handler
-    await Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: newSettings.soundEnabled,
-        shouldSetBadge: true,
-      }),
+    setNotifications(prev => {
+      const updated = prev.map(n => 
+        n.id === notificationId ? { ...n, isRead: true } : n
+      );
+      saveNotifications(updated);
+      return updated;
     });
   };
 
-  // Scheduled notifications for workouts, reminders, etc.
-  const scheduleWorkoutReminder = async (time: Date, message: string) => {
-    if (!settings.types.workouts || !settings.pushNotifications) return;
-
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Workout Reminder',
-          body: message,
-          data: { type: 'workout_reminder' },
-          sound: settings.soundEnabled ? 'default' : undefined,
-        },
-        trigger: {
-          date: time,
-        },
-      });
-    } catch (error) {
-      console.error('Error scheduling workout reminder:', error);
-    }
+  const markAllAsRead = async () => {
+    setNotifications(prev => {
+      const updated = prev.map(n => ({ ...n, isRead: true }));
+      saveNotifications(updated);
+      return updated;
+    });
   };
 
-  const cancelScheduledNotification = async (identifier: string) => {
-    try {
-      await Notifications.cancelScheduledNotificationAsync(identifier);
-    } catch (error) {
-      console.error('Error canceling scheduled notification:', error);
-    }
+  const deleteNotification = async (notificationId: string) => {
+    setNotifications(prev => {
+      const updated = prev.filter(n => n.id !== notificationId);
+      saveNotifications(updated);
+      return updated;
+    });
   };
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const clearAllNotifications = async () => {
+    setNotifications([]);
+    await AsyncStorage.removeItem(NOTIFICATIONS_KEY);
+  };
+
+  const refreshNotifications = async () => {
+    // In a real app, this would fetch from server
+    await loadNotifications();
+  };
+
+  // Mock notification generator for demo
+  const generateMockNotifications = () => {
+    const mockNotifications: SocialNotification[] = [
+      {
+        id: '1',
+        type: 'like',
+        title: 'New Like',
+        message: 'Alex Rodriguez liked your workout post',
+        timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 minutes ago
+        isRead: false,
+        fromUserId: 'user1',
+        fromUserName: 'Alex Rodriguez',
+        fromUserAvatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+        relatedId: 'post1',
+      },
+      {
+        id: '2',
+        type: 'comment',
+        title: 'New Comment',
+        message: 'Jessica Park commented on your progress photo',
+        timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 minutes ago
+        isRead: false,
+        fromUserId: 'user2',
+        fromUserName: 'Jessica Park',
+        fromUserAvatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
+        relatedId: 'post2',
+      },
+      {
+        id: '3',
+        type: 'follow',
+        title: 'New Follower',
+        message: 'David Kim started following you',
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+        isRead: true,
+        fromUserId: 'user3',
+        fromUserName: 'David Kim',
+        fromUserAvatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+      },
+      {
+        id: '4',
+        type: 'achievement',
+        title: 'Achievement Unlocked',
+        message: 'You earned the "Consistency Champion" badge!',
+        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
+        isRead: true,
+        relatedId: 'achievement1',
+      },
+      {
+        id: '5',
+        type: 'challenge_invite',
+        title: 'Challenge Invitation',
+        message: 'Maria Santos invited you to join the "30-Day Push-Up Challenge"',
+        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+        isRead: false,
+        fromUserId: 'user4',
+        fromUserName: 'Maria Santos',
+        fromUserAvatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
+        relatedId: 'challenge1',
+      },
+    ];
+
+    // Only set mock notifications if no notifications exist
+    if (notifications.length === 0) {
+      setNotifications(mockNotifications);
+      saveNotifications(mockNotifications);
+    }
+  };
 
   return {
     notifications,
     unreadCount,
-    settings,
-    pushToken,
-    isInitialized,
-    
-    // Actions
-    createNotification,
+    isLoading,
+    addNotification,
     markAsRead,
     markAllAsRead,
-    clearAll,
     deleteNotification,
-    updateSettings,
-    
-    // Scheduled notifications
-    scheduleWorkoutReminder,
-    cancelScheduledNotification,
-    
-    // Utilities
-    isInQuietHours,
-    shouldSendNotification,
+    clearAllNotifications,
+    refreshNotifications,
   };
 }

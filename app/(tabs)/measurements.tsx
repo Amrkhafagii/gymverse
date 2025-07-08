@@ -9,78 +9,79 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
-import { ProgressPhotoProvider, useProgressPhotoContext } from '@/contexts/ProgressPhotoContext';
-import { AddPhotoModal } from '@/components/photos/AddPhotoModal';
-import { PhotoComparisonCard } from '@/components/photos/PhotoComparisonCard';
+import { MeasurementCard } from '@/components/measurements/MeasurementCard';
+import { MeasurementChart } from '@/components/measurements/MeasurementChart';
+import { AddMeasurementModal } from '@/components/measurements/AddMeasurementModal';
+import { useMeasurements } from '@/hooks/useMeasurements';
 import { DesignTokens } from '@/design-system/tokens';
 import { 
-  Camera, 
-  Image as ImageIcon, 
-  Grid, 
-  Calendar, 
+  Ruler, 
   TrendingUp, 
+  Calendar, 
+  Target,
   Plus,
+  BarChart3,
+  Activity,
+  Settings,
   Filter,
-  Search,
-  MoreVertical
 } from 'lucide-react-native';
-import { PhotoCategory } from '@/types/progressPhoto';
+import { MEASUREMENT_TYPES, getMeasurementTypeById } from '@/lib/measurements/measurementTypes';
 
-type TabType = 'gallery' | 'comparisons' | 'insights' | 'timeline';
+type TabType = 'overview' | 'charts' | 'goals' | 'history';
+type FilterType = 'all' | 'weight' | 'body' | 'performance';
 
-function MeasurementsContent() {
+export default function MeasurementsScreen() {
   const {
-    photos,
-    comparisons,
-    insights,
+    measurements,
+    goals,
+    stats,
     isLoading,
     error,
-    addPhoto,
-    createComparison,
-    getPhotosByCategory,
-    refreshData,
-    clearError,
-  } = useProgressPhotoContext();
+    addMeasurement,
+    getMeasurementsByType,
+    getLatestMeasurement,
+    getTrend,
+    getProgressData,
+    refreshMeasurements,
+  } = useMeasurements();
 
-  const [activeTab, setActiveTab] = useState<TabType>('gallery');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<PhotoCategory | 'all'>('all');
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refreshData();
+    await refreshMeasurements();
     setRefreshing(false);
   };
 
-  const handleAddPhoto = async (
-    imageUri: string,
-    category: PhotoCategory,
-    notes?: string,
-    weight?: number,
-    measurements?: any,
-    tags?: string[]
-  ) => {
+  const handleAddMeasurements = async (measurementData: any[]) => {
     try {
-      await addPhoto(imageUri, category, notes, weight, measurements, tags);
-      Alert.alert('Success', 'Progress photo added successfully!');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to add photo. Please try again.');
+      for (const data of measurementData) {
+        await addMeasurement(data);
+      }
+      Alert.alert('Success', 'Measurements added successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add measurements. Please try again.');
     }
   };
 
-  const handleCreateComparison = async (beforeId: string, afterId: string) => {
-    try {
-      await createComparison(beforeId, afterId, 'Progress Comparison');
-      Alert.alert('Success', 'Comparison created successfully!');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to create comparison. Please try again.');
-    }
+  const getFilteredMeasurementTypes = () => {
+    if (selectedFilter === 'all') return MEASUREMENT_TYPES;
+    return MEASUREMENT_TYPES.filter(type => type.category === selectedFilter);
   };
 
-  const getFilteredPhotos = () => {
-    if (selectedCategory === 'all') return photos;
-    return getPhotosByCategory(selectedCategory);
+  const getLatestMeasurements = () => {
+    const filteredTypes = getFilteredMeasurementTypes();
+    return filteredTypes
+      .map(type => {
+        const latest = getLatestMeasurement(type.id);
+        const trend = getTrend(type.id, 'month');
+        return latest ? { measurement: latest, trend, type } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(b!.measurement.date).getTime() - new Date(a!.measurement.date).getTime());
   };
 
   const TabButton = ({ tab, label, icon }: { tab: TabType; label: string; icon: React.ReactNode }) => (
@@ -101,225 +102,332 @@ function MeasurementsContent() {
     </TouchableOpacity>
   );
 
-  const CategoryButton = ({ category, label }: { category: PhotoCategory | 'all'; label: string }) => (
+  const FilterButton = ({ filter, label }: { filter: FilterType; label: string }) => (
     <TouchableOpacity
       style={[
-        styles.categoryButton,
-        selectedCategory === category && styles.categoryButtonActive
+        styles.filterButton,
+        selectedFilter === filter && styles.filterButtonActive
       ]}
-      onPress={() => setSelectedCategory(category)}
+      onPress={() => setSelectedFilter(filter)}
     >
       <Text style={[
-        styles.categoryButtonText,
-        selectedCategory === category && styles.categoryButtonTextActive
+        styles.filterButtonText,
+        selectedFilter === filter && styles.filterButtonTextActive
       ]}>
         {label}
       </Text>
     </TouchableOpacity>
   );
 
-  const renderGalleryContent = () => {
-    const filteredPhotos = getFilteredPhotos();
+  const renderOverviewContent = () => {
+    const latestMeasurements = getLatestMeasurements();
 
     return (
       <ScrollView 
-        style={styles.galleryContainer}
+        style={styles.overviewContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Category Filter */}
-        <View style={styles.filterContainer}>
+        {/* Stats Overview */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <View style={styles.statIconContainer}>
+                <Ruler size={24} color={DesignTokens.colors.primary[500]} />
+              </View>
+              <Text style={styles.statValue}>{stats.totalMeasurements}</Text>
+              <Text style={styles.statLabel}>Total Measurements</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={styles.statIconContainer}>
+                <BarChart3 size={24} color={DesignTokens.colors.success[500]} />
+              </View>
+              <Text style={styles.statValue}>{stats.measurementTypes}</Text>
+              <Text style={styles.statLabel}>Types Tracked</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={styles.statIconContainer}>
+                <Calendar size={24} color={DesignTokens.colors.warning[500]} />
+              </View>
+              <Text style={styles.statValue}>{stats.streakDays}</Text>
+              <Text style={styles.statLabel}>Day Streak</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={styles.statIconContainer}>
+                <Activity size={24} color={DesignTokens.colors.info[500]} />
+              </View>
+              <Text style={styles.statValue}>{stats.averageFrequency.toFixed(1)}</Text>
+              <Text style={styles.statLabel}>Avg/Week</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Filter Buttons */}
+        <View style={styles.filtersContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.categoryFilters}>
-              <CategoryButton category="all" label="All" />
-              <CategoryButton category="front" label="Front" />
-              <CategoryButton category="side" label="Side" />
-              <CategoryButton category="back" label="Back" />
-              <CategoryButton category="progress" label="Progress" />
-              <CategoryButton category="workout" label="Workout" />
+            <View style={styles.filterRow}>
+              <FilterButton filter="all" label="All" />
+              <FilterButton filter="weight" label="Weight" />
+              <FilterButton filter="body" label="Body" />
+              <FilterButton filter="performance" label="Performance" />
             </View>
           </ScrollView>
         </View>
 
-        {/* Photos Grid */}
-        {filteredPhotos.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Camera size={48} color={DesignTokens.colors.text.tertiary} />
-            <Text style={styles.emptyStateTitle}>No Photos Yet</Text>
-            <Text style={styles.emptyStateText}>
-              Start documenting your fitness journey by adding your first progress photo
-            </Text>
+        {/* Latest Measurements */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Latest Measurements</Text>
             <TouchableOpacity
-              style={styles.addFirstPhotoButton}
+              style={styles.addButton}
               onPress={() => setShowAddModal(true)}
             >
               <Plus size={20} color={DesignTokens.colors.text.primary} />
-              <Text style={styles.addFirstPhotoText}>Add First Photo</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <View style={styles.photosGrid}>
-            {filteredPhotos.map((photo) => (
-              <TouchableOpacity key={photo.id} style={styles.photoCard}>
-                <ImageIcon size={120} color={DesignTokens.colors.text.tertiary} />
-                <Text style={styles.photoDate}>
-                  {new Date(photo.date).toLocaleDateString()}
-                </Text>
-                <Text style={styles.photoCategory}>{photo.category}</Text>
+
+          {latestMeasurements.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ruler size={48} color={DesignTokens.colors.text.tertiary} />
+              <Text style={styles.emptyStateTitle}>No Measurements Yet</Text>
+              <Text style={styles.emptyStateText}>
+                Start tracking your body measurements to monitor your progress over time
+              </Text>
+              <TouchableOpacity
+                style={styles.addFirstButton}
+                onPress={() => setShowAddModal(true)}
+              >
+                <Plus size={20} color={DesignTokens.colors.text.primary} />
+                <Text style={styles.addFirstButtonText}>Add First Measurement</Text>
               </TouchableOpacity>
-            ))}
+            </View>
+          ) : (
+            <View style={styles.measurementsList}>
+              {latestMeasurements.slice(0, 6).map(({ measurement, trend }) => (
+                <MeasurementCard
+                  key={measurement.id}
+                  measurement={measurement}
+                  trend={trend}
+                  showTrend={true}
+                  onPress={() => {
+                    console.log('View measurement details:', measurement.id);
+                  }}
+                  onEdit={() => {
+                    console.log('Edit measurement:', measurement.id);
+                  }}
+                  onDelete={() => {
+                    console.log('Delete measurement:', measurement.id);
+                  }}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Quick Add Section */}
+        {measurements.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Quick Add</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.quickAddRow}>
+                {MEASUREMENT_TYPES.slice(0, 6).map((type) => (
+                  <TouchableOpacity
+                    key={type.id}
+                    style={styles.quickAddCard}
+                    onPress={() => setShowAddModal(true)}
+                  >
+                    <Text style={styles.quickAddIcon}>{type.icon}</Text>
+                    <Text style={styles.quickAddLabel}>{type.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
           </View>
         )}
       </ScrollView>
     );
   };
 
-  const renderComparisonsContent = () => (
-    <ScrollView 
-      style={styles.comparisonsContainer}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      showsVerticalScrollIndicator={false}
-    >
-      {comparisons.length === 0 ? (
-        <View style={styles.emptyState}>
-          <TrendingUp size={48} color={DesignTokens.colors.text.tertiary} />
-          <Text style={styles.emptyStateTitle}>No Comparisons Yet</Text>
-          <Text style={styles.emptyStateText}>
-            Create before/after comparisons to track your visual progress over time
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.comparisonsList}>
-          {comparisons.map((comparison) => (
-            <PhotoComparisonCard
-              key={comparison.id}
-              beforePhoto={comparison.beforePhoto}
-              afterPhoto={comparison.afterPhoto}
-              comparison={comparison}
-              onShare={(comp) => console.log('Share comparison:', comp.id)}
-              onEdit={(comp) => console.log('Edit comparison:', comp.id)}
-              onDelete={(comp) => console.log('Delete comparison:', comp.id)}
-            />
-          ))}
-        </View>
-      )}
+  const renderChartsContent = () => {
+    const chartTypes = getFilteredMeasurementTypes().filter(type => 
+      getMeasurementsByType(type.id).length >= 2
+    );
 
-      {/* Suggested Comparisons */}
-      {photos.length >= 2 && (
-        <View style={styles.suggestedSection}>
-          <Text style={styles.suggestedTitle}>Suggested Comparisons</Text>
-          <Text style={styles.suggestedSubtitle}>
-            Based on your photos, here are some comparisons you might want to create
-          </Text>
-          
-          {/* Example suggested comparison */}
-          {photos.length >= 2 && (
-            <PhotoComparisonCard
-              beforePhoto={photos[1]}
-              afterPhoto={photos[0]}
-              onCreateComparison={handleCreateComparison}
-            />
-          )}
-        </View>
-      )}
-    </ScrollView>
-  );
-
-  const renderInsightsContent = () => (
-    <ScrollView 
-      style={styles.insightsContainer}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      showsVerticalScrollIndicator={false}
-    >
-      {insights.length === 0 ? (
-        <View style={styles.emptyState}>
-          <TrendingUp size={48} color={DesignTokens.colors.text.tertiary} />
-          <Text style={styles.emptyStateTitle}>No Insights Yet</Text>
-          <Text style={styles.emptyStateText}>
-            Add more progress photos to unlock personalized insights about your journey
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.insightsList}>
-          {insights.map((insight, index) => (
-            <View key={index} style={styles.insightCard}>
-              <Text style={styles.insightTitle}>{insight.title}</Text>
-              <Text style={styles.insightDescription}>{insight.description}</Text>
-              {insight.recommendation && (
-                <Text style={styles.insightRecommendation}>
-                  💡 {insight.recommendation}
-                </Text>
-              )}
+    return (
+      <ScrollView 
+        style={styles.chartsContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Filter Buttons */}
+        <View style={styles.filtersContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.filterRow}>
+              <FilterButton filter="all" label="All" />
+              <FilterButton filter="weight" label="Weight" />
+              <FilterButton filter="body" label="Body" />
+              <FilterButton filter="performance" label="Performance" />
             </View>
-          ))}
+          </ScrollView>
         </View>
-      )}
-    </ScrollView>
-  );
 
-  const renderTimelineContent = () => (
+        {chartTypes.length === 0 ? (
+          <View style={styles.emptyState}>
+            <BarChart3 size={48} color={DesignTokens.colors.text.tertiary} />
+            <Text style={styles.emptyStateTitle}>No Chart Data</Text>
+            <Text style={styles.emptyStateText}>
+              Add at least 2 measurements of the same type to see progress charts
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.chartsList}>
+            {chartTypes.map((type) => {
+              const progressData = getProgressData(type.id, 'month');
+              return (
+                <MeasurementChart
+                  key={type.id}
+                  data={progressData}
+                  title={type.name}
+                  unit={type.unit}
+                  color={type.color || DesignTokens.colors.primary[500]}
+                  height={220}
+                  showGrid={true}
+                  showPoints={true}
+                />
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
+  const renderGoalsContent = () => (
     <ScrollView 
-      style={styles.timelineContainer}
+      style={styles.goalsContainer}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       showsVerticalScrollIndicator={false}
     >
-      {photos.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Calendar size={48} color={DesignTokens.colors.text.tertiary} />
-          <Text style={styles.emptyStateTitle}>No Timeline Yet</Text>
-          <Text style={styles.emptyStateText}>
-            Your photo timeline will appear here as you add progress photos
-          </Text>
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Measurement Goals</Text>
+          <TouchableOpacity style={styles.addButton}>
+            <Plus size={20} color={DesignTokens.colors.text.primary} />
+          </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.timelineList}>
-          {photos.map((photo, index) => (
-            <View key={photo.id} style={styles.timelineItem}>
-              <View style={styles.timelineDot} />
-              {index < photos.length - 1 && <View style={styles.timelineLine} />}
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineDate}>
-                  {new Date(photo.date).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </Text>
-                <View style={styles.timelinePhotoCard}>
-                  <ImageIcon size={60} color={DesignTokens.colors.text.tertiary} />
-                  <View style={styles.timelinePhotoInfo}>
-                    <Text style={styles.timelinePhotoCategory}>{photo.category}</Text>
-                    {photo.notes && (
-                      <Text style={styles.timelinePhotoNotes}>{photo.notes}</Text>
-                    )}
-                    {photo.weight && (
-                      <Text style={styles.timelinePhotoWeight}>
-                        Weight: {photo.weight} lbs
+
+        {goals.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Target size={48} color={DesignTokens.colors.text.tertiary} />
+            <Text style={styles.emptyStateTitle}>No Goals Set</Text>
+            <Text style={styles.emptyStateText}>
+              Set measurement goals to stay motivated and track your progress
+            </Text>
+            <TouchableOpacity style={styles.addFirstButton}>
+              <Plus size={20} color={DesignTokens.colors.text.primary} />
+              <Text style={styles.addFirstButtonText}>Set First Goal</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.goalsList}>
+            {goals.map((goal) => (
+              <View key={goal.id} style={styles.goalCard}>
+                <View style={styles.goalHeader}>
+                  <View style={styles.goalInfo}>
+                    <Text style={styles.goalIcon}>
+                      {getMeasurementTypeById(goal.measurementType)?.icon}
+                    </Text>
+                    <View>
+                      <Text style={styles.goalName}>
+                        {getMeasurementTypeById(goal.measurementType)?.name}
                       </Text>
-                    )}
+                      <Text style={styles.goalTarget}>
+                        Target: {goal.targetValue} {goal.unit}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.goalStatus}>
+                    <Text style={styles.goalProgress}>
+                      {goal.progress?.toFixed(1)}%
+                    </Text>
                   </View>
                 </View>
+                
+                <View style={styles.goalProgressBar}>
+                  <View 
+                    style={[
+                      styles.goalProgressFill,
+                      { width: `${Math.min(goal.progress || 0, 100)}%` }
+                    ]}
+                  />
+                </View>
+                
+                <Text style={styles.goalDeadline}>
+                  Due: {new Date(goal.deadline).toLocaleDateString()}
+                </Text>
               </View>
-            </View>
-          ))}
-        </View>
-      )}
+            ))}
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+
+  const renderHistoryContent = () => (
+    <ScrollView 
+      style={styles.historyContainer}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Measurement History</Text>
+        
+        {measurements.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Calendar size={48} color={DesignTokens.colors.text.tertiary} />
+            <Text style={styles.emptyStateTitle}>No History</Text>
+            <Text style={styles.emptyStateText}>
+              Your measurement history will appear here as you track your progress
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.historyList}>
+            {measurements
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .slice(0, 20)
+              .map((measurement) => (
+                <MeasurementCard
+                  key={measurement.id}
+                  measurement={measurement}
+                  trend={getTrend(measurement.type, 'month')}
+                  showTrend={false}
+                  compact={true}
+                  onPress={() => {
+                    console.log('View measurement details:', measurement.id);
+                  }}
+                />
+              ))}
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'gallery':
-        return renderGalleryContent();
-      case 'comparisons':
-        return renderComparisonsContent();
-      case 'insights':
-        return renderInsightsContent();
-      case 'timeline':
-        return renderTimelineContent();
+      case 'overview':
+        return renderOverviewContent();
+      case 'charts':
+        return renderChartsContent();
+      case 'goals':
+        return renderGoalsContent();
+      case 'history':
+        return renderHistoryContent();
       default:
-        return renderGalleryContent();
+        return renderOverviewContent();
     }
   };
 
@@ -327,7 +435,7 @@ function MeasurementsContent() {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={clearError}>
+        <TouchableOpacity style={styles.retryButton} onPress={refreshMeasurements}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
@@ -338,9 +446,9 @@ function MeasurementsContent() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Progress Photos</Text>
+        <Text style={styles.headerTitle}>Body Measurements</Text>
         <TouchableOpacity
-          style={styles.addButton}
+          style={styles.headerAddButton}
           onPress={() => setShowAddModal(true)}
         >
           <Plus size={20} color={DesignTokens.colors.text.primary} />
@@ -352,24 +460,24 @@ function MeasurementsContent() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.tabButtons}>
             <TabButton
-              tab="gallery"
-              label="Gallery"
-              icon={<Grid size={18} color={activeTab === 'gallery' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
+              tab="overview"
+              label="Overview"
+              icon={<BarChart3 size={18} color={activeTab === 'overview' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
             />
             <TabButton
-              tab="comparisons"
-              label="Compare"
-              icon={<TrendingUp size={18} color={activeTab === 'comparisons' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
+              tab="charts"
+              label="Charts"
+              icon={<TrendingUp size={18} color={activeTab === 'charts' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
             />
             <TabButton
-              tab="insights"
-              label="Insights"
-              icon={<TrendingUp size={18} color={activeTab === 'insights' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
+              tab="goals"
+              label="Goals"
+              icon={<Target size={18} color={activeTab === 'goals' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
             />
             <TabButton
-              tab="timeline"
-              label="Timeline"
-              icon={<Calendar size={18} color={activeTab === 'timeline' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
+              tab="history"
+              label="History"
+              icon={<Calendar size={18} color={activeTab === 'history' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
             />
           </View>
         </ScrollView>
@@ -380,21 +488,13 @@ function MeasurementsContent() {
         {renderContent()}
       </View>
 
-      {/* Add Photo Modal */}
-      <AddPhotoModal
+      {/* Add Measurement Modal */}
+      <AddMeasurementModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSave={handleAddPhoto}
+        onSave={handleAddMeasurements}
       />
     </SafeAreaView>
-  );
-}
-
-export default function MeasurementsScreen() {
-  return (
-    <ProgressPhotoProvider>
-      <MeasurementsContent />
-    </ProgressPhotoProvider>
   );
 }
 
@@ -417,7 +517,7 @@ const styles = StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
   },
-  addButton: {
+  headerAddButton: {
     backgroundColor: DesignTokens.colors.primary[500],
     borderRadius: DesignTokens.borderRadius.full,
     padding: DesignTokens.spacing[3],
@@ -455,47 +555,24 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  galleryContainer: {
+  overviewContainer: {
     flex: 1,
   },
-  filterContainer: {
-    paddingVertical: DesignTokens.spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: DesignTokens.colors.neutral[800],
+  statsContainer: {
+    padding: DesignTokens.spacing[5],
+    paddingBottom: DesignTokens.spacing[4],
   },
-  categoryFilters: {
-    flexDirection: 'row',
-    paddingHorizontal: DesignTokens.spacing[5],
-    gap: DesignTokens.spacing[2],
-  },
-  categoryButton: {
-    paddingHorizontal: DesignTokens.spacing[4],
-    paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
-    backgroundColor: DesignTokens.colors.surface.secondary,
-  },
-  categoryButtonActive: {
-    backgroundColor: DesignTokens.colors.primary[500],
-  },
-  categoryButtonText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  categoryButtonTextActive: {
-    color: DesignTokens.colors.text.primary,
-  },
-  photosGrid: {
+  statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: DesignTokens.spacing[5],
     gap: DesignTokens.spacing[3],
   },
-  photoCard: {
-    width: '48%',
+  statCard: {
+    flex: 1,
+    minWidth: '45%',
     backgroundColor: DesignTokens.colors.surface.primary,
     borderRadius: DesignTokens.borderRadius.lg,
-    padding: DesignTokens.spacing[3],
+    padding: DesignTokens.spacing[4],
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -503,48 +580,108 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  photoDate: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-    marginTop: DesignTokens.spacing[2],
+  statIconContainer: {
+    marginBottom: DesignTokens.spacing[2],
   },
-  photoCategory: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.tertiary,
-    textTransform: 'capitalize',
-  },
-  comparisonsContainer: {
-    flex: 1,
-    padding: DesignTokens.spacing[5],
-  },
-  comparisonsList: {
-    gap: DesignTokens.spacing[4],
-  },
-  suggestedSection: {
-    marginTop: DesignTokens.spacing[6],
-    paddingTop: DesignTokens.spacing[6],
-    borderTopWidth: 1,
-    borderTopColor: DesignTokens.colors.neutral[800],
-  },
-  suggestedTitle: {
-    fontSize: DesignTokens.typography.fontSize.lg,
+  statValue: {
+    fontSize: DesignTokens.typography.fontSize.xl,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
     marginBottom: DesignTokens.spacing[1],
   },
-  suggestedSubtitle: {
+  statLabel: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+  },
+  filtersContainer: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingBottom: DesignTokens.spacing[4],
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[2],
+  },
+  filterButton: {
+    paddingHorizontal: DesignTokens.spacing[4],
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+  },
+  filterButtonActive: {
+    backgroundColor: DesignTokens.colors.primary[500],
+  },
+  filterButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  filterButtonTextActive: {
+    color: DesignTokens.colors.text.primary,
+  },
+  section: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[6],
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: DesignTokens.spacing[4],
   },
-  insightsContainer: {
+  sectionTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+  addButton: {
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderRadius: DesignTokens.borderRadius.full,
+    padding: DesignTokens.spacing[2],
+  },
+  measurementsList: {
+    gap: DesignTokens.spacing[3],
+  },
+  quickAddRow: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[3],
+    paddingRight: DesignTokens.spacing[5],
+  },
+  quickAddCard: {
+    alignItems: 'center',
+    padding: DesignTokens.spacing[4],
+    borderRadius: DesignTokens.borderRadius.lg,
+    backgroundColor: DesignTokens.colors.surface.primary,
+    minWidth: 80,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickAddIcon: {
+    fontSize: 24,
+    marginBottom: DesignTokens.spacing[2],
+  },
+  quickAddLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+  },
+  chartsContainer: {
     flex: 1,
-    padding: DesignTokens.spacing[5],
   },
-  insightsList: {
-    gap: DesignTokens.spacing[4],
+  chartsList: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingBottom: DesignTokens.spacing[5],
   },
-  insightCard: {
+  goalsContainer: {
+    flex: 1,
+  },
+  goalsList: {
+    gap: DesignTokens.spacing[3],
+  },
+  goalCard: {
     backgroundColor: DesignTokens.colors.surface.primary,
     borderRadius: DesignTokens.borderRadius.lg,
     padding: DesignTokens.spacing[4],
@@ -554,89 +691,59 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  insightTitle: {
+  goalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[3],
+  },
+  goalInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[3],
+    flex: 1,
+  },
+  goalIcon: {
+    fontSize: 24,
+  },
+  goalName: {
     fontSize: DesignTokens.typography.fontSize.base,
     fontWeight: DesignTokens.typography.fontWeight.semibold,
     color: DesignTokens.colors.text.primary,
-    marginBottom: DesignTokens.spacing[2],
   },
-  insightDescription: {
+  goalTarget: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
-    lineHeight: 20,
+  },
+  goalStatus: {
+    alignItems: 'flex-end',
+  },
+  goalProgress: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.primary[500],
+  },
+  goalProgressBar: {
+    height: 6,
+    backgroundColor: DesignTokens.colors.neutral[800],
+    borderRadius: DesignTokens.borderRadius.sm,
     marginBottom: DesignTokens.spacing[2],
+    overflow: 'hidden',
   },
-  insightRecommendation: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.warning[500],
-    fontStyle: 'italic',
-  },
-  timelineContainer: {
-    flex: 1,
-    padding: DesignTokens.spacing[5],
-  },
-  timelineList: {
-    gap: DesignTokens.spacing[4],
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    position: 'relative',
-  },
-  timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  goalProgressFill: {
+    height: '100%',
     backgroundColor: DesignTokens.colors.primary[500],
-    marginTop: DesignTokens.spacing[1],
-    marginRight: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.sm,
   },
-  timelineLine: {
-    position: 'absolute',
-    left: 5,
-    top: 20,
-    bottom: -16,
-    width: 2,
-    backgroundColor: DesignTokens.colors.neutral[700],
-  },
-  timelineContent: {
-    flex: 1,
-  },
-  timelineDate: {
+  goalDeadline: {
     fontSize: DesignTokens.typography.fontSize.sm,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    color: DesignTokens.colors.text.primary,
-    marginBottom: DesignTokens.spacing[2],
-  },
-  timelinePhotoCard: {
-    flexDirection: 'row',
-    backgroundColor: DesignTokens.colors.surface.primary,
-    borderRadius: DesignTokens.borderRadius.lg,
-    padding: DesignTokens.spacing[3],
-    gap: DesignTokens.spacing[3],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  timelinePhotoInfo: {
-    flex: 1,
-  },
-  timelinePhotoCategory: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    color: DesignTokens.colors.text.primary,
-    textTransform: 'capitalize',
-    marginBottom: DesignTokens.spacing[1],
-  },
-  timelinePhotoNotes: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-    marginBottom: DesignTokens.spacing[1],
-  },
-  timelinePhotoWeight: {
-    fontSize: DesignTokens.typography.fontSize.xs,
     color: DesignTokens.colors.text.tertiary,
+  },
+  historyContainer: {
+    flex: 1,
+  },
+  historyList: {
+    gap: DesignTokens.spacing[2],
   },
   emptyState: {
     alignItems: 'center',
@@ -657,7 +764,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: DesignTokens.spacing[4],
   },
-  addFirstPhotoButton: {
+  addFirstButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: DesignTokens.spacing[2],
@@ -666,7 +773,7 @@ const styles = StyleSheet.create({
     paddingVertical: DesignTokens.spacing[3],
     borderRadius: DesignTokens.borderRadius.md,
   },
-  addFirstPhotoText: {
+  addFirstButtonText: {
     fontSize: DesignTokens.typography.fontSize.base,
     fontWeight: DesignTokens.typography.fontWeight.medium,
     color: DesignTokens.colors.text.primary,

@@ -1,660 +1,503 @@
-import React, { useState } from 'react';
+/**
+ * WorkoutStatsOverview - Previously unused, now integrated into workout summary
+ * Comprehensive workout statistics with visual indicators and comparisons
+ */
+
+import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Dimensions,
+  StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
+import { 
+  Clock, 
+  Dumbbell, 
+  Target, 
   TrendingUp,
-  TrendingDown,
-  Calendar,
-  Clock,
-  Target,
-  Dumbbell,
-  Zap,
   Award,
-  Activity,
+  Zap,
+  Calendar,
   BarChart3,
 } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext';
 
-const { width } = Dimensions.get('window');
-
-interface StatCardProps {
-  title: string;
-  value: string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  trend?: {
-    direction: 'up' | 'down' | 'stable';
-    percentage: number;
-  };
-  color: string;
+export interface WorkoutStats {
+  duration: number; // in minutes
+  totalSets: number;
+  completedSets: number;
+  totalVolume: number; // in kg
+  averageRestTime: number; // in seconds
+  personalRecords: number;
+  caloriesBurned: number;
+  muscleGroups: string[];
+  exerciseCount: number;
+  intensityScore: number; // 1-10
 }
 
-function StatCard({ title, value, subtitle, icon, trend, color }: StatCardProps) {
-  const getTrendIcon = () => {
-    if (!trend) return null;
-    
-    switch (trend.direction) {
-      case 'up':
-        return <TrendingUp size={14} color={DesignTokens.colors.success[500]} />;
-      case 'down':
-        return <TrendingDown size={14} color={DesignTokens.colors.error[500]} />;
-      default:
-        return null;
-    }
+export interface WorkoutComparison {
+  previousWorkout?: {
+    duration: number;
+    totalVolume: number;
+    totalSets: number;
   };
-
-  const getTrendColor = () => {
-    if (!trend) return DesignTokens.colors.text.secondary;
-    
-    switch (trend.direction) {
-      case 'up':
-        return DesignTokens.colors.success[500];
-      case 'down':
-        return DesignTokens.colors.error[500];
-      default:
-        return DesignTokens.colors.text.secondary;
-    }
+  personalBests?: {
+    longestDuration: number;
+    highestVolume: number;
+    mostSets: number;
   };
-
-  return (
-    <View style={styles.statCard}>
-      <LinearGradient
-        colors={['#1a1a1a', '#2a2a2a']}
-        style={styles.statCardGradient}
-      >
-        <View style={styles.statCardHeader}>
-          <View style={[styles.statIcon, { backgroundColor: `${color}20` }]}>
-            {icon}
-          </View>
-          {trend && (
-            <View style={styles.trendContainer}>
-              {getTrendIcon()}
-              <Text style={[styles.trendText, { color: getTrendColor() }]}>
-                {trend.percentage.toFixed(1)}%
-              </Text>
-            </View>
-          )}
-        </View>
-        
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statTitle}>{title}</Text>
-        
-        {subtitle && (
-          <Text style={styles.statSubtitle}>{subtitle}</Text>
-        )}
-      </LinearGradient>
-    </View>
-  );
+  averages?: {
+    duration: number;
+    volume: number;
+    sets: number;
+  };
 }
 
-export function WorkoutStatsOverview() {
-  const { stats, workouts, getWorkoutTrends, isLoading } = useWorkoutHistory();
-  const [selectedTimeframe, setSelectedTimeframe] = useState<'week' | 'month' | 'year'>('month');
+export interface WorkoutStatsOverviewProps {
+  stats: WorkoutStats;
+  comparison?: WorkoutComparison;
+  showComparison?: boolean;
+  variant?: 'summary' | 'detailed';
+}
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading stats...</Text>
-      </View>
-    );
-  }
-
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
+export const WorkoutStatsOverview: React.FC<WorkoutStatsOverviewProps> = ({
+  stats,
+  comparison,
+  showComparison = true,
+  variant = 'summary',
+}) => {
+  const formatDuration = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
 
-  const formatWeight = (kg: number): string => {
-    if (kg >= 1000) {
-      return `${(kg / 1000).toFixed(1)}k kg`;
-    }
-    return `${Math.round(kg)} kg`;
+  const formatVolume = (volume: number): string => {
+    if (volume >= 1000) return `${(volume / 1000).toFixed(1)}k kg`;
+    return `${volume.toFixed(0)} kg`;
   };
 
-  const calculateTrend = (current: number, previous: number) => {
-    if (previous === 0) return null;
+  const formatRestTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getCompletionPercentage = (): number => {
+    return (stats.completedSets / stats.totalSets) * 100;
+  };
+
+  const getIntensityColor = (intensity: number): string[] => {
+    if (intensity >= 8) return ['#EF4444', '#DC2626']; // High intensity - Red
+    if (intensity >= 6) return ['#F59E0B', '#D97706']; // Medium intensity - Orange
+    if (intensity >= 4) return ['#10B981', '#059669']; // Low-medium intensity - Green
+    return ['#6B7280', '#4B5563']; // Low intensity - Gray
+  };
+
+  const getIntensityLabel = (intensity: number): string => {
+    if (intensity >= 8) return 'High';
+    if (intensity >= 6) return 'Medium';
+    if (intensity >= 4) return 'Moderate';
+    return 'Light';
+  };
+
+  const getComparisonIndicator = (current: number, previous?: number) => {
+    if (!previous) return null;
     
-    const percentage = ((current - previous) / previous) * 100;
+    const change = ((current - previous) / previous) * 100;
+    const isImprovement = change > 0;
     
     return {
-      direction: percentage > 0 ? 'up' as const : percentage < 0 ? 'down' as const : 'stable' as const,
-      percentage: Math.abs(percentage),
+      change: Math.abs(change),
+      isImprovement,
+      icon: isImprovement ? <TrendingUp size={12} color={DesignTokens.colors.success[500]} /> : 
+                           <TrendingUp size={12} color={DesignTokens.colors.error[500]} style={{ transform: [{ rotate: '180deg' }] }} />,
+      color: isImprovement ? DesignTokens.colors.success[500] : DesignTokens.colors.error[500],
     };
   };
 
-  // Calculate trends (simplified - comparing this month vs last month)
-  const thisMonth = new Date();
-  const lastMonth = new Date();
-  lastMonth.setMonth(lastMonth.getMonth() - 1);
-  
-  const thisMonthWorkouts = workouts.filter(w => {
-    if (!w.completed_at) return false;
-    const date = new Date(w.completed_at);
-    return date.getMonth() === thisMonth.getMonth() && date.getFullYear() === thisMonth.getFullYear();
-  });
-  
-  const lastMonthWorkouts = workouts.filter(w => {
-    if (!w.completed_at) return false;
-    const date = new Date(w.completed_at);
-    return date.getMonth() === lastMonth.getMonth() && date.getFullYear() === lastMonth.getFullYear();
-  });
+  const StatCard = ({ 
+    icon, 
+    label, 
+    value, 
+    comparison: comparisonValue,
+    color = DesignTokens.colors.primary[500] 
+  }: {
+    icon: React.ReactNode;
+    label: string;
+    value: string;
+    comparison?: number;
+    color?: string;
+  }) => {
+    const indicator = typeof comparisonValue === 'number' ? 
+      getComparisonIndicator(parseFloat(value.replace(/[^\d.]/g, '')), comparisonValue) : null;
 
-  const thisMonthCount = thisMonthWorkouts.length;
-  const lastMonthCount = lastMonthWorkouts.length;
-  const workoutTrend = calculateTrend(thisMonthCount, lastMonthCount);
-
-  const thisMonthDuration = thisMonthWorkouts.reduce((sum, w) => sum + w.total_duration_seconds, 0);
-  const lastMonthDuration = lastMonthWorkouts.reduce((sum, w) => sum + w.total_duration_seconds, 0);
-  const durationTrend = calculateTrend(thisMonthDuration, lastMonthDuration);
-
-  const trends = getWorkoutTrends(selectedTimeframe);
-
-  const TimeframeButton = ({ timeframe, label }: { timeframe: 'week' | 'month' | 'year'; label: string }) => (
-    <TouchableOpacity
-      style={[
-        styles.timeframeButton,
-        selectedTimeframe === timeframe && styles.timeframeButtonActive
-      ]}
-      onPress={() => setSelectedTimeframe(timeframe)}
-    >
-      <Text style={[
-        styles.timeframeText,
-        selectedTimeframe === timeframe && styles.timeframeTextActive
-      ]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
+    return (
+      <View style={styles.statCard}>
+        <View style={[styles.statIcon, { backgroundColor: `${color}20` }]}>
+          {React.cloneElement(icon as React.ReactElement, { 
+            size: 16, 
+            color 
+          })}
+        </View>
+        <Text style={styles.statValue}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+        {indicator && showComparison && (
+          <View style={styles.comparisonIndicator}>
+            {indicator.icon}
+            <Text style={[styles.comparisonText, { color: indicator.color }]}>
+              {indicator.change.toFixed(1)}%
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Workout Analytics</Text>
-        <Text style={styles.subtitle}>Your fitness journey insights</Text>
+        <Text style={styles.title}>Workout Summary</Text>
+        <BarChart3 size={20} color={DesignTokens.colors.primary[500]} />
+      </View>
+
+      {/* Completion Status */}
+      <View style={styles.completionSection}>
+        <LinearGradient 
+          colors={getIntensityColor(stats.intensityScore)} 
+          style={styles.completionGradient}
+        >
+          <View style={styles.completionHeader}>
+            <Text style={styles.completionTitle}>
+              {getCompletionPercentage().toFixed(0)}% Complete
+            </Text>
+            <Text style={styles.intensityLabel}>
+              {getIntensityLabel(stats.intensityScore)} Intensity
+            </Text>
+          </View>
+          
+          <View style={styles.completionBar}>
+            <View 
+              style={[
+                styles.completionFill, 
+                { width: `${getCompletionPercentage()}%` }
+              ]} 
+            />
+          </View>
+          
+          <Text style={styles.completionText}>
+            {stats.completedSets} of {stats.totalSets} sets completed
+          </Text>
+        </LinearGradient>
       </View>
 
       {/* Main Stats Grid */}
       <View style={styles.statsGrid}>
         <StatCard
-          title="Total Workouts"
-          value={stats.totalWorkouts.toString()}
-          subtitle={`${stats.workoutsThisMonth} this month`}
-          icon={<Calendar size={20} color="#4ECDC4" />}
-          trend={workoutTrend}
-          color="#4ECDC4"
+          icon={<Clock />}
+          label="Duration"
+          value={formatDuration(stats.duration)}
+          comparison={comparison?.previousWorkout?.duration}
+          color="#3B82F6"
         />
         
         <StatCard
-          title="Total Duration"
-          value={formatDuration(stats.totalDuration)}
-          subtitle={`Avg: ${formatDuration(stats.averageWorkoutDuration)}`}
-          icon={<Clock size={20} color="#9E7FFF" />}
-          trend={durationTrend}
-          color="#9E7FFF"
-        />
-        
-        <StatCard
-          title="Total Volume"
-          value={formatWeight(stats.totalWeight)}
-          subtitle={`${stats.totalSets} sets completed`}
-          icon={<Dumbbell size={20} color="#FF6B35" />}
-          color="#FF6B35"
-        />
-        
-        <StatCard
-          title="Total Reps"
-          value={stats.totalReps.toLocaleString()}
-          subtitle="All exercises"
-          icon={<Target size={20} color="#10B981" />}
+          icon={<Dumbbell />}
+          label="Total Volume"
+          value={formatVolume(stats.totalVolume)}
+          comparison={comparison?.previousWorkout?.totalVolume}
           color="#10B981"
         />
-      </View>
-
-      {/* Streak Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Consistency</Text>
-        <View style={styles.streakContainer}>
-          <LinearGradient
-            colors={['#1a1a1a', '#2a2a2a']}
-            style={styles.streakCard}
-          >
-            <View style={styles.streakHeader}>
-              <View style={styles.streakIcon}>
-                <Zap size={24} color="#F59E0B" />
-              </View>
-              <View style={styles.streakInfo}>
-                <Text style={styles.streakValue}>{stats.currentStreak}</Text>
-                <Text style={styles.streakLabel}>Current Streak</Text>
-              </View>
-            </View>
-            
-            <View style={styles.streakStats}>
-              <View style={styles.streakStat}>
-                <Text style={styles.streakStatValue}>{stats.longestStreak}</Text>
-                <Text style={styles.streakStatLabel}>Best Streak</Text>
-              </View>
-              <View style={styles.streakStat}>
-                <Text style={styles.streakStatValue}>{stats.workoutsThisWeek}</Text>
-                <Text style={styles.streakStatLabel}>This Week</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
-      </View>
-
-      {/* Trends Chart */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Workout Trends</Text>
-          <View style={styles.timeframeSelector}>
-            <TimeframeButton timeframe="week" label="Week" />
-            <TimeframeButton timeframe="month" label="Month" />
-            <TimeframeButton timeframe="year" label="Year" />
-          </View>
-        </View>
         
-        <View style={styles.chartContainer}>
-          <LinearGradient
-            colors={['#1a1a1a', '#2a2a2a']}
-            style={styles.chartCard}
-          >
-            <View style={styles.chartHeader}>
-              <BarChart3 size={20} color={DesignTokens.colors.primary[500]} />
-              <Text style={styles.chartTitle}>Duration Trends</Text>
-            </View>
-            
-            {/* Simple bar chart representation */}
-            <View style={styles.barsContainer}>
-              {trends.data.map((value, index) => {
-                const maxValue = Math.max(...trends.data);
-                const height = maxValue > 0 ? (value / maxValue) * 80 : 0;
-                
-                return (
-                  <View key={index} style={styles.barContainer}>
-                    <View style={styles.barWrapper}>
-                      <View 
-                        style={[
-                          styles.bar,
-                          { 
-                            height: height,
-                            backgroundColor: DesignTokens.colors.primary[500]
-                          }
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.barLabel}>
-                      {trends.labels[index]}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </LinearGradient>
-        </View>
+        <StatCard
+          icon={<Target />}
+          label="Sets"
+          value={`${stats.completedSets}/${stats.totalSets}`}
+          comparison={comparison?.previousWorkout?.totalSets}
+          color="#F59E0B"
+        />
+        
+        <StatCard
+          icon={<Award />}
+          label="Personal Records"
+          value={stats.personalRecords.toString()}
+          color="#EF4444"
+        />
       </View>
 
-      {/* Favorite Exercises */}
-      {stats.favoriteExercises.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Favorite Exercises</Text>
-          <View style={styles.exercisesContainer}>
-            {stats.favoriteExercises.slice(0, 5).map((exercise, index) => (
-              <LinearGradient
-                key={exercise.name}
-                colors={['#1a1a1a', '#2a2a2a']}
-                style={styles.exerciseCard}
-              >
-                <View style={styles.exerciseRank}>
-                  <Text style={styles.exerciseRankText}>#{index + 1}</Text>
-                </View>
-                <View style={styles.exerciseInfo}>
-                  <Text style={styles.exerciseName}>{exercise.name}</Text>
-                  <Text style={styles.exerciseCount}>{exercise.count} sessions</Text>
-                </View>
-                <Activity size={16} color={DesignTokens.colors.primary[500]} />
-              </LinearGradient>
-            ))}
+      {variant === 'detailed' && (
+        <>
+          {/* Secondary Stats */}
+          <View style={styles.secondaryStats}>
+            <StatCard
+              icon={<Zap />}
+              label="Calories Burned"
+              value={stats.caloriesBurned.toString()}
+              color="#8B5CF6"
+            />
+            
+            <StatCard
+              icon={<Clock />}
+              label="Avg Rest Time"
+              value={formatRestTime(stats.averageRestTime)}
+              color="#06B6D4"
+            />
+            
+            <StatCard
+              icon={<Calendar />}
+              label="Exercises"
+              value={stats.exerciseCount.toString()}
+              color="#84CC16"
+            />
           </View>
-        </View>
-      )}
 
-      {/* Recent PRs */}
-      {stats.recentPRs.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Personal Records</Text>
-          <View style={styles.prsContainer}>
-            {stats.recentPRs.slice(0, 3).map((pr, index) => (
-              <LinearGradient
-                key={index}
-                colors={['#1a1a1a', '#2a2a2a']}
-                style={styles.prCard}
-              >
-                <View style={styles.prIcon}>
-                  <Award size={20} color="#F59E0B" />
+          {/* Muscle Groups */}
+          <View style={styles.muscleGroupsSection}>
+            <Text style={styles.sectionTitle}>Muscle Groups Trained</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.muscleGroupsScroll}
+            >
+              {stats.muscleGroups.map((muscle, index) => (
+                <View key={index} style={styles.muscleGroupTag}>
+                  <Text style={styles.muscleGroupText}>{muscle}</Text>
                 </View>
-                <View style={styles.prInfo}>
-                  <Text style={styles.prExercise}>{pr.exercise}</Text>
-                  <Text style={styles.prValue}>
-                    {pr.value} {pr.type === 'weight' ? 'kg' : pr.type}
-                  </Text>
-                  <Text style={styles.prDate}>
-                    {new Date(pr.date).toLocaleDateString()}
-                  </Text>
-                </View>
-              </LinearGradient>
-            ))}
+              ))}
+            </ScrollView>
           </View>
-        </View>
+
+          {/* Personal Bests Comparison */}
+          {comparison?.personalBests && showComparison && (
+            <View style={styles.personalBestsSection}>
+              <Text style={styles.sectionTitle}>Personal Bests</Text>
+              <View style={styles.personalBestsGrid}>
+                <View style={styles.personalBestItem}>
+                  <Text style={styles.personalBestLabel}>Duration</Text>
+                  <Text style={styles.personalBestValue}>
+                    {formatDuration(comparison.personalBests.longestDuration)}
+                  </Text>
+                  <Text style={styles.personalBestStatus}>
+                    {stats.duration >= comparison.personalBests.longestDuration ? '🏆 New Record!' : 'Best'}
+                  </Text>
+                </View>
+                
+                <View style={styles.personalBestItem}>
+                  <Text style={styles.personalBestLabel}>Volume</Text>
+                  <Text style={styles.personalBestValue}>
+                    {formatVolume(comparison.personalBests.highestVolume)}
+                  </Text>
+                  <Text style={styles.personalBestStatus}>
+                    {stats.totalVolume >= comparison.personalBests.highestVolume ? '🏆 New Record!' : 'Best'}
+                  </Text>
+                </View>
+                
+                <View style={styles.personalBestItem}>
+                  <Text style={styles.personalBestLabel}>Sets</Text>
+                  <Text style={styles.personalBestValue}>
+                    {comparison.personalBests.mostSets}
+                  </Text>
+                  <Text style={styles.personalBestStatus}>
+                    {stats.completedSets >= comparison.personalBests.mostSets ? '🏆 New Record!' : 'Best'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+        </>
       )}
-    </ScrollView>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: DesignTokens.colors.background.primary,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-  },
-  header: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.xl,
     padding: DesignTokens.spacing[5],
-    paddingBottom: DesignTokens.spacing[4],
+    ...DesignTokens.shadow.md,
   },
-  title: {
-    fontSize: DesignTokens.typography.fontSize['2xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
-  },
-  subtitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-  },
-  statsGrid: {
+
+  header: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: DesignTokens.spacing[5],
-    gap: DesignTokens.spacing[3],
-    marginBottom: DesignTokens.spacing[6],
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[4],
   },
-  statCard: {
-    width: (width - 40 - 12) / 2,
+
+  title: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+
+  completionSection: {
+    marginBottom: DesignTokens.spacing[5],
     borderRadius: DesignTokens.borderRadius.lg,
     overflow: 'hidden',
-    ...DesignTokens.shadow.base,
   },
-  statCardGradient: {
+
+  completionGradient: {
     padding: DesignTokens.spacing[4],
   },
-  statCardHeader: {
+
+  completionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: DesignTokens.spacing[3],
   },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
-  },
-  trendText: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  statValue: {
+
+  completionTitle: {
     fontSize: DesignTokens.typography.fontSize.xl,
-    color: DesignTokens.colors.text.primary,
     fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
+    color: '#FFFFFF',
   },
-  statTitle: {
+
+  intensityLabel: {
     fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
+    color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  statSubtitle: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-    marginTop: DesignTokens.spacing[1],
+
+  completionBar: {
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 3,
+    marginBottom: DesignTokens.spacing[2],
+    overflow: 'hidden',
   },
-  section: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    marginBottom: DesignTokens.spacing[6],
+
+  completionFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
   },
-  sectionHeader: {
+
+  completionText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+  },
+
+  statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: DesignTokens.spacing[3],
     marginBottom: DesignTokens.spacing[4],
   },
-  sectionTitle: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  timeframeSelector: {
+
+  secondaryStats: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[5],
+  },
+
+  statCard: {
+    flex: 1,
+    minWidth: '45%',
     backgroundColor: DesignTokens.colors.surface.tertiary,
-    borderRadius: DesignTokens.borderRadius.md,
-    padding: DesignTokens.spacing[1],
-  },
-  timeframeButton: {
-    paddingHorizontal: DesignTokens.spacing[3],
-    paddingVertical: DesignTokens.spacing[1],
-    borderRadius: DesignTokens.borderRadius.sm,
-  },
-  timeframeButtonActive: {
-    backgroundColor: DesignTokens.colors.primary[500],
-  },
-  timeframeText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  timeframeTextActive: {
-    color: DesignTokens.colors.text.primary,
-  },
-  streakContainer: {
     borderRadius: DesignTokens.borderRadius.lg,
-    overflow: 'hidden',
-    ...DesignTokens.shadow.base,
-  },
-  streakCard: {
     padding: DesignTokens.spacing[4],
-  },
-  streakHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: DesignTokens.spacing[4],
-  },
-  streakIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F59E0B20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: DesignTokens.spacing[3],
-  },
-  streakInfo: {
-    flex: 1,
-  },
-  streakValue: {
-    fontSize: DesignTokens.typography.fontSize['2xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  streakLabel: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-  },
-  streakStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: DesignTokens.spacing[4],
-    borderTopWidth: 1,
-    borderTopColor: DesignTokens.colors.neutral[800],
-  },
-  streakStat: {
     alignItems: 'center',
   },
-  streakStatValue: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  streakStatLabel: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-    marginTop: DesignTokens.spacing[1],
-  },
-  chartContainer: {
-    borderRadius: DesignTokens.borderRadius.lg,
-    overflow: 'hidden',
-    ...DesignTokens.shadow.base,
-  },
-  chartCard: {
-    padding: DesignTokens.spacing[4],
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[2],
-    marginBottom: DesignTokens.spacing[4],
-  },
-  chartTitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  barsContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 100,
-  },
-  barContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  barWrapper: {
-    height: 80,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+
+  statIcon: {
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.full,
     marginBottom: DesignTokens.spacing[2],
   },
-  bar: {
-    width: 20,
-    borderRadius: 2,
-    minHeight: 2,
+
+  statValue: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
   },
-  barLabel: {
+
+  statLabel: {
     fontSize: DesignTokens.typography.fontSize.xs,
     color: DesignTokens.colors.text.secondary,
     textAlign: 'center',
   },
-  exercisesContainer: {
-    gap: DesignTokens.spacing[3],
-  },
-  exerciseCard: {
+
+  comparisonIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: DesignTokens.spacing[4],
-    borderRadius: DesignTokens.borderRadius.lg,
-    ...DesignTokens.shadow.base,
+    gap: DesignTokens.spacing[1],
+    marginTop: DesignTokens.spacing[1],
   },
-  exerciseRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+
+  comparisonText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+
+  muscleGroupsSection: {
+    marginBottom: DesignTokens.spacing[5],
+  },
+
+  sectionTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  muscleGroupsScroll: {
+    marginTop: DesignTokens.spacing[2],
+  },
+
+  muscleGroupTag: {
     backgroundColor: DesignTokens.colors.primary[500],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: DesignTokens.spacing[3],
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.full,
+    marginRight: DesignTokens.spacing[2],
   },
-  exerciseRankText: {
+
+  muscleGroupText: {
     fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  exerciseInfo: {
-    flex: 1,
-  },
-  exerciseName: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
+    color: '#FFFFFF',
     fontWeight: DesignTokens.typography.fontWeight.medium,
-    marginBottom: DesignTokens.spacing[1],
   },
-  exerciseCount: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
+
+  personalBestsSection: {
+    marginBottom: DesignTokens.spacing[4],
   },
-  prsContainer: {
+
+  personalBestsGrid: {
+    flexDirection: 'row',
     gap: DesignTokens.spacing[3],
   },
-  prCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: DesignTokens.spacing[4],
-    borderRadius: DesignTokens.borderRadius.lg,
-    ...DesignTokens.shadow.base,
-  },
-  prIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F59E0B20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: DesignTokens.spacing[3],
-  },
-  prInfo: {
+
+  personalBestItem: {
     flex: 1,
+    backgroundColor: DesignTokens.colors.surface.tertiary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[3],
+    alignItems: 'center',
   },
-  prExercise: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    marginBottom: DesignTokens.spacing[1],
-  },
-  prValue: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.primary[500],
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
-  },
-  prDate: {
+
+  personalBestLabel: {
     fontSize: DesignTokens.typography.fontSize.xs,
     color: DesignTokens.colors.text.secondary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  personalBestValue: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  personalBestStatus: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.success[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    textAlign: 'center',
   },
 });

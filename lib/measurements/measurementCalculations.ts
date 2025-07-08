@@ -1,7 +1,14 @@
+/**
+ * Measurement Calculations - Previously unused, now integrated into measurements system
+ * Statistical analysis and trend calculations for body measurements
+ */
+
 import { Measurement, MeasurementTrend, MeasurementStats } from '@/types/measurement';
-import { getMeasurementTypeById } from './measurementTypes';
 
 export class MeasurementCalculations {
+  /**
+   * Calculate trend for a specific measurement type
+   */
   static calculateTrend(
     measurements: Measurement[],
     measurementType: string,
@@ -9,225 +16,160 @@ export class MeasurementCalculations {
   ): MeasurementTrend | null {
     const typeMeasurements = measurements
       .filter(m => m.type === measurementType)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     if (typeMeasurements.length < 2) {
       return null;
     }
 
-    const current = typeMeasurements[0];
-    const periodDays = this.getPeriodDays(period);
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - periodDays);
+    const now = new Date();
+    const periodDays = {
+      week: 7,
+      month: 30,
+      quarter: 90,
+      year: 365,
+    }[period];
 
-    const previousMeasurement = typeMeasurements.find(m => 
-      new Date(m.date) <= cutoffDate
-    );
+    const cutoffDate = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+    const recentMeasurements = typeMeasurements.filter(m => new Date(m.date) >= cutoffDate);
 
-    if (!previousMeasurement) {
+    if (recentMeasurements.length < 2) {
       return null;
     }
 
-    const change = current.value - previousMeasurement.value;
-    const changePercent = (change / previousMeasurement.value) * 100;
-    
-    let trend: 'up' | 'down' | 'stable' = 'stable';
-    const threshold = 0.5; // 0.5% threshold for stability
+    const current = recentMeasurements[recentMeasurements.length - 1].value;
+    const previous = recentMeasurements[0].value;
+    const change = current - previous;
+    const changePercent = previous !== 0 ? (change / previous) * 100 : 0;
 
-    if (Math.abs(changePercent) > threshold) {
-      trend = change > 0 ? 'up' : 'down';
+    let trend: 'up' | 'down' | 'stable' = 'stable';
+    if (Math.abs(changePercent) > 2) {
+      trend = changePercent > 0 ? 'up' : 'down';
     }
 
     return {
-      type: measurementType,
-      current: current.value,
-      previous: previousMeasurement.value,
+      measurementType,
+      period,
+      trend,
+      current,
+      previous,
       change,
       changePercent,
-      trend,
-      period,
+      dataPoints: recentMeasurements.length,
     };
   }
 
+  /**
+   * Calculate all trends for measurements
+   */
   static calculateAllTrends(
     measurements: Measurement[],
     period: 'week' | 'month' | 'quarter' | 'year' = 'month'
   ): MeasurementTrend[] {
     const measurementTypes = [...new Set(measurements.map(m => m.type))];
-    const trends: MeasurementTrend[] = [];
-
-    measurementTypes.forEach(type => {
-      const trend = this.calculateTrend(measurements, type, period);
-      if (trend) {
-        trends.push(trend);
-      }
-    });
-
-    return trends;
+    
+    return measurementTypes
+      .map(type => this.calculateTrend(measurements, type, period))
+      .filter(Boolean) as MeasurementTrend[];
   }
 
+  /**
+   * Get progress data for charting
+   */
+  static getProgressData(
+    measurements: Measurement[],
+    measurementType: string,
+    timeframe: 'week' | 'month' | 'quarter' | 'year' = 'month'
+  ): Array<{ date: string; value: number; label?: string }> {
+    const typeMeasurements = measurements
+      .filter(m => m.type === measurementType)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const now = new Date();
+    const timeframeDays = {
+      week: 7,
+      month: 30,
+      quarter: 90,
+      year: 365,
+    }[timeframe];
+
+    const cutoffDate = new Date(now.getTime() - timeframeDays * 24 * 60 * 60 * 1000);
+    const filteredMeasurements = typeMeasurements.filter(m => new Date(m.date) >= cutoffDate);
+
+    return filteredMeasurements.map(measurement => ({
+      date: measurement.date,
+      value: measurement.value,
+      label: this.formatMeasurementValue(measurement.value, measurement.unit),
+    }));
+  }
+
+  /**
+   * Calculate statistics for all measurements
+   */
   static calculateStats(measurements: Measurement[]): MeasurementStats {
+    if (measurements.length === 0) {
+      return {
+        totalMeasurements: 0,
+        measurementTypes: 0,
+        streakDays: 0,
+        mostTrackedType: '',
+        averageFrequency: 0,
+      };
+    }
+
     const measurementTypes = new Set(measurements.map(m => m.type));
-    const sortedMeasurements = measurements.sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    const typeFrequency = new Map<string, number>();
 
-    // Calculate streak
-    const streakDays = this.calculateMeasurementStreak(measurements);
-
-    // Find most tracked type
-    const typeCounts: { [key: string]: number } = {};
     measurements.forEach(m => {
-      typeCounts[m.type] = (typeCounts[m.type] || 0) + 1;
+      typeFrequency.set(m.type, (typeFrequency.get(m.type) || 0) + 1);
     });
 
-    const mostTrackedType = Object.entries(typeCounts)
+    const mostTrackedType = Array.from(typeFrequency.entries())
       .sort(([,a], [,b]) => b - a)[0]?.[0] || '';
 
+    // Calculate streak days
+    const streakDays = this.calculateStreakDays(measurements);
+
     // Calculate average frequency (measurements per week)
-    const averageFrequency = this.calculateAverageFrequency(measurements);
+    const oldestDate = new Date(Math.min(...measurements.map(m => new Date(m.date).getTime())));
+    const daysSinceStart = Math.max(1, (Date.now() - oldestDate.getTime()) / (1000 * 60 * 60 * 24));
+    const averageFrequency = (measurements.length / daysSinceStart) * 7;
 
     return {
       totalMeasurements: measurements.length,
       measurementTypes: measurementTypes.size,
       streakDays,
-      lastMeasurement: sortedMeasurements[0]?.date,
       mostTrackedType,
       averageFrequency,
     };
   }
 
-  static getProgressData(
-    measurements: Measurement[],
-    measurementType: string,
-    timeframe: 'week' | 'month' | 'quarter' | 'year' = 'month'
-  ): { date: string; value: number; label?: string }[] {
-    const typeMeasurements = measurements
-      .filter(m => m.type === measurementType)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    const periodDays = this.getPeriodDays(timeframe);
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - periodDays);
-
-    return typeMeasurements
-      .filter(m => new Date(m.date) >= startDate)
-      .map(m => ({
-        date: m.date,
-        value: m.value,
-        label: new Date(m.date).toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
-        }),
-      }));
-  }
-
-  static calculateBMI(weightKg: number, heightCm: number): number {
-    const heightM = heightCm / 100;
-    return weightKg / (heightM * heightM);
-  }
-
-  static getBMICategory(bmi: number): string {
-    if (bmi < 18.5) return 'Underweight';
-    if (bmi < 25) return 'Normal';
-    if (bmi < 30) return 'Overweight';
-    return 'Obese';
-  }
-
-  static calculateBodyFatFromMeasurements(
-    measurements: { [key: string]: number },
-    gender: 'male' | 'female' = 'male'
-  ): number | null {
-    // Navy method for body fat calculation
-    const { waist, neck, height, hips } = measurements;
-    
-    if (!waist || !neck || !height) return null;
-
-    let bodyFat: number;
-
-    if (gender === 'male') {
-      bodyFat = 495 / (1.0324 - 0.19077 * Math.log10(waist - neck) + 0.15456 * Math.log10(height)) - 450;
-    } else {
-      if (!hips) return null;
-      bodyFat = 495 / (1.29579 - 0.35004 * Math.log10(waist + hips - neck) + 0.22100 * Math.log10(height)) - 450;
-    }
-
-    return Math.max(0, Math.min(50, bodyFat)); // Clamp between 0-50%
-  }
-
-  static getIdealWeightRange(heightCm: number): { min: number; max: number } {
-    const heightM = heightCm / 100;
-    const minBMI = 18.5;
-    const maxBMI = 24.9;
-    
-    return {
-      min: Math.round(minBMI * heightM * heightM),
-      max: Math.round(maxBMI * heightM * heightM),
-    };
-  }
-
-  static formatMeasurementValue(value: number, unit: string): string {
-    if (unit === '%') {
-      return `${value.toFixed(1)}%`;
-    }
-    if (unit === 'kg' || unit === 'lbs') {
-      return `${value.toFixed(1)} ${unit}`;
-    }
-    if (unit === 'cm' || unit === 'in') {
-      return `${value.toFixed(0)} ${unit}`;
-    }
-    return `${value} ${unit}`;
-  }
-
-  static convertUnit(value: number, fromUnit: string, toUnit: string): number {
-    // Weight conversions
-    if (fromUnit === 'kg' && toUnit === 'lbs') {
-      return value * 2.20462;
-    }
-    if (fromUnit === 'lbs' && toUnit === 'kg') {
-      return value / 2.20462;
-    }
-    
-    // Length conversions
-    if (fromUnit === 'cm' && toUnit === 'in') {
-      return value / 2.54;
-    }
-    if (fromUnit === 'in' && toUnit === 'cm') {
-      return value * 2.54;
-    }
-    
-    return value; // No conversion needed
-  }
-
-  private static getPeriodDays(period: 'week' | 'month' | 'quarter' | 'year'): number {
-    switch (period) {
-      case 'week': return 7;
-      case 'month': return 30;
-      case 'quarter': return 90;
-      case 'year': return 365;
-      default: return 30;
-    }
-  }
-
-  private static calculateMeasurementStreak(measurements: Measurement[]): number {
+  /**
+   * Calculate measurement streak days
+   */
+  private static calculateStreakDays(measurements: Measurement[]): number {
     if (measurements.length === 0) return 0;
 
-    const measurementDates = measurements
-      .map(m => new Date(m.date).toDateString())
-      .filter((date, index, array) => array.indexOf(date) === index)
+    const sortedDates = [...new Set(measurements.map(m => m.date.split('T')[0]))]
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
     let streak = 0;
-    const today = new Date().toDateString();
     let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
 
-    for (let i = 0; i < measurementDates.length; i++) {
-      const measurementDate = measurementDates[i];
-      const checkDate = currentDate.toDateString();
+    for (const dateStr of sortedDates) {
+      const measurementDate = new Date(dateStr);
+      measurementDate.setHours(0, 0, 0, 0);
 
-      if (measurementDate === checkDate) {
+      const daysDiff = Math.floor((currentDate.getTime() - measurementDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysDiff === streak) {
         streak++;
-        currentDate.setDate(currentDate.getDate() - 1);
+        currentDate = measurementDate;
+      } else if (daysDiff === streak + 1) {
+        // Allow for one day gap
+        streak += 2;
+        currentDate = measurementDate;
       } else {
         break;
       }
@@ -236,18 +178,268 @@ export class MeasurementCalculations {
     return streak;
   }
 
-  private static calculateAverageFrequency(measurements: Measurement[]): number {
-    if (measurements.length === 0) return 0;
+  /**
+   * Calculate BMI if height and weight are available
+   */
+  static calculateBMI(measurements: Measurement[]): number | null {
+    const weightMeasurement = measurements
+      .filter(m => m.type === 'body_weight')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
-    const sortedMeasurements = measurements.sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+    const heightMeasurement = measurements
+      .filter(m => m.type === 'height')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+    if (!weightMeasurement || !heightMeasurement) {
+      return null;
+    }
+
+    const weightKg = weightMeasurement.value;
+    const heightM = heightMeasurement.value / 100; // Convert cm to m
+
+    return weightKg / (heightM * heightM);
+  }
+
+  /**
+   * Calculate body fat percentage using Navy method (if measurements available)
+   */
+  static calculateBodyFatNavy(
+    measurements: Measurement[],
+    gender: 'male' | 'female'
+  ): number | null {
+    const getLatestMeasurement = (type: string) => 
+      measurements
+        .filter(m => m.type === type)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+    const height = getLatestMeasurement('height')?.value;
+    const waist = getLatestMeasurement('waist')?.value;
+    const neck = getLatestMeasurement('neck')?.value;
+
+    if (!height || !waist || !neck) {
+      return null;
+    }
+
+    if (gender === 'male') {
+      return 495 / (1.0324 - 0.19077 * Math.log10(waist - neck) + 0.15456 * Math.log10(height)) - 450;
+    } else {
+      const hips = getLatestMeasurement('hips')?.value;
+      if (!hips) return null;
+      
+      return 495 / (1.29579 - 0.35004 * Math.log10(waist + hips - neck) + 0.22100 * Math.log10(height)) - 450;
+    }
+  }
+
+  /**
+   * Detect measurement anomalies
+   */
+  static detectAnomalies(
+    measurements: Measurement[],
+    measurementType: string,
+    threshold: number = 2
+  ): Measurement[] {
+    const typeMeasurements = measurements
+      .filter(m => m.type === measurementType)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    if (typeMeasurements.length < 3) {
+      return [];
+    }
+
+    const values = typeMeasurements.map(m => m.value);
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+    const standardDeviation = Math.sqrt(variance);
+
+    return typeMeasurements.filter(measurement => 
+      Math.abs(measurement.value - mean) > threshold * standardDeviation
     );
+  }
 
-    const firstDate = new Date(sortedMeasurements[0].date);
-    const lastDate = new Date(sortedMeasurements[sortedMeasurements.length - 1].date);
-    const daysDiff = Math.max(1, (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
-    const weeksSpanned = daysDiff / 7;
+  /**
+   * Smooth measurement data using moving average
+   */
+  static smoothMeasurements(
+    measurements: Measurement[],
+    measurementType: string,
+    windowSize: number = 3
+  ): Array<{ date: string; value: number; originalValue: number }> {
+    const typeMeasurements = measurements
+      .filter(m => m.type === measurementType)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    return measurements.length / weeksSpanned;
+    if (typeMeasurements.length < windowSize) {
+      return typeMeasurements.map(m => ({
+        date: m.date,
+        value: m.value,
+        originalValue: m.value,
+      }));
+    }
+
+    const smoothed: Array<{ date: string; value: number; originalValue: number }> = [];
+
+    for (let i = 0; i < typeMeasurements.length; i++) {
+      const start = Math.max(0, i - Math.floor(windowSize / 2));
+      const end = Math.min(typeMeasurements.length, start + windowSize);
+      const window = typeMeasurements.slice(start, end);
+      
+      const averageValue = window.reduce((sum, m) => sum + m.value, 0) / window.length;
+      
+      smoothed.push({
+        date: typeMeasurements[i].date,
+        value: averageValue,
+        originalValue: typeMeasurements[i].value,
+      });
+    }
+
+    return smoothed;
+  }
+
+  /**
+   * Calculate correlation between two measurement types
+   */
+  static calculateCorrelation(
+    measurements: Measurement[],
+    type1: string,
+    type2: string
+  ): number | null {
+    const measurements1 = measurements.filter(m => m.type === type1);
+    const measurements2 = measurements.filter(m => m.type === type2);
+
+    if (measurements1.length < 3 || measurements2.length < 3) {
+      return null;
+    }
+
+    // Find overlapping dates
+    const dates1 = new Set(measurements1.map(m => m.date.split('T')[0]));
+    const dates2 = new Set(measurements2.map(m => m.date.split('T')[0]));
+    const commonDates = [...dates1].filter(date => dates2.has(date));
+
+    if (commonDates.length < 3) {
+      return null;
+    }
+
+    const pairs: Array<[number, number]> = [];
+    
+    commonDates.forEach(date => {
+      const m1 = measurements1.find(m => m.date.split('T')[0] === date);
+      const m2 = measurements2.find(m => m.date.split('T')[0] === date);
+      
+      if (m1 && m2) {
+        pairs.push([m1.value, m2.value]);
+      }
+    });
+
+    if (pairs.length < 3) {
+      return null;
+    }
+
+    // Calculate Pearson correlation coefficient
+    const n = pairs.length;
+    const sum1 = pairs.reduce((sum, [x]) => sum + x, 0);
+    const sum2 = pairs.reduce((sum, [, y]) => sum + y, 0);
+    const sum1Sq = pairs.reduce((sum, [x]) => sum + x * x, 0);
+    const sum2Sq = pairs.reduce((sum, [, y]) => sum + y * y, 0);
+    const sumProducts = pairs.reduce((sum, [x, y]) => sum + x * y, 0);
+
+    const numerator = n * sumProducts - sum1 * sum2;
+    const denominator = Math.sqrt((n * sum1Sq - sum1 * sum1) * (n * sum2Sq - sum2 * sum2));
+
+    return denominator === 0 ? 0 : numerator / denominator;
+  }
+
+  /**
+   * Format measurement value for display
+   */
+  static formatMeasurementValue(value: number, unit: string): string {
+    if (unit === '%' || unit === '/10') {
+      return `${value.toFixed(1)}${unit}`;
+    }
+    
+    if (unit === 'kg' || unit === 'cm') {
+      return `${value.toFixed(1)} ${unit}`;
+    }
+    
+    if (unit === 'bpm' || unit === 'mmHg' || unit === 'points') {
+      return `${Math.round(value)} ${unit}`;
+    }
+    
+    if (unit === 'ml/kg/min') {
+      return `${value.toFixed(1)} ${unit}`;
+    }
+    
+    return `${value} ${unit}`;
+  }
+
+  /**
+   * Generate measurement insights
+   */
+  static generateInsights(measurements: Measurement[]): Array<{
+    type: 'trend' | 'milestone' | 'correlation' | 'anomaly';
+    title: string;
+    description: string;
+    priority: 'high' | 'medium' | 'low';
+  }> {
+    const insights: Array<{
+      type: 'trend' | 'milestone' | 'correlation' | 'anomaly';
+      title: string;
+      description: string;
+      priority: 'high' | 'medium' | 'low';
+    }> = [];
+
+    if (measurements.length < 5) {
+      return insights;
+    }
+
+    // Analyze trends
+    const trends = this.calculateAllTrends(measurements, 'month');
+    
+    trends.forEach(trend => {
+      if (Math.abs(trend.changePercent) > 10) {
+        const direction = trend.trend === 'up' ? 'increased' : 'decreased';
+        insights.push({
+          type: 'trend',
+          title: `${trend.measurementType} ${direction}`,
+          description: `Your ${trend.measurementType} has ${direction} by ${Math.abs(trend.changePercent).toFixed(1)}% this month.`,
+          priority: Math.abs(trend.changePercent) > 20 ? 'high' : 'medium',
+        });
+      }
+    });
+
+    // Check for milestones
+    const measurementTypes = [...new Set(measurements.map(m => m.type))];
+    
+    measurementTypes.forEach(type => {
+      const typeMeasurements = measurements
+        .filter(m => m.type === type)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      if (typeMeasurements.length >= 10) {
+        insights.push({
+          type: 'milestone',
+          title: `${type} milestone reached`,
+          description: `You've recorded ${typeMeasurements.length} ${type} measurements!`,
+          priority: 'low',
+        });
+      }
+    });
+
+    // Detect anomalies
+    measurementTypes.forEach(type => {
+      const anomalies = this.detectAnomalies(measurements, type);
+      if (anomalies.length > 0) {
+        insights.push({
+          type: 'anomaly',
+          title: `Unusual ${type} readings`,
+          description: `${anomalies.length} unusual ${type} measurement(s) detected.`,
+          priority: 'medium',
+        });
+      }
+    });
+
+    return insights.sort((a, b) => {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      return priorityOrder[b.priority] - priorityOrder[a.priority];
+    });
   }
 }

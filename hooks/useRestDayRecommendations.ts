@@ -1,408 +1,308 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext';
-import { recoveryAnalysis, RecoveryMetrics, RecoveryInsight } from '@/lib/ai/recoveryAnalysis';
-import { fatigueDetection, FatigueIndicator, FatiguePattern, FatigueAlert } from '@/lib/ai/fatigueDetection';
+import { useState, useEffect } from 'react';
+import { useWorkout } from '@/contexts/WorkoutContext';
+import { useProgress } from '@/contexts/ProgressContext';
 
-export interface RestDayRecommendation {
-  id: string;
-  type: 'immediate' | 'planned' | 'optional';
+interface RestRecommendation {
   title: string;
   description: string;
-  daysRecommended: number;
-  reasoning: string[];
-  alternatives: string[];
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority: 'low' | 'medium' | 'high';
+  duration?: string;
 }
 
-export interface RecoveryPlan {
-  currentPhase: 'active' | 'recovery' | 'deload' | 'maintenance';
-  recommendedDuration: number; // days
-  activities: string[];
-  restrictions: string[];
-  nextEvaluation: string; // ISO date
+interface FatigueIndicator {
+  type: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high';
 }
 
-export interface UseRestDayRecommendationsReturn {
-  // Core data
-  recoveryMetrics: RecoveryMetrics | null;
-  fatigueIndicators: FatigueIndicator[];
-  fatiguePatterns: FatiguePattern[];
-  fatigueAlerts: FatigueAlert[];
-  recoveryInsights: RecoveryInsight[];
-  
-  // Recommendations
-  restDayRecommendations: RestDayRecommendation[];
-  recoveryPlan: RecoveryPlan | null;
-  
-  // Status
-  isLoading: boolean;
-  lastUpdated: string | null;
-  
-  // Actions
-  refreshAnalysis: () => Promise<void>;
-  dismissAlert: (alertId: string) => void;
-  markRecommendationFollowed: (recommendationId: string) => void;
-  
-  // Utilities
-  shouldTakeRestDay: boolean;
-  fatigueLevel: 'low' | 'moderate' | 'high' | 'critical';
-  recoveryTrendData: Array<{ date: string; fatigueLevel: number; recoveryScore: number }>;
+interface RecoveryActivity {
+  id: string;
+  name: string;
+  type: 'sleep' | 'hydration' | 'nutrition' | 'meditation' | 'stretching' | 'massage';
+  description: string;
+  duration: string;
+  benefit: string;
 }
 
-export function useRestDayRecommendations(): UseRestDayRecommendationsReturn {
-  const { workouts } = useWorkoutHistory();
-  
-  // State
-  const [recoveryMetrics, setRecoveryMetrics] = useState<RecoveryMetrics | null>(null);
+export function useRestDayRecommendations() {
+  const { workoutHistory } = useWorkout();
+  const { progressData } = useProgress();
+
+  const [recommendations, setRecommendations] = useState<RestRecommendation[]>([]);
+  const [fatigueLevel, setFatigueLevel] = useState(0.3); // 0-1 scale
+  const [recoveryScore, setRecoveryScore] = useState(0.8); // 0-1 scale
+  const [restDayNeeded, setRestDayNeeded] = useState(false);
+  const [nextRestDay, setNextRestDay] = useState<string | null>(null);
+  const [recoveryActivities, setRecoveryActivities] = useState<RecoveryActivity[]>([]);
   const [fatigueIndicators, setFatigueIndicators] = useState<FatigueIndicator[]>([]);
-  const [fatiguePatterns, setFatiguePatterns] = useState<FatiguePattern[]>([]);
-  const [fatigueAlerts, setFatigueAlerts] = useState<FatigueAlert[]>([]);
-  const [recoveryInsights, setRecoveryInsights] = useState<RecoveryInsight[]>([]);
-  const [restDayRecommendations, setRestDayRecommendations] = useState<RestDayRecommendation[]>([]);
-  const [recoveryPlan, setRecoveryPlan] = useState<RecoveryPlan | null>(null);
-  const [recoveryTrendData, setRecoveryTrendData] = useState<Array<{ date: string; fatigueLevel: number; recoveryScore: number }>>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Analyze recovery status
-  const analyzeRecovery = useCallback(async () => {
-    if (workouts.length === 0) return;
-    
-    setIsLoading(true);
-    
+  useEffect(() => {
+    analyzeRecoveryNeeds();
+  }, [workoutHistory]);
+
+  const analyzeRecoveryNeeds = async () => {
+    setIsAnalyzing(true);
+
     try {
-      // Get recovery metrics
-      const metrics = await recoveryAnalysis.analyzeRecoveryStatus(workouts);
-      setRecoveryMetrics(metrics);
-      
-      // Detect fatigue indicators
-      const indicators = fatigueDetection.detectFatigueIndicators(workouts, metrics);
-      setFatigueIndicators(indicators);
-      
-      // Detect fatigue patterns
-      const patterns = fatigueDetection.detectFatiguePatterns(workouts, indicators);
-      setFatiguePatterns(patterns);
-      
-      // Generate alerts
-      const alerts = fatigueDetection.generateFatigueAlerts(indicators, patterns);
-      setFatigueAlerts(alerts.filter(alert => !dismissedAlerts.has(alert.id)));
-      
-      // Generate insights
-      const insights = await recoveryAnalysis.generateRecoveryInsights(metrics, workouts);
-      setRecoveryInsights(insights);
-      
-      // Generate rest day recommendations
-      const recommendations = generateRestDayRecommendations(metrics, indicators, patterns, insights);
-      setRestDayRecommendations(recommendations);
-      
-      // Create recovery plan
-      const plan = createRecoveryPlan(metrics, patterns, indicators);
-      setRecoveryPlan(plan);
-      
-      // Get trend data
-      const trendData = await recoveryAnalysis.getRecoveryTrendData(14);
-      setRecoveryTrendData(trendData);
-      
-      setLastUpdated(new Date().toISOString());
-    } catch (error) {
-      console.error('Error analyzing recovery:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [workouts, dismissedAlerts]);
+      // Analyze recent workout intensity and frequency
+      const recentWorkouts = workoutHistory.slice(-7); // Last 7 days
+      const workoutFrequency = recentWorkouts.length;
+      const avgIntensity = recentWorkouts.reduce((sum, w) => sum + (w.intensity || 5), 0) / recentWorkouts.length || 5;
+      const consecutiveDays = calculateConsecutiveWorkoutDays();
 
-  // Generate rest day recommendations
-  const generateRestDayRecommendations = useCallback((
-    metrics: RecoveryMetrics,
-    indicators: FatigueIndicator[],
-    patterns: FatiguePattern[],
-    insights: RecoveryInsight[]
-  ): RestDayRecommendation[] => {
-    const recommendations: RestDayRecommendation[] = [];
-    
-    // Critical fatigue - immediate rest
-    if (metrics.fatigueLevel > 80) {
-      recommendations.push({
-        id: 'critical-rest',
-        type: 'immediate',
-        title: 'Immediate Rest Required',
-        description: 'Your fatigue levels are critically high. Take immediate rest to prevent overtraining.',
-        daysRecommended: 3,
-        reasoning: [
-          'Fatigue level is above 80%',
-          'Risk of overtraining syndrome',
-          'Performance likely to decline further without rest',
-        ],
-        alternatives: [
-          'Light walking or gentle stretching only',
-          'Focus on sleep and nutrition',
-          'Consider massage or other recovery modalities',
-        ],
-        priority: 'critical',
-      });
-    }
-    
-    // High fatigue - planned rest
-    else if (metrics.fatigueLevel > 60) {
-      recommendations.push({
-        id: 'high-fatigue-rest',
-        type: 'planned',
-        title: 'Plan Rest Days',
-        description: 'Your body is showing signs of high fatigue. Plan 1-2 rest days this week.',
-        daysRecommended: metrics.recommendedRestDays,
-        reasoning: [
-          `Fatigue level is ${metrics.fatigueLevel}%`,
-          'Recovery score is below optimal',
-          'Multiple fatigue indicators detected',
-        ],
-        alternatives: [
-          'Active recovery with light cardio',
-          'Yoga or mobility work',
-          'Reduce workout intensity by 40%',
-        ],
-        priority: 'high',
-      });
-    }
-    
-    // Overtraining pattern detected
-    const overtrainingPattern = patterns.find(p => p.type === 'overtraining');
-    if (overtrainingPattern) {
-      recommendations.push({
-        id: 'overtraining-rest',
-        type: 'immediate',
-        title: 'Overtraining Recovery',
-        description: 'Signs of overtraining detected. Extended rest period recommended.',
-        daysRecommended: 7,
-        reasoning: [
-          `Overtraining pattern detected with ${overtrainingPattern.confidence}% confidence`,
-          'Multiple systems showing fatigue',
-          'Performance decline evident',
-        ],
-        alternatives: [
-          'Complete rest for first 3 days',
-          'Light movement after initial rest',
-          'Gradual return to training',
-        ],
-        priority: 'critical',
-      });
-    }
-    
-    // Deload week recommendation
-    const deloadPattern = patterns.find(p => p.type === 'deload_needed');
-    if (deloadPattern) {
-      recommendations.push({
-        id: 'deload-week',
-        type: 'planned',
-        title: 'Deload Week Recommended',
-        description: 'Your body would benefit from a planned deload week to optimize recovery.',
-        daysRecommended: 7,
-        reasoning: [
-          'Consistent moderate fatigue detected',
-          'Training volume has been high',
-          'Performance plateau or slight decline',
-        ],
-        alternatives: [
-          'Reduce weights by 40-60%',
-          'Maintain movement patterns',
-          'Focus on technique refinement',
-        ],
-        priority: 'medium',
-      });
-    }
-    
-    // Muscle group specific rest
-    Object.entries(metrics.muscleGroupFatigue).forEach(([muscleGroup, fatigue]) => {
-      if (fatigue > 75) {
-        recommendations.push({
-          id: `muscle-rest-${muscleGroup}`,
-          type: 'planned',
-          title: `${muscleGroup} Rest Needed`,
-          description: `Your ${muscleGroup.toLowerCase()} muscles are highly fatigued and need targeted rest.`,
-          daysRecommended: 2,
-          reasoning: [
-            `${muscleGroup} fatigue level is ${fatigue}%`,
-            'Risk of injury if continued without rest',
-            'Other muscle groups can still be trained',
-          ],
-          alternatives: [
-            `Train other muscle groups while ${muscleGroup.toLowerCase()} recovers`,
-            'Light stretching and mobility work',
-            'Massage or foam rolling',
-          ],
-          priority: 'medium',
-        });
+      // Calculate fatigue level based on multiple factors
+      let calculatedFatigue = 0;
+      
+      // Workout frequency factor (0-0.4)
+      calculatedFatigue += Math.min(workoutFrequency / 7, 1) * 0.4;
+      
+      // Intensity factor (0-0.3)
+      calculatedFatigue += (avgIntensity / 10) * 0.3;
+      
+      // Consecutive days factor (0-0.3)
+      calculatedFatigue += Math.min(consecutiveDays / 5, 1) * 0.3;
+
+      setFatigueLevel(Math.min(calculatedFatigue, 1));
+
+      // Calculate recovery score (inverse of fatigue with some randomness for realism)
+      const baseRecovery = 1 - calculatedFatigue;
+      const recoveryVariation = (Math.random() - 0.5) * 0.2; // ±10% variation
+      setRecoveryScore(Math.max(0.1, Math.min(0.95, baseRecovery + recoveryVariation)));
+
+      // Determine if rest day is needed
+      const needsRest = calculatedFatigue > 0.6 || consecutiveDays >= 4;
+      setRestDayNeeded(needsRest);
+
+      // Generate recommendations
+      generateRecommendations(calculatedFatigue, consecutiveDays, workoutFrequency);
+
+      // Generate fatigue indicators
+      generateFatigueIndicators(calculatedFatigue, consecutiveDays, avgIntensity);
+
+      // Set next rest day
+      if (needsRest) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setNextRestDay(tomorrow.toISOString());
+      } else {
+        // Schedule rest day based on pattern
+        const nextRest = new Date();
+        nextRest.setDate(nextRest.getDate() + (7 - workoutFrequency));
+        setNextRestDay(nextRest.toISOString());
       }
-    });
+
+      // Generate recovery activities
+      generateRecoveryActivities(calculatedFatigue);
+
+    } catch (error) {
+      console.error('Error analyzing recovery needs:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const calculateConsecutiveWorkoutDays = () => {
+    let consecutive = 0;
+    const today = new Date();
     
-    // Preventive rest for good recovery
-    if (metrics.fatigueLevel < 30 && metrics.recoveryScore > 80) {
-      recommendations.push({
-        id: 'preventive-rest',
-        type: 'optional',
-        title: 'Optional Recovery Day',
-        description: 'You\'re recovering well! Consider an optional rest day to maintain this status.',
-        daysRecommended: 1,
-        reasoning: [
-          'Currently in excellent recovery state',
-          'Preventive rest can maintain performance',
-          'Opportunity for other activities',
-        ],
-        alternatives: [
-          'Light cardio or walking',
-          'Mobility and flexibility work',
-          'Recreational activities',
-        ],
+    for (let i = 0; i < 7; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() - i);
+      
+      const hasWorkout = workoutHistory.some(workout => {
+        const workoutDate = new Date(workout.date);
+        return workoutDate.toDateString() === checkDate.toDateString();
+      });
+      
+      if (hasWorkout) {
+        consecutive++;
+      } else {
+        break;
+      }
+    }
+    
+    return consecutive;
+  };
+
+  const generateRecommendations = (fatigue: number, consecutive: number, frequency: number) => {
+    const recs: RestRecommendation[] = [];
+
+    if (fatigue > 0.7) {
+      recs.push({
+        title: 'Take a Complete Rest Day',
+        description: 'Your fatigue levels are high. Take a full day off from intense exercise to allow your body to recover.',
+        priority: 'high',
+        duration: '24 hours',
+      });
+    }
+
+    if (consecutive >= 4) {
+      recs.push({
+        title: 'Break the Consecutive Training Streak',
+        description: 'You\'ve been training for several days in a row. Consider taking a rest day to prevent overtraining.',
+        priority: 'high',
+        duration: '1-2 days',
+      });
+    }
+
+    if (frequency >= 6) {
+      recs.push({
+        title: 'Reduce Training Frequency',
+        description: 'You\'ve been very active this week. Consider lighter activities or complete rest.',
+        priority: 'medium',
+        duration: '2-3 days',
+      });
+    }
+
+    if (fatigue > 0.4 && fatigue <= 0.7) {
+      recs.push({
+        title: 'Consider Active Recovery',
+        description: 'Light activities like walking, stretching, or yoga can help with recovery while staying active.',
+        priority: 'medium',
+        duration: '30-60 minutes',
+      });
+    }
+
+    if (fatigue <= 0.4) {
+      recs.push({
+        title: 'Maintain Current Training',
+        description: 'Your recovery levels look good. You can continue with your regular training schedule.',
         priority: 'low',
       });
     }
-    
-    return recommendations.sort((a, b) => {
-      const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-      return priorityOrder[b.priority] - priorityOrder[a.priority];
+
+    // Always include sleep and hydration recommendations
+    recs.push({
+      title: 'Prioritize Quality Sleep',
+      description: 'Aim for 7-9 hours of quality sleep to support muscle recovery and overall health.',
+      priority: fatigue > 0.6 ? 'high' : 'medium',
+      duration: '7-9 hours',
     });
-  }, []);
 
-  // Create recovery plan
-  const createRecoveryPlan = useCallback((
-    metrics: RecoveryMetrics,
-    patterns: FatiguePattern[],
-    indicators: FatigueIndicator[]
-  ): RecoveryPlan => {
-    const criticalIndicators = indicators.filter(i => i.status === 'critical').length;
-    const highIndicators = indicators.filter(i => i.status === 'high').length;
-    const overtrainingPattern = patterns.find(p => p.type === 'overtraining');
-    const deloadPattern = patterns.find(p => p.type === 'deload_needed');
-    
-    // Determine current phase
-    let currentPhase: RecoveryPlan['currentPhase'] = 'active';
-    let recommendedDuration = 0;
-    let activities: string[] = [];
-    let restrictions: string[] = [];
-    
-    if (overtrainingPattern || criticalIndicators >= 2) {
-      currentPhase = 'recovery';
-      recommendedDuration = 7;
-      activities = [
-        'Complete rest for first 2-3 days',
-        'Light walking after initial rest',
-        'Focus on sleep (8+ hours)',
-        'Proper nutrition and hydration',
-        'Stress management techniques',
-      ];
-      restrictions = [
-        'No intense exercise',
-        'Avoid additional stressors',
-        'No new training programs',
-      ];
-    } else if (deloadPattern || metrics.fatigueLevel > 60) {
-      currentPhase = 'deload';
-      recommendedDuration = 7;
-      activities = [
-        'Reduce training intensity by 40-60%',
-        'Maintain movement patterns',
-        'Focus on mobility work',
-        'Light cardio if desired',
-        'Technique practice',
-      ];
-      restrictions = [
-        'No personal record attempts',
-        'Avoid high-intensity intervals',
-        'Limit training duration',
-      ];
-    } else if (highIndicators >= 1 || metrics.fatigueLevel > 40) {
-      currentPhase = 'maintenance';
-      recommendedDuration = 3;
-      activities = [
-        'Continue current routine with caution',
-        'Add extra rest day if needed',
-        'Monitor fatigue levels closely',
-        'Prioritize recovery activities',
-      ];
-      restrictions = [
-        'Avoid increasing training volume',
-        'Monitor for worsening symptoms',
-      ];
-    } else {
-      currentPhase = 'active';
-      recommendedDuration = 0;
-      activities = [
-        'Continue current training routine',
-        'Maintain good recovery habits',
-        'Regular monitoring of fatigue',
-      ];
-      restrictions = [];
+    recs.push({
+      title: 'Stay Hydrated',
+      description: 'Proper hydration is crucial for recovery. Aim for at least 8 glasses of water daily.',
+      priority: 'medium',
+      duration: 'Throughout the day',
+    });
+
+    setRecommendations(recs);
+  };
+
+  const generateFatigueIndicators = (fatigue: number, consecutive: number, intensity: number) => {
+    const indicators: FatigueIndicator[] = [];
+
+    if (consecutive >= 5) {
+      indicators.push({
+        type: 'Consecutive Training Days',
+        description: `You've trained for ${consecutive} consecutive days without rest`,
+        severity: 'high',
+      });
     }
-    
-    const nextEvaluation = new Date();
-    nextEvaluation.setDate(nextEvaluation.getDate() + Math.max(3, recommendedDuration));
-    
-    return {
-      currentPhase,
-      recommendedDuration,
-      activities,
-      restrictions,
-      nextEvaluation: nextEvaluation.toISOString(),
-    };
-  }, []);
 
-  // Actions
-  const refreshAnalysis = useCallback(async () => {
-    await analyzeRecovery();
-  }, [analyzeRecovery]);
-
-  const dismissAlert = useCallback((alertId: string) => {
-    setDismissedAlerts(prev => new Set([...prev, alertId]));
-    setFatigueAlerts(prev => prev.filter(alert => alert.id !== alertId));
-  }, []);
-
-  const markRecommendationFollowed = useCallback((recommendationId: string) => {
-    setRestDayRecommendations(prev => 
-      prev.filter(rec => rec.id !== recommendationId)
-    );
-  }, []);
-
-  // Computed values
-  const shouldTakeRestDay = recoveryMetrics ? 
-    recoveryMetrics.fatigueLevel > 60 || recoveryMetrics.recommendedRestDays > 0 : false;
-  
-  const fatigueLevel: 'low' | 'moderate' | 'high' | 'critical' = recoveryMetrics ? 
-    recoveryMetrics.fatigueLevel < 25 ? 'low' :
-    recoveryMetrics.fatigueLevel < 50 ? 'moderate' :
-    recoveryMetrics.fatigueLevel < 75 ? 'high' : 'critical'
-    : 'low';
-
-  // Effects
-  useEffect(() => {
-    if (workouts.length > 0) {
-      analyzeRecovery();
+    if (intensity > 7) {
+      indicators.push({
+        type: 'High Training Intensity',
+        description: 'Your recent workouts have been at high intensity levels',
+        severity: consecutive >= 3 ? 'high' : 'medium',
+      });
     }
-  }, [workouts.length]); // Only re-run when workout count changes
+
+    if (fatigue > 0.6) {
+      indicators.push({
+        type: 'Elevated Fatigue Score',
+        description: 'Your calculated fatigue level suggests you may need more recovery time',
+        severity: 'high',
+      });
+    }
+
+    // Simulated indicators based on patterns
+    if (workoutHistory.length > 0) {
+      const recentWorkout = workoutHistory[workoutHistory.length - 1];
+      if (recentWorkout.duration && recentWorkout.duration > 90) {
+        indicators.push({
+          type: 'Extended Workout Duration',
+          description: 'Your recent workout was longer than usual, which may increase recovery needs',
+          severity: 'medium',
+        });
+      }
+    }
+
+    setFatigueIndicators(indicators);
+  };
+
+  const generateRecoveryActivities = (fatigue: number) => {
+    const activities: RecoveryActivity[] = [
+      {
+        id: 'sleep',
+        name: 'Quality Sleep',
+        type: 'sleep',
+        description: 'Get 7-9 hours of uninterrupted sleep for optimal recovery',
+        duration: '7-9 hours',
+        benefit: 'Muscle repair & growth',
+      },
+      {
+        id: 'hydration',
+        name: 'Proper Hydration',
+        type: 'hydration',
+        description: 'Drink plenty of water throughout the day',
+        duration: 'All day',
+        benefit: 'Nutrient transport',
+      },
+      {
+        id: 'stretching',
+        name: 'Gentle Stretching',
+        type: 'stretching',
+        description: 'Light stretching to improve flexibility and reduce tension',
+        duration: '15-20 minutes',
+        benefit: 'Improved flexibility',
+      },
+      {
+        id: 'meditation',
+        name: 'Meditation',
+        type: 'meditation',
+        description: 'Mindfulness practice to reduce stress and promote relaxation',
+        duration: '10-15 minutes',
+        benefit: 'Stress reduction',
+      },
+      {
+        id: 'nutrition',
+        name: 'Recovery Nutrition',
+        type: 'nutrition',
+        description: 'Focus on protein-rich foods and anti-inflammatory nutrients',
+        duration: 'With meals',
+        benefit: 'Muscle recovery',
+      },
+    ];
+
+    if (fatigue > 0.6) {
+      activities.push({
+        id: 'massage',
+        name: 'Self-Massage',
+        type: 'massage',
+        description: 'Use foam roller or massage tools to release muscle tension',
+        duration: '10-15 minutes',
+        benefit: 'Muscle tension relief',
+      });
+    }
+
+    setRecoveryActivities(activities);
+  };
+
+  const refreshAnalysis = async () => {
+    await analyzeRecoveryNeeds();
+  };
 
   return {
-    // Core data
-    recoveryMetrics,
-    fatigueIndicators,
-    fatiguePatterns,
-    fatigueAlerts,
-    recoveryInsights,
-    
-    // Recommendations
-    restDayRecommendations,
-    recoveryPlan,
-    
-    // Status
-    isLoading,
-    lastUpdated,
-    
-    // Actions
-    refreshAnalysis,
-    dismissAlert,
-    markRecommendationFollowed,
-    
-    // Utilities
-    shouldTakeRestDay,
+    recommendations,
     fatigueLevel,
-    recoveryTrendData,
+    recoveryScore,
+    restDayNeeded,
+    nextRestDay,
+    recoveryActivities,
+    fatigueIndicators,
+    isAnalyzing,
+    refreshAnalysis,
   };
 }

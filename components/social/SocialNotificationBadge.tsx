@@ -1,63 +1,116 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+} from 'react-native';
 import { DesignTokens } from '@/design-system/tokens';
 
 interface SocialNotificationBadgeProps {
   count: number;
-  variant?: 'small' | 'medium' | 'large';
+  variant?: 'default' | 'small' | 'large';
   color?: string;
   showZero?: boolean;
+  maxCount?: number;
+  animated?: boolean;
 }
 
 export function SocialNotificationBadge({
   count,
-  variant = 'medium',
+  variant = 'default',
   color = DesignTokens.colors.error[500],
   showZero = false,
+  maxCount = 99,
+  animated = true,
 }: SocialNotificationBadgeProps) {
+  const [scaleAnim] = React.useState(new Animated.Value(1));
+
+  React.useEffect(() => {
+    if (animated && count > 0) {
+      // Bounce animation when count changes
+      Animated.sequence([
+        Animated.spring(scaleAnim, {
+          toValue: 1.2,
+          useNativeDriver: true,
+          tension: 300,
+          friction: 10,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 300,
+          friction: 10,
+        }),
+      ]).start();
+    }
+  }, [count, animated]);
+
   if (count === 0 && !showZero) {
     return null;
   }
 
-  const getSize = () => {
+  const displayCount = count > maxCount ? `${maxCount}+` : count.toString();
+  
+  const getBadgeSize = () => {
     switch (variant) {
       case 'small':
-        return { width: 16, height: 16, borderRadius: 8 };
+        return {
+          minWidth: 16,
+          height: 16,
+          borderRadius: 8,
+          paddingHorizontal: 4,
+        };
       case 'large':
-        return { width: 28, height: 28, borderRadius: 14 };
+        return {
+          minWidth: 24,
+          height: 24,
+          borderRadius: 12,
+          paddingHorizontal: 8,
+        };
       default:
-        return { width: 20, height: 20, borderRadius: 10 };
+        return {
+          minWidth: 20,
+          height: 20,
+          borderRadius: 10,
+          paddingHorizontal: 6,
+        };
     }
   };
 
-  const getFontSize = () => {
+  const getTextSize = () => {
     switch (variant) {
       case 'small':
-        return 10;
+        return DesignTokens.typography.fontSize.xs;
       case 'large':
-        return 14;
+        return DesignTokens.typography.fontSize.sm;
       default:
-        return 12;
+        return 11;
     }
   };
 
-  const displayCount = count > 99 ? '99+' : count.toString();
-  const size = getSize();
+  const badgeSize = getBadgeSize();
+  const textSize = getTextSize();
 
   return (
-    <View style={[
-      styles.badge,
-      size,
-      { backgroundColor: color },
-      count > 9 && variant !== 'small' && styles.badgeWide,
-    ]}>
-      <Text style={[
-        styles.badgeText,
-        { fontSize: getFontSize() },
-      ]}>
+    <Animated.View
+      style={[
+        styles.badge,
+        badgeSize,
+        { backgroundColor: color },
+        animated && { transform: [{ scale: scaleAnim }] },
+      ]}
+    >
+      <Text
+        style={[
+          styles.badgeText,
+          { fontSize: textSize },
+        ]}
+        numberOfLines={1}
+      >
         {displayCount}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -65,11 +118,14 @@ const styles = StyleSheet.create({
   badge: {
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 20,
-    paddingHorizontal: 2,
-  },
-  badgeWide: {
-    paddingHorizontal: 4,
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
   badgeText: {
     color: DesignTokens.colors.text.primary,
