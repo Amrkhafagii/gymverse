@@ -1,88 +1,69 @@
-import React, { useState } from 'react';
-import { AchievementNotificationManager } from './AchievementNotificationManager';
-import { AchievementCelebration } from './AchievementCelebration';
-import { AchievementToast } from './AchievementToast';
-import { useAchievementNotifications } from '@/hooks/useAchievementNotifications';
+import React, { useState, useEffect } from 'react';
+import { View } from 'react-native';
+import { AchievementNotification } from './AchievementNotification';
+import { PRCelebrationNotification } from './PRCelebrationNotification';
+import { useAchievements } from '@/contexts/AchievementContext';
+import { usePersonalRecords } from '@/contexts/PersonalRecordContext';
 
 export function AchievementNotificationProvider({ children }: { children: React.ReactNode }) {
-  const {
-    currentNotification,
-    markNotificationShown,
-    dismissNotification,
-  } = useAchievementNotifications();
+  const { recentUnlocks, dismissNotification } = useAchievements();
+  const { pendingCelebrations, celebratePR, dismissPRCelebration } = usePersonalRecords();
+  
+  const [currentAchievement, setCurrentAchievement] = useState(null);
+  const [currentPR, setCurrentPR] = useState(null);
 
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-
-  React.useEffect(() => {
-    if (currentNotification) {
-      switch (currentNotification.type) {
-        case 'celebration':
-          setShowCelebration(true);
-          break;
-        case 'toast':
-          setShowToast(true);
-          break;
-        case 'modal':
-          setShowModal(true);
-          break;
-      }
+  useEffect(() => {
+    // Show achievement notifications
+    if (recentUnlocks.length > 0 && !currentAchievement && !currentPR) {
+      setCurrentAchievement(recentUnlocks[0]);
     }
-  }, [currentNotification]);
+  }, [recentUnlocks, currentAchievement, currentPR]);
 
-  const handleCelebrationComplete = () => {
-    setShowCelebration(false);
-    if (currentNotification) {
-      markNotificationShown(currentNotification.id);
+  useEffect(() => {
+    // Show PR celebrations
+    if (pendingCelebrations.length > 0 && !currentPR && !currentAchievement) {
+      setCurrentPR(pendingCelebrations[0]);
+    }
+  }, [pendingCelebrations, currentPR, currentAchievement]);
+
+  const handleAchievementDismiss = () => {
+    if (currentAchievement) {
+      dismissNotification(currentAchievement.id);
+      setCurrentAchievement(null);
     }
   };
 
-  const handleToastDismiss = () => {
-    setShowToast(false);
-    if (currentNotification) {
-      markNotificationShown(currentNotification.id);
+  const handlePRDismiss = () => {
+    if (currentPR) {
+      dismissPRCelebration(currentPR.id);
+      setCurrentPR(null);
     }
   };
 
-  const handleToastPress = () => {
-    setShowToast(false);
-    setShowModal(true);
-  };
-
-  const handleModalClose = () => {
-    setShowModal(false);
-    if (currentNotification) {
-      markNotificationShown(currentNotification.id);
+  const handlePRCelebrate = () => {
+    if (currentPR) {
+      celebratePR(currentPR.id);
     }
   };
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       {children}
       
-      {/* Notification Manager - handles the queue and basic notifications */}
-      <AchievementNotificationManager />
-      
-      {/* Full-screen celebration for legendary achievements */}
-      {currentNotification && showCelebration && (
-        <AchievementCelebration
-          achievement={currentNotification.achievement}
-          visible={showCelebration}
-          onComplete={handleCelebrationComplete}
+      {currentAchievement && (
+        <AchievementNotification
+          achievement={currentAchievement}
+          onDismiss={handleAchievementDismiss}
         />
       )}
       
-      {/* Toast notification for common/rare achievements */}
-      {currentNotification && showToast && (
-        <AchievementToast
-          achievement={currentNotification.achievement}
-          visible={showToast}
-          onPress={handleToastPress}
-          onDismiss={handleToastDismiss}
-          duration={4000}
+      {currentPR && (
+        <PRCelebrationNotification
+          record={currentPR}
+          onDismiss={handlePRDismiss}
+          onCelebrate={handlePRCelebrate}
         />
       )}
-    </>
+    </View>
   );
 }

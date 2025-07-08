@@ -11,20 +11,26 @@ import {
 import { WorkoutStatsOverview } from '@/components/workout/WorkoutStatsOverview';
 import { WorkoutHistoryCard } from '@/components/workout/WorkoutHistoryCard';
 import { ExerciseProgressChart } from '@/components/workout/ExerciseProgressChart';
+import { ProgressDashboard } from '@/components/ProgressDashboard';
 import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext';
+import { usePersonalRecords } from '@/hooks/usePersonalRecords';
 import { DesignTokens } from '@/design-system/tokens';
-import { BarChart3, History, TrendingUp } from 'lucide-react-native';
+import { BarChart3, History, TrendingUp, Trophy } from 'lucide-react-native';
 
-type TabType = 'overview' | 'history' | 'progress';
+type TabType = 'overview' | 'history' | 'progress' | 'records';
 
 export default function ProgressScreen() {
   const { workouts, refreshHistory, isLoading } = useWorkoutHistory();
+  const { refreshPRs } = usePersonalRecords();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refreshHistory();
+    await Promise.all([
+      refreshHistory(),
+      refreshPRs(),
+    ]);
     setRefreshing(false);
   };
 
@@ -138,6 +144,19 @@ export default function ProgressScreen() {
             />
           </ScrollView>
         );
+
+      case 'records':
+        return (
+          <ScrollView 
+            style={styles.recordsContainer} 
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          >
+            <ProgressDashboard showFilters={true} compactMode={false} />
+          </ScrollView>
+        );
       
       default:
         return <WorkoutStatsOverview />;
@@ -162,6 +181,11 @@ export default function ProgressScreen() {
           tab="progress"
           label="Progress"
           icon={<TrendingUp size={20} color={activeTab === 'progress' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
+        />
+        <TabButton
+          tab="records"
+          label="Records"
+          icon={<Trophy size={20} color={activeTab === 'records' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
         />
       </View>
 
@@ -246,6 +270,9 @@ const styles = StyleSheet.create({
   progressSubtitle: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.text.secondary,
+  },
+  recordsContainer: {
+    flex: 1,
   },
   emptyState: {
     alignItems: 'center',
