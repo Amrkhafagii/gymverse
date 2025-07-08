@@ -4,332 +4,354 @@ import {
   Text,
   StyleSheet,
   Modal,
-  ScrollView,
-  TextInput,
   TouchableOpacity,
+  TextInput,
+  ScrollView,
   Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadProgressPhoto, ProgressPhoto } from '@/lib/supabase/progressPhotos';
+import { PhotoCategory, ProgressPhoto } from '@/types/progressPhoto';
+import { DesignTokens } from '@/design-system/tokens';
+import { 
+  X, 
+  Camera, 
+  Image as ImageIcon, 
+  Save, 
+  User, 
+  RotateCcw, 
+  ArrowLeft,
+  Weight,
+  Ruler,
+  Tag
+} from 'lucide-react-native';
 
 interface AddPhotoModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess: (photo: ProgressPhoto) => void;
+  onSave: (
+    imageUri: string,
+    category: PhotoCategory,
+    notes?: string,
+    weight?: number,
+    measurements?: ProgressPhoto['measurements'],
+    tags?: string[]
+  ) => Promise<void>;
+  initialCategory?: PhotoCategory;
 }
 
-const photoTypes = [
-  { value: 'front', label: 'Front View', icon: 'person' },
-  { value: 'side', label: 'Side View', icon: 'person' },
-  { value: 'back', label: 'Back View', icon: 'person' },
-  { value: 'custom', label: 'Custom', icon: 'camera' },
+const PHOTO_CATEGORIES: Array<{ value: PhotoCategory; label: string; icon: React.ReactNode }> = [
+  { value: 'front', label: 'Front View', icon: <User size={20} /> },
+  { value: 'side', label: 'Side View', icon: <RotateCcw size={20} /> },
+  { value: 'back', label: 'Back View', icon: <ArrowLeft size={20} /> },
+  { value: 'progress', label: 'Progress', icon: <ImageIcon size={20} /> },
+  { value: 'workout', label: 'Workout', icon: <Weight size={20} /> },
+  { value: 'custom', label: 'Custom', icon: <Tag size={20} /> },
 ];
 
-const categories = [
-  { value: 'progress', label: 'Progress', icon: 'trending-up' },
-  { value: 'before', label: 'Before', icon: 'play-back' },
-  { value: 'after', label: 'After', icon: 'play-forward' },
-  { value: 'milestone', label: 'Milestone', icon: 'trophy' },
-];
-
-export default function AddPhotoModal({ visible, onClose, onSuccess }: AddPhotoModalProps) {
+export function AddPhotoModal({ visible, onClose, onSave, initialCategory = 'front' }: AddPhotoModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [photoType, setPhotoType] = useState<'front' | 'side' | 'back' | 'custom'>('front');
-  const [category, setCategory] = useState<'progress' | 'before' | 'after' | 'milestone'>('progress');
-  const [photoDate, setPhotoDate] = useState(new Date().toISOString().split('T')[0]);
-  const [weight, setWeight] = useState('');
-  const [bodyFat, setBodyFat] = useState('');
+  const [category, setCategory] = useState<PhotoCategory>(initialCategory);
   const [notes, setNotes] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [weight, setWeight] = useState('');
+  const [measurements, setMeasurements] = useState({
+    chest: '',
+    waist: '',
+    hips: '',
+    arms: '',
+    thighs: '',
+  });
+  const [tags, setTags] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera roll permissions to add photos.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.8,
+  const resetForm = () => {
+    setSelectedImage(null);
+    setCategory(initialCategory);
+    setNotes('');
+    setWeight('');
+    setMeasurements({
+      chest: '',
+      waist: '',
+      hips: '',
+      arms: '',
+      thighs: '',
     });
+    setTags('');
+  };
 
-    if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const requestPermissions = async () => {
+    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (cameraStatus !== 'granted' || libraryStatus !== 'granted') {
+      Alert.alert(
+        'Permissions Required',
+        'Camera and photo library permissions are required to add progress photos.',
+        [{ text: 'OK' }]
+      );
+      return false;
+    }
+    return true;
+  };
+
+  const pickImageFromCamera = async () => {
+    const hasPermissions = await requestPermissions();
+    if (!hasPermissions) return;
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [3, 4],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
 
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera permissions to take photos.');
-      return;
-    }
+  const pickImageFromLibrary = async () => {
+    const hasPermissions = await requestPermissions();
+    if (!hasPermissions) return;
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.8,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [3, 4],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to select photo. Please try again.');
     }
+  };
+
+  const showImagePickerOptions = () => {
+    Alert.alert(
+      'Add Photo',
+      'Choose how you want to add your progress photo',
+      [
+        { text: 'Take Photo', onPress: pickImageFromCamera },
+        { text: 'Choose from Library', onPress: pickImageFromLibrary },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const handleSave = async () => {
     if (!selectedImage) {
-      Alert.alert('Error', 'Please select or take a photo');
+      Alert.alert('Error', 'Please select a photo first.');
       return;
     }
 
     try {
-      setLoading(true);
+      setIsLoading(true);
 
-      const photoData = {
-        photo_date: photoDate,
-        photo_type: photoType,
-        category,
-        weight_at_time: weight ? parseFloat(weight) : undefined,
-        body_fat_at_time: bodyFat ? parseFloat(bodyFat) : undefined,
-        notes: notes.trim() || undefined,
-        is_public: isPublic,
+      const parsedWeight = weight ? parseFloat(weight) : undefined;
+      const parsedMeasurements = {
+        chest: measurements.chest ? parseFloat(measurements.chest) : undefined,
+        waist: measurements.waist ? parseFloat(measurements.waist) : undefined,
+        hips: measurements.hips ? parseFloat(measurements.hips) : undefined,
+        arms: measurements.arms ? parseFloat(measurements.arms) : undefined,
+        thighs: measurements.thighs ? parseFloat(measurements.thighs) : undefined,
       };
 
-      const photo = await uploadProgressPhoto(selectedImage, photoData);
-      onSuccess(photo);
+      // Only include measurements that have values
+      const finalMeasurements = Object.entries(parsedMeasurements).reduce((acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key as keyof typeof parsedMeasurements] = value;
+        }
+        return acc;
+      }, {} as ProgressPhoto['measurements']);
+
+      const parsedTags = tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+
+      await onSave(
+        selectedImage,
+        category,
+        notes || undefined,
+        parsedWeight,
+        Object.keys(finalMeasurements).length > 0 ? finalMeasurements : undefined,
+        parsedTags.length > 0 ? parsedTags : undefined
+      );
+
       handleClose();
     } catch (error) {
-      console.error('Error saving photo:', error);
       Alert.alert('Error', 'Failed to save photo. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleClose = () => {
-    setSelectedImage(null);
-    setPhotoType('front');
-    setCategory('progress');
-    setPhotoDate(new Date().toISOString().split('T')[0]);
-    setWeight('');
-    setBodyFat('');
-    setNotes('');
-    setIsPublic(false);
-    onClose();
-  };
-
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={handleClose}
+    >
       <KeyboardAvoidingView 
-        style={styles.container} 
+        style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Add Progress Photo</Text>
-            <TouchableOpacity 
-              onPress={handleSave} 
-              style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-              disabled={loading || !selectedImage}
-            >
-              <Text style={styles.saveButtonText}>
-                {loading ? 'Saving...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <X size={24} color={DesignTokens.colors.text.primary} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Add Progress Photo</Text>
+          <TouchableOpacity 
+            onPress={handleSave} 
+            style={[styles.saveButton, (!selectedImage || isLoading) && styles.saveButtonDisabled]}
+            disabled={!selectedImage || isLoading}
+          >
+            <Save size={20} color={DesignTokens.colors.text.primary} />
+            <Text style={styles.saveButtonText}>Save</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Image Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Photo</Text>
+            {selectedImage ? (
+              <View style={styles.imageContainer}>
+                <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+                <TouchableOpacity 
+                  style={styles.changeImageButton}
+                  onPress={showImagePickerOptions}
+                >
+                  <Text style={styles.changeImageText}>Change Photo</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.imagePicker}
+                onPress={showImagePickerOptions}
+              >
+                <Camera size={48} color={DesignTokens.colors.text.secondary} />
+                <Text style={styles.imagePickerText}>Tap to add photo</Text>
+                <Text style={styles.imagePickerSubtext}>Camera or Photo Library</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Photo Selection */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Photo</Text>
-              {selectedImage ? (
-                <View style={styles.imageContainer}>
-                  <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
-                  <TouchableOpacity style={styles.changePhotoButton} onPress={pickImage}>
-                    <Ionicons name="pencil" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.photoActions}>
-                  <TouchableOpacity style={styles.photoActionButton} onPress={takePhoto}>
-                    <LinearGradient colors={['#9E7FFF', '#7C3AED']} style={styles.photoActionGradient}>
-                      <Ionicons name="camera" size={24} color="#FFFFFF" />
-                      <Text style={styles.photoActionText}>Take Photo</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.photoActionButton} onPress={pickImage}>
-                    <LinearGradient colors={['#f472b6', '#ec4899']} style={styles.photoActionGradient}>
-                      <Ionicons name="images" size={24} color="#FFFFFF" />
-                      <Text style={styles.photoActionText}>Choose from Gallery</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              )}
+          {/* Category Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Category</Text>
+            <View style={styles.categoryGrid}>
+              {PHOTO_CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat.value}
+                  style={[
+                    styles.categoryButton,
+                    category === cat.value && styles.categoryButtonActive
+                  ]}
+                  onPress={() => setCategory(cat.value)}
+                >
+                  {cat.icon}
+                  <Text style={[
+                    styles.categoryButtonText,
+                    category === cat.value && styles.categoryButtonTextActive
+                  ]}>
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
+          </View>
 
-            {/* Photo Type */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Photo Type</Text>
-              <View style={styles.optionsGrid}>
-                {photoTypes.map((type) => (
-                  <TouchableOpacity
-                    key={type.value}
-                    style={[
-                      styles.optionButton,
-                      photoType === type.value && styles.optionButtonSelected,
-                    ]}
-                    onPress={() => setPhotoType(type.value as any)}
-                  >
-                    <Ionicons 
-                      name={type.icon as any} 
-                      size={20} 
-                      color={photoType === type.value ? '#FFFFFF' : '#A3A3A3'} 
-                    />
-                    <Text style={[
-                      styles.optionText,
-                      photoType === type.value && styles.optionTextSelected,
-                    ]}>
-                      {type.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+          {/* Notes */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Notes (Optional)</Text>
+            <TextInput
+              style={styles.textArea}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Add notes about your progress, workout, or how you're feeling..."
+              placeholderTextColor={DesignTokens.colors.text.tertiary}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+
+          {/* Weight */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Weight (Optional)</Text>
+            <View style={styles.inputContainer}>
+              <Weight size={20} color={DesignTokens.colors.text.secondary} />
+              <TextInput
+                style={styles.input}
+                value={weight}
+                onChangeText={setWeight}
+                placeholder="Enter weight in lbs"
+                placeholderTextColor={DesignTokens.colors.text.tertiary}
+                keyboardType="numeric"
+              />
             </View>
+          </View>
 
-            {/* Category */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Category</Text>
-              <View style={styles.optionsGrid}>
-                {categories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.value}
-                    style={[
-                      styles.optionButton,
-                      category === cat.value && styles.optionButtonSelected,
-                    ]}
-                    onPress={() => setCategory(cat.value as any)}
-                  >
-                    <Ionicons 
-                      name={cat.icon as any} 
-                      size={20} 
-                      color={category === cat.value ? '#FFFFFF' : '#A3A3A3'} 
-                    />
-                    <Text style={[
-                      styles.optionText,
-                      category === cat.value && styles.optionTextSelected,
-                    ]}>
-                      {cat.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Date and Measurements */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Details</Text>
-              <View style={styles.detailsGrid}>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Date</Text>
-                  <LinearGradient colors={['#1f2937', '#111827']} style={styles.detailGradient}>
+          {/* Measurements */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Measurements (Optional)</Text>
+            <View style={styles.measurementsGrid}>
+              {Object.entries(measurements).map(([key, value]) => (
+                <View key={key} style={styles.measurementItem}>
+                  <Text style={styles.measurementLabel}>
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                  </Text>
+                  <View style={styles.inputContainer}>
+                    <Ruler size={16} color={DesignTokens.colors.text.secondary} />
                     <TextInput
-                      style={styles.detailInput}
-                      value={photoDate}
-                      onChangeText={setPhotoDate}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor="#A3A3A3"
+                      style={[styles.input, styles.measurementInput]}
+                      value={value}
+                      onChangeText={(text) => setMeasurements(prev => ({ ...prev, [key]: text }))}
+                      placeholder="inches"
+                      placeholderTextColor={DesignTokens.colors.text.tertiary}
+                      keyboardType="numeric"
                     />
-                  </LinearGradient>
-                </View>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Weight (kg)</Text>
-                  <LinearGradient colors={['#1f2937', '#111827']} style={styles.detailGradient}>
-                    <TextInput
-                      style={styles.detailInput}
-                      value={weight}
-                      onChangeText={setWeight}
-                      placeholder="Optional"
-                      placeholderTextColor="#A3A3A3"
-                      keyboardType="decimal-pad"
-                    />
-                  </LinearGradient>
-                </View>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Body Fat (%)</Text>
-                  <LinearGradient colors={['#1f2937', '#111827']} style={styles.detailGradient}>
-                    <TextInput
-                      style={styles.detailInput}
-                      value={bodyFat}
-                      onChangeText={setBodyFat}
-                      placeholder="Optional"
-                      placeholderTextColor="#A3A3A3"
-                      keyboardType="decimal-pad"
-                    />
-                  </LinearGradient>
-                </View>
-              </View>
-            </View>
-
-            {/* Notes */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Notes (Optional)</Text>
-              <LinearGradient colors={['#1f2937', '#111827']} style={styles.notesGradient}>
-                <TextInput
-                  style={styles.notesInput}
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder="Add notes about this photo..."
-                  placeholderTextColor="#A3A3A3"
-                  multiline
-                  numberOfLines={3}
-                />
-              </LinearGradient>
-            </View>
-
-            {/* Privacy */}
-            <View style={styles.section}>
-              <TouchableOpacity 
-                style={styles.privacyToggle} 
-                onPress={() => setIsPublic(!isPublic)}
-              >
-                <View style={styles.privacyInfo}>
-                  <Ionicons 
-                    name={isPublic ? "globe" : "lock-closed"} 
-                    size={20} 
-                    color={isPublic ? "#10b981" : "#A3A3A3"} 
-                  />
-                  <View style={styles.privacyText}>
-                    <Text style={styles.privacyTitle}>
-                      {isPublic ? "Public" : "Private"}
-                    </Text>
-                    <Text style={styles.privacyDescription}>
-                      {isPublic 
-                        ? "Visible to other users in the community" 
-                        : "Only visible to you"
-                      }
-                    </Text>
                   </View>
                 </View>
-                <View style={[styles.toggle, isPublic && styles.toggleActive]}>
-                  <View style={[styles.toggleThumb, isPublic && styles.toggleThumbActive]} />
-                </View>
-              </TouchableOpacity>
+              ))}
             </View>
-          </ScrollView>
-        </LinearGradient>
+          </View>
+
+          {/* Tags */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tags (Optional)</Text>
+            <View style={styles.inputContainer}>
+              <Tag size={20} color={DesignTokens.colors.text.secondary} />
+              <TextInput
+                style={styles.input}
+                value={tags}
+                onChangeText={setTags}
+                placeholder="Enter tags separated by commas"
+                placeholderTextColor={DesignTokens.colors.text.tertiary}
+              />
+            </View>
+            <Text style={styles.helperText}>
+              Example: bulking, chest day, morning, gym selfie
+            </Text>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -338,211 +360,168 @@ export default function AddPhotoModal({ visible, onClose, onSuccess }: AddPhotoM
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
+    backgroundColor: DesignTokens.colors.background.primary,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
+    justifyContent: 'space-between',
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[4],
     borderBottomWidth: 1,
-    borderBottomColor: '#2F2F2F',
+    borderBottomColor: DesignTokens.colors.neutral[800],
   },
   closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#262626',
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: DesignTokens.spacing[2],
   },
   title: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
   },
   saveButton: {
-    backgroundColor: '#9E7FFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderRadius: DesignTokens.borderRadius.md,
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.primary,
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: DesignTokens.spacing[5],
   },
   section: {
-    marginBottom: 32,
+    marginBottom: DesignTokens.spacing[6],
   },
   sectionTitle: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 16,
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[3],
+  },
+  imagePicker: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    borderWidth: 2,
+    borderColor: DesignTokens.colors.neutral[700],
+    borderStyle: 'dashed',
+    paddingVertical: DesignTokens.spacing[8],
+    paddingHorizontal: DesignTokens.spacing[5],
+  },
+  imagePickerText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[3],
+  },
+  imagePickerSubtext: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginTop: DesignTokens.spacing[1],
   },
   imageContainer: {
-    position: 'relative',
     alignItems: 'center',
   },
   selectedImage: {
     width: 200,
     height: 267,
-    borderRadius: 16,
-    backgroundColor: '#262626',
+    borderRadius: DesignTokens.borderRadius.lg,
+    marginBottom: DesignTokens.spacing[3],
   },
-  changePhotoButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+  changeImageButton: {
+    paddingHorizontal: DesignTokens.spacing[4],
+    paddingVertical: DesignTokens.spacing[2],
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
   },
-  photoActions: {
-    gap: 12,
+  changeImageText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  photoActionButton: {
-    borderRadius: 16,
-  },
-  photoActionGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    borderRadius: 16,
-    gap: 12,
-  },
-  photoActionText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-  },
-  optionsGrid: {
+  categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: DesignTokens.spacing[2],
   },
-  optionButton: {
+  categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#262626',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+    gap: DesignTokens.spacing[2],
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
     borderWidth: 1,
-    borderColor: '#2F2F2F',
-    gap: 8,
+    borderColor: DesignTokens.colors.neutral[800],
   },
-  optionButtonSelected: {
-    backgroundColor: '#9E7FFF',
-    borderColor: '#9E7FFF',
+  categoryButtonActive: {
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderColor: DesignTokens.colors.primary[500],
   },
-  optionText: {
-    color: '#A3A3A3',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
+  categoryButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  optionTextSelected: {
-    color: '#FFFFFF',
+  categoryButtonTextActive: {
+    color: DesignTokens.colors.text.primary,
   },
-  detailsGrid: {
-    gap: 16,
-  },
-  detailItem: {
-    gap: 8,
-  },
-  detailLabel: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-  },
-  detailGradient: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
-  },
-  detailInput: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-  },
-  notesGradient: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
-  },
-  notesInput: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
+  textArea: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[3],
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
     textAlignVertical: 'top',
     minHeight: 80,
   },
-  privacyToggle: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#262626',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
-  },
-  privacyInfo: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
+    paddingHorizontal: DesignTokens.spacing[3],
+    gap: DesignTokens.spacing[2],
+  },
+  input: {
     flex: 1,
-    gap: 12,
+    paddingVertical: DesignTokens.spacing[3],
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
   },
-  privacyText: {
-    flex: 1,
+  measurementsGrid: {
+    gap: DesignTokens.spacing[3],
   },
-  privacyTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 4,
+  measurementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[3],
   },
-  privacyDescription: {
-    color: '#A3A3A3',
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
+  measurementLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    width: 60,
   },
-  toggle: {
-    width: 50,
-    height: 30,
-    backgroundColor: '#2F2F2F',
-    borderRadius: 15,
-    justifyContent: 'center',
-    paddingHorizontal: 2,
+  measurementInput: {
+    fontSize: DesignTokens.typography.fontSize.sm,
   },
-  toggleActive: {
-    backgroundColor: '#10b981',
-  },
-  toggleThumb: {
-    width: 26,
-    height: 26,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 13,
-    alignSelf: 'flex-start',
-  },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
+  helperText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.tertiary,
+    marginTop: DesignTokens.spacing[1],
   },
 });

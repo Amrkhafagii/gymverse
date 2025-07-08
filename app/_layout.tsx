@@ -4,6 +4,7 @@ import { WorkoutHistoryProvider } from '@/contexts/WorkoutHistoryContext';
 import { AchievementProvider } from '@/contexts/AchievementContext';
 import { MeasurementProvider } from '@/contexts/MeasurementContext';
 import { PersonalRecordProvider } from '@/contexts/PersonalRecordContext';
+import { ProgressPhotoProvider } from '@/contexts/ProgressPhotoContext';
 import { AchievementNotificationProvider } from '@/components/achievements/AchievementNotificationProvider';
 
 export default function RootLayout() {
@@ -13,11 +14,13 @@ export default function RootLayout() {
         <PersonalRecordProvider>
           <AchievementProvider>
             <MeasurementProvider>
-              <AchievementNotificationProvider>
-                <Stack>
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                </Stack>
-              </AchievementNotificationProvider>
+              <ProgressPhotoProvider>
+                <AchievementNotificationProvider>
+                  <Stack>
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  </Stack>
+                </AchievementNotificationProvider>
+              </ProgressPhotoProvider>
             </MeasurementProvider>
           </AchievementProvider>
         </PersonalRecordProvider>

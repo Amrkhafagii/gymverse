@@ -5,511 +5,743 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Modal,
+  RefreshControl,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { useAIWorkoutSuggestions } from '@/hooks/useAIWorkoutSuggestions';
-import { WorkoutGoal, WorkoutHistory, AIWorkoutSuggestion } from '@/lib/services/aiService';
-import { EXERCISE_DATABASE } from '@/lib/data/exerciseDatabase';
+import { WorkoutRecommendation, AIInsight } from '@/types/aiRecommendation';
+import { DesignTokens } from '@/design-system/tokens';
+import { 
+  Brain, 
+  Zap, 
+  Target, 
+  TrendingUp, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock, 
+  Dumbbell,
+  X,
+  RefreshCw,
+  ChevronRight,
+  Star,
+  Activity,
+  BarChart3
+} from 'lucide-react-native';
 
 interface AIWorkoutSuggestionsProps {
-  visible: boolean;
-  onClose: () => void;
-  onSelectWorkout: (workout: AIWorkoutSuggestion) => void;
-  workoutHistory: WorkoutHistory[];
+  onSelectRecommendation?: (recommendation: WorkoutRecommendation) => void;
+  showInsights?: boolean;
+  compactMode?: boolean;
 }
 
-export default function AIWorkoutSuggestions({
-  visible,
-  onClose,
-  onSelectWorkout,
-  workoutHistory
+export function AIWorkoutSuggestions({ 
+  onSelectRecommendation, 
+  showInsights = true,
+  compactMode = false 
 }: AIWorkoutSuggestionsProps) {
-  const { suggestions, loading, error, generateSuggestions } = useAIWorkoutSuggestions();
-  const [selectedGoal, setSelectedGoal] = useState<WorkoutGoal | null>(null);
-  const [showGoalSelector, setShowGoalSelector] = useState(true);
+  const {
+    recommendations,
+    insights,
+    userProfile,
+    summaryStats,
+    frequencyAnalysis,
+    muscleGroupAnalysis,
+    isGenerating,
+    isLoading,
+    lastGenerated,
+    needsRefresh,
+    error,
+    refreshRecommendations,
+    dismissRecommendation,
+    markInsightAsRead,
+    getRecommendationsByPriority,
+    getInsightsByType,
+    clearError,
+  } = useAIWorkoutSuggestions();
 
-  const workoutGoals: { key: WorkoutGoal['type']; label: string; description: string; icon: string; color: string[] }[] = [
-    {
-      key: 'strength',
-      label: 'Build Strength',
-      description: 'Focus on progressive overload and compound movements',
-      icon: 'barbell',
-      color: ['#ef4444', '#dc2626']
-    },
-    {
-      key: 'muscle_gain',
-      label: 'Muscle Growth',
-      description: 'Hypertrophy-focused training for muscle development',
-      icon: 'fitness',
-      color: ['#8b5cf6', '#7c3aed']
-    },
-    {
-      key: 'weight_loss',
-      label: 'Weight Loss',
-      description: 'High-intensity workouts for maximum calorie burn',
-      icon: 'flame',
-      color: ['#f59e0b', '#d97706']
-    },
-    {
-      key: 'endurance',
-      label: 'Endurance',
-      description: 'Improve cardiovascular fitness and stamina',
-      icon: 'heart',
-      color: ['#10b981', '#059669']
-    },
-    {
-      key: 'general_fitness',
-      label: 'General Fitness',
-      description: 'Balanced approach to overall health and wellness',
-      icon: 'body',
-      color: ['#06b6d4', '#0891b2']
-    }
-  ];
+  const [refreshing, setRefreshing] = useState(false);
+  const [expandedRecommendation, setExpandedRecommendation] = useState<string | null>(null);
 
-  const handleGoalSelect = async (goalType: WorkoutGoal['type']) => {
-    const goal: WorkoutGoal = {
-      type: goalType,
-      duration_minutes: 45,
-      difficulty_preference: 'intermediate'
-    };
-
-    setSelectedGoal(goal);
-    setShowGoalSelector(false);
-    
-    await generateSuggestions(goal, workoutHistory, 3);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshRecommendations();
+    setRefreshing(false);
   };
 
-  const handleWorkoutSelect = (workout: AIWorkoutSuggestion) => {
+  const handleSelectRecommendation = (recommendation: WorkoutRecommendation) => {
+    if (onSelectRecommendation) {
+      onSelectRecommendation(recommendation);
+    } else {
+      Alert.alert(
+        'Start Workout',
+        `Would you like to start "${recommendation.title}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Start', onPress: () => console.log('Starting workout:', recommendation.id) },
+        ]
+      );
+    }
+  };
+
+  const handleDismissRecommendation = (recommendation: WorkoutRecommendation) => {
     Alert.alert(
-      'Start Workout',
-      `Would you like to start "${workout.name}"?`,
+      'Dismiss Recommendation',
+      'Are you sure you want to dismiss this recommendation?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start Workout',
-          onPress: () => {
-            onSelectWorkout(workout);
-            onClose();
-          }
-        }
+        { text: 'Dismiss', onPress: () => dismissRecommendation(recommendation.id) },
       ]
     );
   };
 
-  const renderGoalSelector = () => (
-    <View style={styles.goalSelector}>
-      <Text style={styles.sectionTitle}>What's your goal today?</Text>
-      <Text style={styles.sectionSubtitle}>
-        AI will create personalized workouts based on your history and preferences
-      </Text>
-      
-      {workoutGoals.map((goal) => (
+  const formatLastGenerated = () => {
+    if (!lastGenerated) return 'Never';
+    const date = new Date(lastGenerated);
+    const now = new Date();
+    const diffHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return DesignTokens.colors.error[500];
+      case 'medium': return DesignTokens.colors.warning[500];
+      case 'low': return DesignTokens.colors.success[500];
+      default: return DesignTokens.colors.text.secondary;
+    }
+  };
+
+  const getInsightIcon = (type: string) => {
+    switch (type) {
+      case 'warning': return <AlertTriangle size={20} color={DesignTokens.colors.warning[500]} />;
+      case 'improvement': return <TrendingUp size={20} color={DesignTokens.colors.success[500]} />;
+      case 'suggestion': return <Target size={20} color={DesignTokens.colors.primary[500]} />;
+      case 'pattern': return <BarChart3 size={20} color={DesignTokens.colors.text.secondary} />;
+      default: return <Brain size={20} color={DesignTokens.colors.text.secondary} />;
+    }
+  };
+
+  const RecommendationCard = ({ recommendation }: { recommendation: WorkoutRecommendation }) => {
+    const isExpanded = expandedRecommendation === recommendation.id;
+
+    return (
+      <View style={styles.recommendationCard}>
         <TouchableOpacity
-          key={goal.key}
-          style={styles.goalCard}
-          onPress={() => handleGoalSelect(goal.key)}
+          style={styles.recommendationHeader}
+          onPress={() => setExpandedRecommendation(isExpanded ? null : recommendation.id)}
         >
-          <LinearGradient
-            colors={goal.color}
-            style={styles.goalGradient}
-          >
-            <View style={styles.goalContent}>
-              <View style={styles.goalIcon}>
-                <Ionicons name={goal.icon as any} size={24} color="#FFFFFF" />
+          <View style={styles.recommendationTitleRow}>
+            <View style={styles.recommendationTitleContainer}>
+              <Text style={styles.recommendationTitle}>{recommendation.title}</Text>
+              <View style={styles.recommendationMeta}>
+                <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(recommendation.priority) + '20' }]}>
+                  <Text style={[styles.priorityText, { color: getPriorityColor(recommendation.priority) }]}>
+                    {recommendation.priority.toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.confidenceBadge}>
+                  <Star size={12} color={DesignTokens.colors.warning[500]} />
+                  <Text style={styles.confidenceText}>{recommendation.confidence}%</Text>
+                </View>
               </View>
-              <View style={styles.goalText}>
-                <Text style={styles.goalLabel}>{goal.label}</Text>
-                <Text style={styles.goalDescription}>{goal.description}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
             </View>
-          </LinearGradient>
+            <TouchableOpacity
+              style={styles.dismissButton}
+              onPress={() => handleDismissRecommendation(recommendation)}
+            >
+              <X size={16} color={DesignTokens.colors.text.tertiary} />
+            </TouchableOpacity>
+          </View>
+          
+          <Text style={styles.recommendationDescription}>{recommendation.description}</Text>
+          
+          <View style={styles.recommendationStats}>
+            <View style={styles.statItem}>
+              <Clock size={14} color={DesignTokens.colors.text.secondary} />
+              <Text style={styles.statText}>{recommendation.estimatedDuration} min</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Dumbbell size={14} color={DesignTokens.colors.text.secondary} />
+              <Text style={styles.statText}>{recommendation.exercises.length} exercises</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Activity size={14} color={DesignTokens.colors.text.secondary} />
+              <Text style={styles.statText}>{recommendation.difficulty}</Text>
+            </View>
+          </View>
         </TouchableOpacity>
-      ))}
-    </View>
-  );
 
-  const renderWorkoutCard = (workout: AIWorkoutSuggestion) => (
-    <TouchableOpacity
-      key={workout.id}
-      style={styles.workoutCard}
-      onPress={() => handleWorkoutSelect(workout)}
-    >
-      <LinearGradient
-        colors={['#1f2937', '#111827']}
-        style={styles.workoutGradient}
-      >
-        <View style={styles.workoutHeader}>
-          <View style={styles.workoutTitleContainer}>
-            <Text style={styles.workoutName}>{workout.name}</Text>
-            <View style={styles.difficultyBadge}>
-              <Text style={styles.difficultyText}>{workout.difficulty_level}</Text>
+        {isExpanded && (
+          <View style={styles.recommendationDetails}>
+            {/* Reasoning */}
+            <View style={styles.reasoningSection}>
+              <Text style={styles.sectionTitle}>Why this workout?</Text>
+              {recommendation.reasoning.map((reason, index) => (
+                <View key={index} style={styles.reasonItem}>
+                  <CheckCircle size={14} color={DesignTokens.colors.success[500]} />
+                  <Text style={styles.reasonText}>{reason}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Target Muscle Groups */}
+            <View style={styles.muscleGroupsSection}>
+              <Text style={styles.sectionTitle}>Target Areas</Text>
+              <View style={styles.muscleGroupTags}>
+                {recommendation.targetMuscleGroups.map((group, index) => (
+                  <View key={index} style={styles.muscleGroupTag}>
+                    <Text style={styles.muscleGroupTagText}>{group}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Exercises Preview */}
+            <View style={styles.exercisesSection}>
+              <Text style={styles.sectionTitle}>Exercises ({recommendation.exercises.length})</Text>
+              {recommendation.exercises.slice(0, 3).map((exercise, index) => (
+                <View key={index} style={styles.exerciseItem}>
+                  <Text style={styles.exerciseName}>{exercise.name}</Text>
+                  <Text style={styles.exerciseDetails}>
+                    {exercise.sets} sets × {exercise.reps.join('-')} reps
+                  </Text>
+                </View>
+              ))}
+              {recommendation.exercises.length > 3 && (
+                <Text style={styles.moreExercises}>
+                  +{recommendation.exercises.length - 3} more exercises
+                </Text>
+              )}
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={styles.startButton}
+                onPress={() => handleSelectRecommendation(recommendation)}
+              >
+                <Zap size={16} color={DesignTokens.colors.text.primary} />
+                <Text style={styles.startButtonText}>Start Workout</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.customizeButton}>
+                <Text style={styles.customizeButtonText}>Customize</Text>
+              </TouchableOpacity>
             </View>
           </View>
-          <Text style={styles.workoutDescription}>{workout.description}</Text>
-        </View>
+        )}
+      </View>
+    );
+  };
 
-        <View style={styles.workoutStats}>
-          <View style={styles.workoutStat}>
-            <Ionicons name="time" size={16} color="#A3A3A3" />
-            <Text style={styles.workoutStatText}>{workout.estimated_duration} min</Text>
-          </View>
-          <View style={styles.workoutStat}>
-            <Ionicons name="fitness" size={16} color="#A3A3A3" />
-            <Text style={styles.workoutStatText}>{workout.exercises.length} exercises</Text>
-          </View>
-          <View style={styles.workoutStat}>
-            <Ionicons name="flame" size={16} color="#A3A3A3" />
-            <Text style={styles.workoutStatText}>{workout.calories_estimate} cal</Text>
-          </View>
+  const InsightCard = ({ insight, index }: { insight: AIInsight; index: number }) => (
+    <View style={styles.insightCard}>
+      <View style={styles.insightHeader}>
+        {getInsightIcon(insight.type)}
+        <View style={styles.insightTitleContainer}>
+          <Text style={styles.insightTitle}>{insight.title}</Text>
+          <Text style={styles.insightDescription}>{insight.description}</Text>
         </View>
-
-        <View style={styles.focusAreas}>
-          <Text style={styles.focusLabel}>Focus Areas:</Text>
-          <View style={styles.focusTags}>
-            {workout.focus_areas.slice(0, 3).map((area, index) => (
-              <View key={index} style={styles.focusTag}>
-                <Text style={styles.focusTagText}>{area}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.reasoning}>
-          <Text style={styles.reasoningLabel}>AI Reasoning:</Text>
-          <Text style={styles.reasoningText}>{workout.reasoning}</Text>
-        </View>
-
-        <View style={styles.exercisePreview}>
-          <Text style={styles.exercisePreviewLabel}>Exercises:</Text>
-          {workout.exercises.slice(0, 3).map((exercise, index) => {
-            const exerciseData = EXERCISE_DATABASE.find(ex => ex.id === exercise.exercise_id);
-            return (
-              <Text key={index} style={styles.exercisePreviewText}>
-                • {exerciseData?.name} - {exercise.sets} sets × {exercise.reps.join('-')} reps
-              </Text>
-            );
-          })}
-          {workout.exercises.length > 3 && (
-            <Text style={styles.exercisePreviewMore}>
-              +{workout.exercises.length - 3} more exercises
-            </Text>
-          )}
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-
-  const renderSuggestions = () => (
-    <View style={styles.suggestions}>
-      <View style={styles.suggestionsHeader}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => setShowGoalSelector(true)}
+          style={styles.insightDismiss}
+          onPress={() => markInsightAsRead(index)}
         >
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          <X size={14} color={DesignTokens.colors.text.tertiary} />
         </TouchableOpacity>
-        <Text style={styles.sectionTitle}>AI Workout Suggestions</Text>
       </View>
       
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Generating personalized workouts...</Text>
+      {insight.recommendation && (
+        <View style={styles.insightRecommendation}>
+          <Text style={styles.insightRecommendationText}>💡 {insight.recommendation}</Text>
         </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => selectedGoal && generateSuggestions(selectedGoal, workoutHistory, 3)}
-          >
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView style={styles.suggestionsScroll} showsVerticalScrollIndicator={false}>
-          {suggestions.map(renderWorkoutCard)}
-        </ScrollView>
       )}
     </View>
   );
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>AI Workout Assistant</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {showGoalSelector ? renderGoalSelector() : renderSuggestions()}
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <AlertTriangle size={48} color={DesignTokens.colors.error[500]} />
+        <Text style={styles.errorTitle}>AI Recommendations Unavailable</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={clearError}>
+          <RefreshCw size={16} color={DesignTokens.colors.text.primary} />
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Brain size={48} color={DesignTokens.colors.primary[500]} />
+        <Text style={styles.loadingText}>Analyzing your workout patterns...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView 
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTitleContainer}>
+          <Brain size={24} color={DesignTokens.colors.primary[500]} />
+          <Text style={styles.headerTitle}>AI Recommendations</Text>
+        </View>
+        
+        <View style={styles.headerActions}>
+          {needsRefresh && (
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={refreshRecommendations}
+              disabled={isGenerating}
+            >
+              <RefreshCw size={16} color={DesignTokens.colors.primary[500]} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Summary Stats */}
+      {!compactMode && (
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>{summaryStats.totalRecommendations}</Text>
+            <Text style={styles.summaryLabel}>Recommendations</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>{summaryStats.averageConfidence}%</Text>
+            <Text style={styles.summaryLabel}>Confidence</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>{summaryStats.totalInsights}</Text>
+            <Text style={styles.summaryLabel}>Insights</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Last Generated */}
+      <View style={styles.lastGeneratedContainer}>
+        <Text style={styles.lastGeneratedText}>
+          Last updated: {formatLastGenerated()}
+        </Text>
+        {isGenerating && <Text style={styles.generatingText}>Generating new recommendations...</Text>}
+      </View>
+
+      {/* High Priority Recommendations */}
+      {getRecommendationsByPriority('high').length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>🔥 Priority Recommendations</Text>
+          {getRecommendationsByPriority('high').map((recommendation) => (
+            <RecommendationCard key={recommendation.id} recommendation={recommendation} />
+          ))}
+        </View>
+      )}
+
+      {/* AI Insights */}
+      {showInsights && insights.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>🧠 AI Insights</Text>
+          {insights.slice(0, compactMode ? 2 : 5).map((insight, index) => (
+            <InsightCard key={index} insight={insight} index={index} />
+          ))}
+        </View>
+      )}
+
+      {/* Other Recommendations */}
+      {(getRecommendationsByPriority('medium').length > 0 || getRecommendationsByPriority('low').length > 0) && (
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>💡 More Suggestions</Text>
+          {[...getRecommendationsByPriority('medium'), ...getRecommendationsByPriority('low')]
+            .slice(0, compactMode ? 2 : 10)
+            .map((recommendation) => (
+              <RecommendationCard key={recommendation.id} recommendation={recommendation} />
+            ))}
+        </View>
+      )}
+
+      {/* Empty State */}
+      {recommendations.length === 0 && (
+        <View style={styles.emptyState}>
+          <Brain size={48} color={DesignTokens.colors.text.tertiary} />
+          <Text style={styles.emptyStateTitle}>No Recommendations Yet</Text>
+          <Text style={styles.emptyStateText}>
+            Complete a few workouts to unlock personalized AI recommendations
+          </Text>
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2F2F2F',
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[4],
   },
-  title: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#2F2F2F',
-    justifyContent: 'center',
+  headerTitleContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: DesignTokens.spacing[2],
   },
-  goalSelector: {
+  headerTitle: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+  },
+  refreshButton: {
+    padding: DesignTokens.spacing[2],
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[4],
+    gap: DesignTokens.spacing[3],
+  },
+  summaryCard: {
     flex: 1,
-    padding: 20,
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[3],
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  summaryValue: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  summaryLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+  },
+  lastGeneratedContainer: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[4],
+  },
+  lastGeneratedText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+  },
+  generatingText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.primary[500],
+    marginTop: DesignTokens.spacing[1],
+  },
+  section: {
+    marginBottom: DesignTokens.spacing[6],
+  },
+  sectionHeader: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[3],
+  },
+  recommendationCard: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    marginHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  recommendationHeader: {
+    padding: DesignTokens.spacing[4],
+  },
+  recommendationTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[2],
+  },
+  recommendationTitleContainer: {
+    flex: 1,
+  },
+  recommendationTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[2],
+  },
+  recommendationMeta: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[2],
+  },
+  priorityBadge: {
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+  priorityText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  confidenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    backgroundColor: DesignTokens.colors.warning[500] + '20',
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+  confidenceText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.warning[500],
+  },
+  dismissButton: {
+    padding: DesignTokens.spacing[1],
+  },
+  recommendationDescription: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 20,
+    marginBottom: DesignTokens.spacing[3],
+  },
+  recommendationStats: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[4],
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+  statText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+  },
+  recommendationDetails: {
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[800],
+    padding: DesignTokens.spacing[4],
+  },
+  reasoningSection: {
+    marginBottom: DesignTokens.spacing[4],
   },
   sectionTitle: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 8,
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[2],
   },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  goalCard: {
-    marginBottom: 16,
-  },
-  goalGradient: {
-    borderRadius: 16,
-    padding: 20,
-  },
-  goalContent: {
+  reasonItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[1],
   },
-  goalIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  goalText: {
+  reasonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
     flex: 1,
   },
-  goalLabel: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 4,
+  muscleGroupsSection: {
+    marginBottom: DesignTokens.spacing[4],
   },
-  goalDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontFamily: 'Inter-Regular',
-  },
-  suggestions: {
-    flex: 1,
-  },
-  suggestionsHeader: {
+  muscleGroupTags: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 16,
+    flexWrap: 'wrap',
+    gap: DesignTokens.spacing[1],
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#2F2F2F',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
+  muscleGroupTag: {
+    backgroundColor: DesignTokens.colors.primary[500] + '20',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
+  muscleGroupTagText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  loadingText: {
-    fontSize: 16,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
+  exercisesSection: {
+    marginBottom: DesignTokens.spacing[4],
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#ef4444',
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: '#9E7FFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-  },
-  suggestionsScroll: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  workoutCard: {
-    marginBottom: 20,
-  },
-  workoutGradient: {
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
-  },
-  workoutHeader: {
-    marginBottom: 16,
-  },
-  workoutTitleContainer: {
+  exerciseItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingVertical: DesignTokens.spacing[1],
   },
-  workoutName: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    flex: 1,
+  exerciseName: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
-  difficultyBadge: {
-    backgroundColor: '#9E7FFF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  exerciseDetails: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
   },
-  difficultyText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
+  moreExercises: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.tertiary,
+    fontStyle: 'italic',
+    marginTop: DesignTokens.spacing[1],
   },
-  workoutDescription: {
-    fontSize: 14,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-  },
-  workoutStats: {
+  actionButtons: {
     flexDirection: 'row',
-    marginBottom: 16,
+    gap: DesignTokens.spacing[3],
   },
-  workoutStat: {
+  startButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
+    justifyContent: 'center',
+    gap: DesignTokens.spacing[2],
+    backgroundColor: DesignTokens.colors.primary[500],
+    paddingVertical: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
   },
-  workoutStatText: {
-    fontSize: 12,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Medium',
-    marginLeft: 6,
+  startButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
   },
-  focusAreas: {
-    marginBottom: 16,
+  customizeButton: {
+    paddingHorizontal: DesignTokens.spacing[4],
+    paddingVertical: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[700],
   },
-  focusLabel: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 8,
+  customizeButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.secondary,
   },
-  focusTags: {
+  insightCard: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    marginHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  insightHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: DesignTokens.spacing[3],
   },
-  focusTag: {
-    backgroundColor: '#2F2F2F',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginRight: 8,
-    marginBottom: 4,
+  insightTitleContainer: {
+    flex: 1,
   },
-  focusTagText: {
-    fontSize: 12,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Medium',
+  insightTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
   },
-  reasoning: {
-    marginBottom: 16,
+  insightDescription: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 20,
   },
-  reasoningLabel: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 8,
+  insightDismiss: {
+    padding: DesignTokens.spacing[1],
   },
-  reasoningText: {
-    fontSize: 13,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    lineHeight: 18,
+  insightRecommendation: {
+    marginTop: DesignTokens.spacing[3],
+    paddingTop: DesignTokens.spacing[3],
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[800],
   },
-  exercisePreview: {
-    marginTop: 8,
+  insightRecommendationText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.warning[500],
+    fontStyle: 'italic',
   },
-  exercisePreviewLabel: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 8,
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: DesignTokens.spacing[12],
+    paddingHorizontal: DesignTokens.spacing[5],
   },
-  exercisePreviewText: {
-    fontSize: 13,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Regular',
-    marginBottom: 4,
+  emptyStateTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[2],
   },
-  exercisePreviewMore: {
-    fontSize: 13,
-    color: '#9E7FFF',
-    fontFamily: 'Inter-Medium',
-    marginTop: 4,
+  emptyStateText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: DesignTokens.spacing[12],
+    paddingHorizontal: DesignTokens.spacing[5],
+  },
+  loadingText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    marginTop: DesignTokens.spacing[4],
+  },
+  errorContainer: {
+    alignItems: 'center',
+    paddingVertical: DesignTokens.spacing[12],
+    paddingHorizontal: DesignTokens.spacing[5],
+  },
+  errorTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[2],
+  },
+  errorText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: DesignTokens.spacing[4],
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    backgroundColor: DesignTokens.colors.primary[500],
+    paddingHorizontal: DesignTokens.spacing[4],
+    paddingVertical: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
+  },
+  retryButtonText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.primary,
   },
 });
