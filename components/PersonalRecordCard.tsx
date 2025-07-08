@@ -1,156 +1,268 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Trophy, TrendingUp, Calendar } from 'lucide-react-native';
-import { PersonalRecord } from '@/lib/supabase';
-import { formatPersonalRecordValue } from '@/lib/personalRecords';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Trophy, TrendingUp, Calendar, Target, Weight, Clock } from 'lucide-react-native';
+
+interface PersonalRecord {
+  id: string;
+  deviceId: string;
+  exerciseId: string;
+  recordType: 'max_weight' | 'max_reps' | 'max_duration' | 'max_volume';
+  value: number;
+  unit: string;
+  achievedAt: string;
+  previousRecord?: number;
+}
 
 interface PersonalRecordCardProps {
-  record: PersonalRecord & { exercise?: { name: string } };
+  record: PersonalRecord;
+  exerciseName?: string;
   showExerciseName?: boolean;
   onPress?: () => void;
 }
 
-export default function PersonalRecordCard({ 
-  record, 
+export default function PersonalRecordCard({
+  record,
+  exerciseName,
   showExerciseName = true,
-  onPress 
+  onPress,
 }: PersonalRecordCardProps) {
-  const getRecordIcon = (recordType: string) => {
-    switch (recordType) {
+  const getRecordIcon = (type: string) => {
+    switch (type) {
       case 'max_weight':
-        return Trophy;
+        return <Weight size={20} color="#F59E0B" />;
       case 'max_reps':
-        return TrendingUp;
-      case 'best_time':
-        return Calendar;
-      case 'max_distance':
-        return TrendingUp;
+        return <Target size={20} color="#10B981" />;
+      case 'max_duration':
+        return <Clock size={20} color="#3B82F6" />;
+      case 'max_volume':
+        return <TrendingUp size={20} color="#8B5CF6" />;
       default:
-        return Trophy;
+        return <Trophy size={20} color="#F59E0B" />;
     }
   };
 
-  const getRecordColor = (recordType: string) => {
-    switch (recordType) {
-      case 'max_weight':
-        return '#FF6B35';
-      case 'max_reps':
-        return '#4A90E2';
-      case 'best_time':
-        return '#27AE60';
-      case 'max_distance':
-        return '#9B59B6';
-      default:
-        return '#FF6B35';
-    }
-  };
-
-  const getRecordTypeLabel = (recordType: string) => {
-    switch (recordType) {
+  const getRecordTypeLabel = (type: string) => {
+    switch (type) {
       case 'max_weight':
         return 'Max Weight';
       case 'max_reps':
         return 'Max Reps';
-      case 'best_time':
-        return 'Best Time';
-      case 'max_distance':
-        return 'Max Distance';
+      case 'max_duration':
+        return 'Max Duration';
+      case 'max_volume':
+        return 'Max Volume';
       default:
-        return recordType;
+        return 'Personal Record';
     }
+  };
+
+  const formatValue = (value: number, unit: string) => {
+    if (unit === 'kg' && value >= 1000) {
+      return `${(value / 1000).toFixed(1)}k kg`;
+    }
+    if (unit === 'min' && value >= 60) {
+      const hours = Math.floor(value / 60);
+      const minutes = value % 60;
+      return `${hours}h ${minutes}m`;
+    }
+    return `${value} ${unit}`;
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) return 'Today';
+    if (diffDays === 2) return 'Yesterday';
+    if (diffDays <= 7) return `${diffDays - 1} days ago`;
     
-    if (diffInDays === 0) return 'Today';
-    if (diffInDays === 1) return 'Yesterday';
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    return date.toLocaleDateString();
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    });
   };
 
-  const IconComponent = getRecordIcon(record.record_type);
-  const recordColor = getRecordColor(record.record_type);
+  const getImprovementPercentage = () => {
+    if (!record.previousRecord || record.previousRecord === 0) return null;
+    return ((record.value - record.previousRecord) / record.previousRecord) * 100;
+  };
 
-  const CardComponent = onPress ? TouchableOpacity : View;
+  const improvement = getImprovementPercentage();
 
   return (
-    <CardComponent style={styles.container} onPress={onPress}>
-      <View style={[styles.iconContainer, { backgroundColor: `${recordColor}20` }]}>
-        <IconComponent size={24} color={recordColor} />
-      </View>
-      
-      <View style={styles.content}>
-        {showExerciseName && record.exercise && (
-          <Text style={styles.exerciseName}>{record.exercise.name}</Text>
-        )}
-        <Text style={styles.recordType}>{getRecordTypeLabel(record.record_type)}</Text>
-        <Text style={styles.recordValue}>
-          {formatPersonalRecordValue(record.value, record.record_type, record.unit)}
-        </Text>
-        <Text style={styles.recordDate}>{formatDate(record.achieved_at)}</Text>
-      </View>
-      
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>PR</Text>
-      </View>
-    </CardComponent>
+    <TouchableOpacity 
+      style={styles.container} 
+      onPress={onPress}
+      disabled={!onPress}
+    >
+      <LinearGradient
+        colors={['#1a1a1a', '#2a2a2a']}
+        style={styles.gradient}
+      >
+        <View style={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              {getRecordIcon(record.recordType)}
+            </View>
+            
+            <View style={styles.headerInfo}>
+              {showExerciseName && exerciseName && (
+                <Text style={styles.exerciseName}>{exerciseName}</Text>
+              )}
+              <Text style={styles.recordType}>
+                {getRecordTypeLabel(record.recordType)}
+              </Text>
+            </View>
+
+            <View style={styles.trophyContainer}>
+              <Trophy size={16} color="#F59E0B" />
+            </View>
+          </View>
+
+          {/* Value */}
+          <View style={styles.valueContainer}>
+            <Text style={styles.value}>
+              {formatValue(record.value, record.unit)}
+            </Text>
+            
+            {improvement && (
+              <View style={styles.improvementContainer}>
+                <TrendingUp size={14} color="#10B981" />
+                <Text style={styles.improvementText}>
+                  +{improvement.toFixed(1)}%
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <View style={styles.dateContainer}>
+              <Calendar size={12} color="#666" />
+              <Text style={styles.date}>
+                {formatDate(record.achievedAt)}
+              </Text>
+            </View>
+
+            {record.previousRecord && (
+              <Text style={styles.previousRecord}>
+                Previous: {formatValue(record.previousRecord, record.unit)}
+              </Text>
+            )}
+          </View>
+        </View>
+      </LinearGradient>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  iconContainer: {
-    padding: 12,
-    borderRadius: 12,
-    marginRight: 16,
+  gradient: {
+    padding: 16,
   },
   content: {
+    gap: 12,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerInfo: {
     flex: 1,
   },
   exerciseName: {
     fontSize: 16,
     color: '#fff',
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   recordType: {
     fontSize: 14,
     color: '#999',
     fontFamily: 'Inter-Medium',
-    marginBottom: 4,
   },
-  recordValue: {
-    fontSize: 20,
+  trophyContainer: {
+    padding: 8,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 8,
+  },
+  valueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  value: {
+    fontSize: 24,
     color: '#fff',
     fontFamily: 'Inter-Bold',
-    marginBottom: 4,
   },
-  recordDate: {
+  improvementContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  improvementText: {
+    fontSize: 12,
+    color: '#10B981',
+    fontFamily: 'Inter-SemiBold',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  date: {
     fontSize: 12,
     color: '#666',
     fontFamily: 'Inter-Regular',
   },
-  badge: {
-    backgroundColor: '#FFD700',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  badgeText: {
+  previousRecord: {
     fontSize: 12,
-    color: '#000',
-    fontFamily: 'Inter-Bold',
+    color: '#666',
+    fontFamily: 'Inter-Regular',
   },
 });

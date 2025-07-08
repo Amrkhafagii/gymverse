@@ -1,0 +1,417 @@
+{
+  "achievements": [
+    {
+      "id": "first_workout",
+      "name": "First Steps",
+      "description": "Complete your first workout",
+      "icon": "🎯",
+      "category": "milestone",
+      "rarity": "common",
+      "points": 10,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "workout_count",
+          "operator": "gte",
+          "value": 1,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "streak_3",
+      "name": "Getting Started",
+      "description": "Work out 3 days in a row",
+      "icon": "🔥",
+      "category": "consistency",
+      "rarity": "common",
+      "points": 25,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "streak",
+          "operator": "gte",
+          "value": 3,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "streak_7",
+      "name": "Week Warrior",
+      "description": "Maintain a 7-day workout streak",
+      "icon": "⚡",
+      "category": "consistency",
+      "rarity": "rare",
+      "points": 50,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "streak",
+          "operator": "gte",
+          "value": 7,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "streak_30",
+      "name": "Consistency King",
+      "description": "Achieve a 30-day workout streak",
+      "icon": "👑",
+      "category": "consistency",
+      "rarity": "epic",
+      "points": 150,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "streak",
+          "operator": "gte",
+          "value": 30,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "workouts_10",
+      "name": "Double Digits",
+      "description": "Complete 10 total workouts",
+      "icon": "🎖️",
+      "category": "milestone",
+      "rarity": "common",
+      "points": 30,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "workout_count",
+          "operator": "gte",
+          "value": 10,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "workouts_50",
+      "name": "Half Century",
+      "description": "Reach 50 completed workouts",
+      "icon": "🏅",
+      "category": "milestone",
+      "rarity": "rare",
+      "points": 75,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "workout_count",
+          "operator": "gte",
+          "value": 50,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "workouts_100",
+      "name": "Century Club",
+      "description": "Complete 100 workouts",
+      "icon": "💯",
+      "category": "milestone",
+      "rarity": "epic",
+      "points": 200,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "workout_count",
+          "operator": "gte",
+          "value": 100,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "volume_1000",
+      "name": "Ton Lifter",
+      "description": "Lift 1,000kg total volume",
+      "icon": "💪",
+      "category": "strength",
+      "rarity": "common",
+      "points": 40,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "total_volume",
+          "operator": "gte",
+          "value": 1000,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "volume_10000",
+      "name": "Iron Mountain",
+      "description": "Lift 10,000kg total volume",
+      "icon": "🏔️",
+      "category": "strength",
+      "rarity": "rare",
+      "points": 100,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "total_volume",
+          "operator": "gte",
+          "value": 10000,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "duration_60",
+      "name": "Hour Power",
+      "description": "Complete a 60-minute workout",
+      "icon": "⏰",
+      "category": "endurance",
+      "rarity": "common",
+      "points": 35,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "single_workout_duration",
+          "operator": "gte",
+          "value": 3600,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "duration_120",
+      "name": "Endurance Beast",
+      "description": "Push through a 2-hour workout",
+      "icon": "🦁",
+      "category": "endurance",
+      "rarity": "rare",
+      "points": 80,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "single_workout_duration",
+          "operator": "gte",
+          "value": 7200,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "total_duration_100h",
+      "name": "Time Warrior",
+      "description": "Accumulate 100 hours of total workout time",
+      "icon": "⚔️",
+      "category": "endurance",
+      "rarity": "epic",
+      "points": 300,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "total_duration",
+          "operator": "gte",
+          "value": 360000,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "sets_100",
+      "name": "Set Master",
+      "description": "Complete 100 total sets",
+      "icon": "🎯",
+      "category": "strength",
+      "rarity": "common",
+      "points": 25,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "total_sets",
+          "operator": "gte",
+          "value": 100,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "reps_1000",
+      "name": "Rep Machine",
+      "description": "Perform 1,000 total reps",
+      "icon": "🔄",
+      "category": "strength",
+      "rarity": "common",
+      "points": 30,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "total_reps",
+          "operator": "gte",
+          "value": 1000,
+          "timeframe": "all_time"
+        }
+      ]
+    },
+    {
+      "id": "weekly_5",
+      "name": "Weekday Warrior",
+      "description": "Work out 5 times in one week",
+      "icon": "📅",
+      "category": "consistency",
+      "rarity": "rare",
+      "points": 60,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "workout_frequency",
+          "operator": "gte",
+          "value": 5,
+          "timeframe": "week"
+        }
+      ]
+    },
+    {
+      "id": "monthly_20",
+      "name": "Monthly Grind",
+      "description": "Complete 20 workouts in one month",
+      "icon": "🗓️",
+      "category": "consistency",
+      "rarity": "epic",
+      "points": 120,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "workout_frequency",
+          "operator": "gte",
+          "value": 20,
+          "timeframe": "month"
+        }
+      ]
+    },
+    {
+      "id": "early_bird",
+      "name": "Early Bird",
+      "description": "Complete 10 workouts before 7 AM",
+      "icon": "🌅",
+      "category": "special",
+      "rarity": "rare",
+      "points": 70,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "time_based_workouts",
+          "operator": "gte",
+          "value": 10,
+          "timeframe": "all_time",
+          "condition": "before_7am"
+        }
+      ]
+    },
+    {
+      "id": "night_owl",
+      "name": "Night Owl",
+      "description": "Complete 10 workouts after 9 PM",
+      "icon": "🦉",
+      "category": "special",
+      "rarity": "rare",
+      "points": 70,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "time_based_workouts",
+          "operator": "gte",
+          "value": 10,
+          "timeframe": "all_time",
+          "condition": "after_9pm"
+        }
+      ]
+    },
+    {
+      "id": "squat_specialist",
+      "name": "Squat Specialist",
+      "description": "Perform squats in 25 different workouts",
+      "icon": "🏋️",
+      "category": "strength",
+      "rarity": "rare",
+      "points": 85,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "exercise_frequency",
+          "operator": "gte",
+          "value": 25,
+          "timeframe": "all_time",
+          "exercise_name": "squat"
+        }
+      ]
+    },
+    {
+      "id": "bench_master",
+      "name": "Bench Master",
+      "description": "Perform bench press in 25 different workouts",
+      "icon": "🏋️‍♂️",
+      "category": "strength",
+      "rarity": "rare",
+      "points": 85,
+      "hidden": false,
+      "rules": [
+        {
+          "type": "exercise_frequency",
+          "operator": "gte",
+          "value": 25,
+          "timeframe": "all_time",
+          "exercise_name": "bench"
+        }
+      ]
+    }
+  ],
+  "categories": {
+    "strength": {
+      "name": "Strength",
+      "icon": "💪",
+      "color": "#EF4444"
+    },
+    "endurance": {
+      "name": "Endurance",
+      "icon": "🏃",
+      "color": "#3B82F6"
+    },
+    "consistency": {
+      "name": "Consistency",
+      "icon": "🔥",
+      "color": "#10B981"
+    },
+    "milestone": {
+      "name": "Milestone",
+      "icon": "🏆",
+      "color": "#F59E0B"
+    },
+    "special": {
+      "name": "Special",
+      "icon": "⭐",
+      "color": "#8B5CF6"
+    }
+  },
+  "rarities": {
+    "common": {
+      "name": "Common",
+      "color": "#6B7280",
+      "multiplier": 1.0
+    },
+    "rare": {
+      "name": "Rare",
+      "color": "#3B82F6",
+      "multiplier": 1.5
+    },
+    "epic": {
+      "name": "Epic",
+      "color": "#8B5CF6",
+      "multiplier": 2.0
+    },
+    "legendary": {
+      "name": "Legendary",
+      "color": "#F59E0B",
+      "multiplier": 3.0
+    }
+  }
+}

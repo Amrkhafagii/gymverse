@@ -1,203 +1,70 @@
-import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Home, Dumbbell, TrendingUp, Users, MoreHorizontal } from 'lucide-react-native';
-import { HapticTab } from '@/components/HapticTab';
+import { 
+  Home, 
+  Dumbbell, 
+  BarChart3, 
+  Trophy,
+  Ruler,
+} from 'lucide-react-native';
+import { DesignTokens } from '@/design-system/tokens';
 
 export default function TabLayout() {
-  const [isLayoutReady, setIsLayoutReady] = useState(false);
-
-  useEffect(() => {
-    // Ensure tabs are ready before rendering
-    const timer = setTimeout(() => {
-      setIsLayoutReady(true);
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!isLayoutReady) {
-    return <View style={{ flex: 1, backgroundColor: '#0a0a0a' }} />;
-  }
-
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
-        tabBarButton: HapticTab,
+        tabBarActiveTintColor: DesignTokens.colors.primary[500],
+        tabBarInactiveTintColor: DesignTokens.colors.text.secondary,
         tabBarStyle: {
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 90,
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
-          elevation: 0,
-          shadowOpacity: 0,
+          backgroundColor: DesignTokens.colors.surface.secondary,
+          borderTopColor: DesignTokens.colors.neutral[800],
+          borderTopWidth: 1,
+          paddingTop: 8,
+          paddingBottom: 8,
+          height: 80,
         },
-        tabBarBackground: () => (
-          <View style={styles.tabBarBackground}>
-            <LinearGradient
-              colors={['rgba(26, 26, 26, 0.95)', 'rgba(10, 10, 10, 0.98)']}
-              style={styles.gradient}
-            />
-          </View>
-        ),
-        tabBarActiveTintColor: '#9E7FFF',
-        tabBarInactiveTintColor: '#666',
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontFamily: 'Inter-Medium',
-          marginBottom: 8,
+          fontSize: DesignTokens.typography.fontSize.xs,
+          fontWeight: DesignTokens.typography.fontWeight.medium,
+          marginTop: 4,
         },
-        tabBarIconStyle: {
-          marginTop: 8,
-        },
-        tabBarHideOnKeyboard: true,
-        tabBarAllowFontScaling: false,
+        headerShown: false,
       }}
     >
-      {/* Main Tab Screens - Only Core Navigation */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-          tabBarAccessibilityLabel: 'Home Tab',
         }}
       />
       <Tabs.Screen
-        name="workouts"
+        name="workout"
         options={{
-          title: 'Workouts',
+          title: 'Workout',
           tabBarIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
-          tabBarAccessibilityLabel: 'Workouts Tab',
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color, size }) => <TrendingUp size={size} color={color} />,
-          tabBarAccessibilityLabel: 'Progress Tab',
+          tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="social"
+        name="measurements"
         options={{
-          title: 'Social',
-          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
-          tabBarAccessibilityLabel: 'Social Tab',
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: 'More',
-          tabBarIcon: ({ color, size }) => <MoreHorizontal size={size} color={color} />,
-          tabBarAccessibilityLabel: 'More Tab',
-        }}
-      />
-
-      {/* Hidden Screens - Accessible via navigation but not shown in tab bar */}
-      <Tabs.Screen
-        name="profile"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="schedule"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="exercises"
-        options={{
-          href: null, // Hide from tab bar
+          title: 'Measurements',
+          tabBarIcon: ({ color, size }) => <Ruler size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="achievements"
         options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="edit-profile"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="leaderboards"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="create-workout"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="workout-detail"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="workout-session"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="exercise-library"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="exercise-progress"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="workout-templates"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="timer"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="sleep"
-        options={{
-          href: null, // Hide from tab bar
+          title: 'Achievements',
+          tabBarIcon: ({ color, size }) => <Trophy size={size} color={color} />,
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBarBackground: {
-    flex: 1,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
-  },
-  gradient: {
-    flex: 1,
-  },
-});

@@ -1,134 +1,192 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { getCategoryInfo, getTierInfo, AchievementTemplate } from '@/lib/achievements';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Achievement } from '@/lib/achievementEngine';
+import { useAchievementUtils } from '@/hooks/useAchievements';
 
 interface AchievementBadgeProps {
-  achievement: AchievementTemplate;
+  achievement: Achievement;
   size?: 'small' | 'medium' | 'large';
-  showDetails?: boolean;
+  showProgress?: boolean;
+  onPress?: () => void;
 }
 
-export default function AchievementBadge({ 
+export function AchievementBadge({ 
   achievement, 
   size = 'medium', 
-  showDetails = false 
+  showProgress = false,
+  onPress 
 }: AchievementBadgeProps) {
-  const category = getCategoryInfo(achievement.category);
-  const tier = getTierInfo(achievement.tier);
+  const { getRarityColor, formatProgress } = useAchievementUtils();
   
   const sizeStyles = {
-    small: {
-      container: { width: 60, height: 60 },
-      icon: { fontSize: 20 },
-      badge: { width: 16, height: 16, right: -2, top: -2 }
-    },
-    medium: {
-      container: { width: 80, height: 80 },
-      icon: { fontSize: 28 },
-      badge: { width: 20, height: 20, right: -4, top: -4 }
-    },
-    large: {
-      container: { width: 120, height: 120 },
-      icon: { fontSize: 40 },
-      badge: { width: 24, height: 24, right: -6, top: -6 }
-    }
+    small: styles.small,
+    medium: styles.medium,
+    large: styles.large,
   };
 
-  const getRarityGradient = (rarity: string) => {
-    switch (rarity) {
-      case 'common':
-        return ['#9CA3AF', '#6B7280'];
-      case 'uncommon':
-        return ['#10B981', '#059669'];
-      case 'rare':
-        return ['#3B82F6', '#1D4ED8'];
-      case 'epic':
-        return ['#8B5CF6', '#7C3AED'];
-      case 'legendary':
-        return ['#F59E0B', '#D97706'];
-      default:
-        return ['#9CA3AF', '#6B7280'];
-    }
+  const iconSizes = {
+    small: 20,
+    medium: 28,
+    large: 36,
   };
 
-  return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={getRarityGradient(achievement.rarity)}
-        style={[styles.badge, sizeStyles[size].container]}
-      >
-        <Text style={[styles.icon, sizeStyles[size].icon]}>
-          {achievement.icon}
+  const textSizes = {
+    small: 10,
+    medium: 12,
+    large: 14,
+  };
+
+  const rarityColor = getRarityColor(achievement.rarity);
+  const progressPercentage = achievement.maxProgress > 0 
+    ? Math.round((achievement.progress / achievement.maxProgress) * 100)
+    : 0;
+
+  const BadgeContent = () => (
+    <View style={[
+      styles.container,
+      sizeStyles[size],
+      { borderColor: rarityColor },
+      !achievement.unlocked && styles.locked
+    ]}>
+      <View style={[styles.iconContainer, { backgroundColor: rarityColor }]}>
+        <Text style={[styles.icon, { fontSize: iconSizes[size] }]}>
+          {achievement.unlocked ? achievement.icon : '🔒'}
         </Text>
-        
-        {/* Tier indicator */}
-        <View 
-          style={[
-            styles.tierBadge, 
-            sizeStyles[size].badge,
-            { backgroundColor: tier?.color || '#CD7F32' }
-          ]}
-        />
-      </LinearGradient>
+      </View>
       
-      {showDetails && (
-        <View style={styles.details}>
-          <Text style={styles.name} numberOfLines={2}>
-            {achievement.name}
-          </Text>
-          <Text style={styles.points}>
-            {achievement.points} pts
+      <Text style={[
+        styles.name,
+        { fontSize: textSizes[size] },
+        !achievement.unlocked && styles.lockedText
+      ]}>
+        {achievement.name}
+      </Text>
+      
+      <Text style={[
+        styles.points,
+        { fontSize: textSizes[size] - 1 },
+        !achievement.unlocked && styles.lockedText
+      ]}>
+        {achievement.points} pts
+      </Text>
+
+      {showProgress && !achievement.unlocked && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill,
+                { 
+                  width: `${progressPercentage}%`,
+                  backgroundColor: rarityColor
+                }
+              ]}
+            />
+          </View>
+          <Text style={styles.progressText}>
+            {formatProgress(achievement.progress, achievement.maxProgress)}
           </Text>
         </View>
       )}
+
+      {achievement.unlocked && achievement.unlockedAt && (
+        <Text style={styles.unlockedDate}>
+          {new Date(achievement.unlockedAt).toLocaleDateString()}
+        </Text>
+      )}
     </View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        <BadgeContent />
+      </TouchableOpacity>
+    );
+  }
+
+  return <BadgeContent />;
 }
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-  },
-  badge: {
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  icon: {
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  tierBadge: {
-    position: 'absolute',
+    backgroundColor: 'white',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  details: {
-    marginTop: 8,
+    padding: 8,
     alignItems: 'center',
-    maxWidth: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  locked: {
+    opacity: 0.6,
+    backgroundColor: '#F9FAFB',
+  },
+  small: {
+    width: 80,
+    minHeight: 90,
+  },
+  medium: {
+    width: 100,
+    minHeight: 110,
+  },
+  large: {
+    width: 120,
+    minHeight: 130,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  icon: {
+    color: 'white',
   },
   name: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
+    fontWeight: '600',
+    color: '#1F2937',
     textAlign: 'center',
     marginBottom: 2,
+    lineHeight: 14,
   },
   points: {
-    fontSize: 10,
-    color: '#A3A3A3',
-    fontFamily: 'Inter-Medium',
+    color: '#F59E0B',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  lockedText: {
+    color: '#9CA3AF',
+  },
+  progressContainer: {
+    width: '100%',
+    marginTop: 4,
+  },
+  progressBar: {
+    height: 3,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 2,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 8,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  unlockedDate: {
+    fontSize: 8,
+    color: '#10B981',
+    textAlign: 'center',
+    marginTop: 2,
   },
 });

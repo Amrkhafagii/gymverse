@@ -24,161 +24,68 @@ import {
   MessageSquare,
 } from 'lucide-react-native';
 import { useDeviceAuth } from '@/contexts/DeviceAuthContext';
+import { useWorkoutSession } from '@/contexts/WorkoutSessionContext';
 import WorkoutSessionTimer from '@/components/workout/WorkoutSessionTimer';
 import ExerciseSetTracker from '@/components/workout/ExerciseSetTracker';
 import WorkoutSessionStats from '@/components/workout/WorkoutSessionStats';
+import { RestTimerModal } from '@/components/workout/RestTimerModal';
+import { SetTimerCard } from '@/components/workout/SetTimerCard';
 import * as Haptics from 'expo-haptics';
-
-interface Exercise {
-  id: string;
-  name: string;
-  description: string;
-  exercise_type: 'strength' | 'cardio' | 'flexibility' | 'plyometric';
-  muscle_groups: string[];
-  equipment: string[];
-}
-
-interface ExerciseSet {
-  set_number: number;
-  target_reps: number;
-  actual_reps?: number;
-  target_weight_kg?: number;
-  actual_weight_kg?: number;
-  target_duration_seconds?: number;
-  actual_duration_seconds?: number;
-  is_completed: boolean;
-  is_warmup?: boolean;
-  notes?: string;
-}
-
-interface WorkoutExercise {
-  exercise: Exercise;
-  order_index: number;
-  target_sets: number;
-  target_reps: number[];
-  target_weight_kg?: number;
-  target_duration_seconds?: number;
-  rest_seconds: number;
-  notes?: string;
-  sets: ExerciseSet[];
-}
-
-interface WorkoutSession {
-  id: string;
-  workout_name: string;
-  started_at: string;
-  is_active: boolean;
-  is_paused: boolean;
-  total_duration_seconds: number;
-  exercises: WorkoutExercise[];
-}
 
 export default function WorkoutSessionScreen() {
   const { user, isAuthenticated } = useDeviceAuth();
+  const {
+    currentSession,
+    isLoading,
+    pauseSession,
+    resumeSession,
+    completeSession,
+    updateSet,
+    updateExercise,
+    startRestTimer,
+    stopRestTimer,
+    activeRestTimer,
+  } = useWorkoutSession();
+  
   const params = useLocalSearchParams();
   const workoutId = params.workoutId as string;
   
   // Session state
-  const [session, setSession] = useState<WorkoutSession | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isActive, setIsActive] = useState(false);
   const [totalDuration, setTotalDuration] = useState(0);
-  const [isResting, setIsResting] = useState(false);
-  const [restDuration, setRestDuration] = useState(0);
+  const [isActive, setIsActive] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [showRestTimer, setShowRestTimer] = useState(false);
+  const [restTimerData, setRestTimerData] = useState<{
+    exerciseId: string;
+    setId: string;
+    duration: number;
+    exerciseName: string;
+    setNumber: number;
+  } | null>(null);
   
   // Timers
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const restTimerRef = useRef<NodeJS.Timeout | null>(null);
   const appStateRef = useRef(AppState.currentState);
 
-  // Mock workout data - in real app, this would come from API/database
-  const mockWorkout: WorkoutSession = {
-    id: workoutId || '1',
-    workout_name: 'Upper Body Strength',
-    started_at: new Date().toISOString(),
-    is_active: false,
-    is_paused: false,
-    total_duration_seconds: 0,
-    exercises: [
-      {
-        exercise: {
-          id: '1',
-          name: 'Barbell Bench Press',
-          description: 'Classic compound chest exercise',
-          exercise_type: 'strength',
-          muscle_groups: ['chest', 'shoulders', 'triceps'],
-          equipment: ['barbell', 'bench'],
-        },
-        order_index: 0,
-        target_sets: 4,
-        target_reps: [8, 8, 6, 6],
-        target_weight_kg: 80,
-        rest_seconds: 120,
-        sets: [
-          { set_number: 1, target_reps: 8, is_completed: false },
-          { set_number: 2, target_reps: 8, is_completed: false },
-          { set_number: 3, target_reps: 6, is_completed: false },
-          { set_number: 4, target_reps: 6, is_completed: false },
-        ],
-      },
-      {
-        exercise: {
-          id: '2',
-          name: 'Pull-ups',
-          description: 'Bodyweight back exercise',
-          exercise_type: 'strength',
-          muscle_groups: ['back', 'biceps'],
-          equipment: [],
-        },
-        order_index: 1,
-        target_sets: 3,
-        target_reps: [10, 8, 6],
-        rest_seconds: 90,
-        sets: [
-          { set_number: 1, target_reps: 10, is_completed: false },
-          { set_number: 2, target_reps: 8, is_completed: false },
-          { set_number: 3, target_reps: 6, is_completed: false },
-        ],
-      },
-      {
-        exercise: {
-          id: '3',
-          name: 'Overhead Press',
-          description: 'Shoulder strength exercise',
-          exercise_type: 'strength',
-          muscle_groups: ['shoulders', 'triceps', 'core'],
-          equipment: ['barbell'],
-        },
-        order_index: 2,
-        target_sets: 3,
-        target_reps: [8, 8, 8],
-        target_weight_kg: 60,
-        rest_seconds: 90,
-        sets: [
-          { set_number: 1, target_reps: 8, is_completed: false },
-          { set_number: 2, target_reps: 8, is_completed: false },
-          { set_number: 3, target_reps: 8, is_completed: false },
-        ],
-      },
-    ],
-  };
+  useEffect(() => {
+    if (currentSession) {
+      setTotalDuration(currentSession.total_duration_seconds);
+      setIsActive(currentSession.is_active && !currentSession.is_paused);
+    }
+  }, [currentSession]);
 
   useEffect(() => {
-    loadWorkoutSession();
-    
     // Handle app state changes
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
       subscription?.remove();
       if (timerRef.current) clearInterval(timerRef.current);
-      if (restTimerRef.current) clearInterval(restTimerRef.current);
     };
   }, []);
 
   useEffect(() => {
-    if (isActive && !isResting) {
+    if (isActive && currentSession) {
       timerRef.current = setInterval(() => {
         setTotalDuration(prev => prev + 1);
       }, 1000);
@@ -194,7 +101,7 @@ export default function WorkoutSessionScreen() {
         clearInterval(timerRef.current);
       }
     };
-  }, [isActive, isResting]);
+  }, [isActive, currentSession]);
 
   const handleAppStateChange = (nextAppState: AppStateStatus) => {
     if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -204,33 +111,15 @@ export default function WorkoutSessionScreen() {
     appStateRef.current = nextAppState;
   };
 
-  const loadWorkoutSession = async () => {
-    try {
-      setLoading(true);
-      // In real app, load from API/database
-      setSession(mockWorkout);
-      setTotalDuration(mockWorkout.total_duration_seconds);
-      setIsActive(mockWorkout.is_active && !mockWorkout.is_paused);
-    } catch (error) {
-      console.error('Error loading workout session:', error);
-      Alert.alert('Error', 'Failed to load workout session');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleToggleTimer = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsActive(!isActive);
     
-    if (session) {
-      const updatedSession = {
-        ...session,
-        is_active: !isActive,
-        is_paused: isActive,
-      };
-      setSession(updatedSession);
-      // TODO: Save to database
+    if (isActive) {
+      await pauseSession();
+      setIsActive(false);
+    } else {
+      await resumeSession();
+      setIsActive(true);
     }
   };
 
@@ -248,49 +137,43 @@ export default function WorkoutSessionScreen() {
           onPress: () => {
             setTotalDuration(0);
             setIsActive(false);
-            setIsResting(false);
           },
         },
       ]
     );
   };
 
-  const handleStartRest = (restSeconds: number) => {
-    setIsResting(true);
-    setRestDuration(restSeconds);
-    setIsActive(false); // Pause main timer during rest
+  const handleStartRest = (exerciseId: string, setId: string, duration: number) => {
+    const exercise = currentSession?.exercises.find(e => e.id === exerciseId);
+    const set = exercise?.sets.find(s => s.id === setId);
+    
+    if (exercise && set) {
+      setRestTimerData({
+        exerciseId,
+        setId,
+        duration,
+        exerciseName: exercise.exercise_name,
+        setNumber: set.set_number,
+      });
+      setShowRestTimer(true);
+      startRestTimer(exerciseId, setId, duration);
+    }
   };
 
-  const handleRestComplete = async () => {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setIsResting(false);
-    setRestDuration(0);
-    // Optionally auto-resume main timer
-    // setIsActive(true);
+  const handleRestComplete = () => {
+    setShowRestTimer(false);
+    setRestTimerData(null);
+    stopRestTimer();
   };
 
-  const handleUpdateSet = (exerciseIndex: number, setIndex: number, updates: Partial<ExerciseSet>) => {
-    if (!session) return;
-
-    const updatedExercises = [...session.exercises];
-    updatedExercises[exerciseIndex].sets[setIndex] = {
-      ...updatedExercises[exerciseIndex].sets[setIndex],
-      ...updates,
-    };
-
-    const updatedSession = {
-      ...session,
-      exercises: updatedExercises,
-    };
-
-    setSession(updatedSession);
-    // TODO: Save to database
+  const handleUpdateSet = (exerciseId: string, setId: string, updates: any) => {
+    updateSet(exerciseId, setId, updates);
   };
 
   const handleFinishWorkout = async () => {
-    if (!session) return;
+    if (!currentSession) return;
 
-    const completedSets = session.exercises.reduce(
+    const completedSets = currentSession.exercises.reduce(
       (total, exercise) => total + exercise.sets.filter(set => set.is_completed).length,
       0
     );
@@ -319,9 +202,7 @@ export default function WorkoutSessionScreen() {
   const finishWorkout = async () => {
     try {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-      // TODO: Save workout session to database
-      console.log('Saving workout session:', session);
+      await completeSession();
       
       Alert.alert(
         'Workout Completed!',
@@ -350,7 +231,7 @@ export default function WorkoutSessionScreen() {
     }
   };
 
-  if (loading || !session) {
+  if (isLoading || !currentSession) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -361,15 +242,15 @@ export default function WorkoutSessionScreen() {
   }
 
   // Calculate stats
-  const completedSets = session.exercises.reduce(
+  const completedSets = currentSession.exercises.reduce(
     (total, exercise) => total + exercise.sets.filter(set => set.is_completed).length,
     0
   );
-  const totalSets = session.exercises.reduce((total, exercise) => total + exercise.sets.length, 0);
-  const completedExercises = session.exercises.filter(exercise => 
+  const totalSets = currentSession.exercises.reduce((total, exercise) => total + exercise.sets.length, 0);
+  const completedExercises = currentSession.exercises.filter(exercise => 
     exercise.sets.every(set => set.is_completed)
   ).length;
-  const personalBests = session.exercises.reduce(
+  const personalBests = currentSession.exercises.reduce(
     (total, exercise) => total + exercise.sets.filter(set => 
       set.actual_weight_kg && set.target_weight_kg && set.actual_weight_kg > set.target_weight_kg
     ).length,
@@ -388,9 +269,9 @@ export default function WorkoutSessionScreen() {
           </TouchableOpacity>
           
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>{session.workout_name}</Text>
+            <Text style={styles.headerTitle}>{currentSession.workout_name}</Text>
             <Text style={styles.headerSubtitle}>
-              {isActive ? 'Active' : isResting ? 'Resting' : 'Paused'} • {user?.platform} Device
+              {isActive ? 'Active' : 'Paused'} • {user?.platform} Device
             </Text>
           </View>
           
@@ -407,8 +288,8 @@ export default function WorkoutSessionScreen() {
           onToggle={handleToggleTimer}
           onReset={handleResetTimer}
           totalDuration={totalDuration}
-          restDuration={restDuration}
-          isResting={isResting}
+          restDuration={0}
+          isResting={showRestTimer}
           onRestComplete={handleRestComplete}
         />
 
@@ -418,7 +299,7 @@ export default function WorkoutSessionScreen() {
           completedSets={completedSets}
           totalSets={totalSets}
           completedExercises={completedExercises}
-          totalExercises={session.exercises.length}
+          totalExercises={currentSession.exercises.length}
           personalBests={personalBests}
           estimatedCalories={estimatedCalories}
           averageRestTime={averageRestTime}
@@ -428,20 +309,30 @@ export default function WorkoutSessionScreen() {
         <View style={styles.exercisesSection}>
           <Text style={styles.sectionTitle}>Exercises</Text>
           
-          {session.exercises.map((exercise, index) => (
-            <ExerciseSetTracker
-              key={exercise.exercise.id}
-              sets={exercise.sets}
-              exerciseName={exercise.exercise.name}
-              exerciseType={exercise.exercise.exercise_type}
-              onUpdateSet={(setIndex, updates) => handleUpdateSet(index, setIndex, updates)}
-              onStartRest={handleStartRest}
-              restSeconds={exercise.rest_seconds}
-              previousBest={{
-                weight: exercise.target_weight_kg ? exercise.target_weight_kg - 5 : undefined,
-                reps: Math.max(...exercise.target_reps) - 2,
-              }}
-            />
+          {currentSession.exercises.map((exercise, exerciseIndex) => (
+            <View key={exercise.id} style={styles.exerciseContainer}>
+              <Text style={styles.exerciseName}>{exercise.exercise_name}</Text>
+              <Text style={styles.exerciseInfo}>
+                {exercise.muscle_groups.join(', ')} • {exercise.target_sets} sets
+              </Text>
+              
+              {exercise.sets.map((set, setIndex) => (
+                <SetTimerCard
+                  key={set.id}
+                  set={set}
+                  exerciseName={exercise.exercise_name}
+                  exerciseType={exercise.exercise_type}
+                  onUpdateSet={(updates) => handleUpdateSet(exercise.id, set.id, updates)}
+                  onStartRest={(duration) => handleStartRest(exercise.id, set.id, duration)}
+                  restSeconds={exercise.rest_seconds}
+                  previousBest={{
+                    weight: exercise.target_weight_kg ? exercise.target_weight_kg - 5 : undefined,
+                    reps: Math.max(...exercise.target_reps) - 2,
+                  }}
+                  isActive={exerciseIndex === currentExerciseIndex && !set.is_completed}
+                />
+              ))}
+            </View>
           ))}
         </View>
 
@@ -472,6 +363,18 @@ export default function WorkoutSessionScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Rest Timer Modal */}
+      {restTimerData && (
+        <RestTimerModal
+          visible={showRestTimer}
+          onClose={handleRestComplete}
+          initialDuration={restTimerData.duration}
+          exerciseName={restTimerData.exerciseName}
+          setNumber={restTimerData.setNumber}
+          onComplete={handleRestComplete}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -531,6 +434,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: 'Inter-Bold',
     marginBottom: 16,
+  },
+  exerciseContainer: {
+    marginBottom: 24,
+  },
+  exerciseName: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 4,
+  },
+  exerciseInfo: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Regular',
+    marginBottom: 12,
   },
   actionButtons: {
     flexDirection: 'row',

@@ -1,538 +1,297 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Dimensions,
-  RefreshControl,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  Calendar, 
-  TrendingUp, 
-  Target, 
-  Clock,
-  Flame,
-  Award,
-  ChevronRight,
-  Play,
-  Zap,
-  Camera,
-  Plus
-} from 'lucide-react-native';
-import { router } from 'expo-router';
-import { DesignTokens } from '@/design-system/tokens';
-import { StatCard } from '@/components/ui/StatCard';
-import { WorkoutCard } from '@/components/ui/WorkoutCard';
-import { Button } from '@/components/ui/Button';
-import { SyncStatusIndicator } from '@/components/ui/SyncStatusIndicator';
-import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
-import { useOffline } from '@/contexts/OfflineContext';
-import { useOfflineSync } from '@/hooks/useOfflineSync';
-
-const { width } = Dimensions.get('window');
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { StreakCard } from '@/components/StreakCard';
+import { useStreakTracking } from '@/hooks/useStreakTracking';
+import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext';
+import { useAchievements } from '@/contexts/AchievementContext';
 
 export default function HomeScreen() {
-  const [refreshing, setRefreshing] = useState(false);
-  const [timeOfDay, setTimeOfDay] = useState('morning');
-  
-  const { isOnline, isInitialized } = useOffline();
-  const { syncStatus } = useOfflineSync();
+  const router = useRouter();
+  const { streakData } = useStreakTracking();
+  const { stats } = useWorkoutHistory();
+  const { recentUnlocks, totalPoints } = useAchievements();
 
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setTimeOfDay('morning');
-    else if (hour < 17) setTimeOfDay('afternoon');
-    else setTimeOfDay('evening');
-  }, []);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    // Simulate API call
-    setTimeout(() => setRefreshing(false), 1000);
-  };
-
-  const getGreeting = () => {
-    const greetings = {
-      morning: 'Good morning',
-      afternoon: 'Good afternoon', 
-      evening: 'Good evening'
-    };
-    return greetings[timeOfDay as keyof typeof greetings];
-  };
-
-  const getMotivationalMessage = () => {
-    const messages = {
-      morning: 'Ready to start strong? 💪',
-      afternoon: 'Time to power through! ⚡',
-      evening: 'Let\'s finish the day right! 🔥'
-    };
-    return messages[timeOfDay as keyof typeof messages];
-  };
-
-  const primaryStat = {
-    label: 'Current Streak',
-    value: '12',
-    unit: 'days',
-    trend: 'up' as const,
-    trendValue: '+3 from last week',
-    icon: <Flame size={24} color="#FF6B6B" />,
-    color: '#FF6B6B',
-    syncStatus: syncStatus.pendingOperations > 0 ? 'pending' as const : 'synced' as const,
-    lastUpdated: syncStatus.lastSyncTime || undefined,
-  };
-
-  const secondaryStats = [
-    { 
-      label: 'This Week', 
-      value: '4', 
-      unit: 'workouts', 
-      icon: <Target size={20} color="#4ECDC4" />, 
-      color: '#4ECDC4',
-      trend: 'up' as const,
-      trendValue: '+1',
-      syncStatus: 'synced' as const,
-      lastUpdated: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-    },
-    { 
-      label: 'Total Time', 
-      value: '8.5', 
-      unit: 'hours', 
-      icon: <Clock size={20} color="#45B7D1" />, 
-      color: '#45B7D1',
-      trend: 'up' as const,
-      trendValue: '+2.5h',
-      syncStatus: isOnline ? 'synced' as const : 'offline' as const,
-      lastUpdated: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    },
-    { 
-      label: 'PR Count', 
-      value: '23', 
-      unit: 'records', 
-      icon: <Award size={20} color="#96CEB4" />, 
-      color: '#96CEB4',
-      trend: 'up' as const,
-      trendValue: '+2',
-      syncStatus: syncStatus.failedOperations > 0 ? 'failed' as const : 'synced' as const,
-      lastUpdated: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
-    },
-  ];
-
-  const recentWorkouts = [
+  const quickStats = [
     {
-      id: 1,
-      name: 'Push Day - Chest & Triceps',
-      date: 'Today',
-      duration: '45 min',
-      exercises: 6,
-      image: 'https://images.pexels.com/photos/1552252/pexels-photo-1552252.jpeg?auto=compress&cs=tinysrgb&w=400',
-      difficulty: 'Intermediate' as const,
-      muscleGroups: ['Chest', 'Triceps', 'Shoulders'],
-      lastPerformed: '3 days ago',
-      syncStatus: isOnline ? 'synced' as const : 'offline' as const,
+      label: 'Total Workouts',
+      value: stats.totalWorkouts.toString(),
+      icon: '🏋️',
+      color: '#3B82F6',
     },
     {
-      id: 2,
-      name: 'Pull Day - Back & Biceps',
-      date: 'Yesterday',
-      duration: '52 min',
-      exercises: 7,
-      image: 'https://images.pexels.com/photos/1431282/pexels-photo-1431282.jpeg?auto=compress&cs=tinysrgb&w=400',
-      difficulty: 'Advanced' as const,
-      muscleGroups: ['Back', 'Biceps', 'Rear Delts'],
-      lastPerformed: '1 week ago',
-      syncStatus: syncStatus.pendingOperations > 0 ? 'pending' as const : 'synced' as const,
+      label: 'This Week',
+      value: stats.workoutsThisWeek.toString(),
+      icon: '📅',
+      color: '#10B981',
     },
-  ];
-
-  const quickActions = [
-    { 
-      title: 'Start Workout', 
-      subtitle: 'Push Day ready',
-      icon: <Play size={20} color="#FFFFFF" />, 
-      primary: true,
-      action: () => router.push('/(tabs)/workout-session') 
+    {
+      label: 'Achievement Points',
+      value: totalPoints.toString(),
+      icon: '🏆',
+      color: '#F59E0B',
     },
-    { 
-      title: 'Quick Log', 
-      subtitle: 'Track progress',
-      icon: <Plus size={20} color="#9E7FFF" />, 
-      action: () => router.push('/quick-log') 
-    },
-    { 
-      title: 'Progress Photo', 
-      subtitle: 'Capture gains',
-      icon: <Camera size={20} color="#9E7FFF" />, 
-      action: () => router.push('/progress-photo') 
+    {
+      label: 'Longest Streak',
+      value: `${streakData.longestStreak} days`,
+      icon: '🔥',
+      color: '#EF4444',
     },
   ];
 
   return (
-    <View style={styles.container}>
-      {/* Offline Indicator */}
-      <OfflineIndicator showDetails={true} />
-      
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Hero Section */}
-        <LinearGradient
-          colors={['#0a0a0a', '#1a1a1a', '#0a0a0a']}
-          style={styles.hero}
-        >
-          <View style={styles.heroContent}>
-            <View style={styles.greetingSection}>
-              <Text style={styles.greeting}>{getGreeting()},</Text>
-              <Text style={styles.userName}>Alex</Text>
-              <Text style={styles.motivationalMessage}>
-                {getMotivationalMessage()}
-              </Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.profileButton}
-              onPress={() => router.push('/profile')}
-            >
-              <Image
-                source={{ uri: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=100' }}
-                style={styles.profileImage}
-              />
-              <View style={styles.statusIndicator} />
-            </TouchableOpacity>
-          </View>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>GymVerse</Text>
+        <Text style={styles.subtitle}>Your Fitness Journey</Text>
+      </View>
 
-          {/* Sync Status */}
-          {isInitialized && (
-            <View style={styles.syncStatusContainer}>
-              <SyncStatusIndicator variant="compact" />
-            </View>
-          )}
+      {/* Streak Card */}
+      <StreakCard />
 
-          {/* Primary CTA */}
-          <View style={styles.primaryCTA}>
-            <Button
-              title="Start Today's Workout"
-              variant="gradient"
-              size="large"
-              onPress={() => router.push('/(tabs)/workout-session')}
-              icon={<Zap size={24} color="#FFFFFF" />}
-              style={styles.startButton}
-              syncStatus={syncStatus.pendingOperations > 0 ? 'pending' : 'synced'}
-            />
-            <Text style={styles.ctaSubtext}>Push Day • 45 min • 6 exercises</Text>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.content}>
-          {/* Progress Overview */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Progress</Text>
-            <Text style={styles.sectionSubtitle}>Keep the momentum going</Text>
-            
-            {/* Primary Stat */}
-            <StatCard
-              {...primaryStat}
-              variant="primary"
-              onPress={() => router.push('/(tabs)/progress')}
-              showSyncIndicator={true}
-            />
-            
-            {/* Secondary Stats Grid */}
-            <View style={styles.statsGrid}>
-              {secondaryStats.map((stat, index) => (
-                <StatCard
-                  key={index}
-                  {...stat}
-                  onPress={() => router.push('/(tabs)/progress')}
-                  showSyncIndicator={true}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Quick Actions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.actionsScroll}
-            >
-              {quickActions.map((action, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.actionCard,
-                    action.primary && styles.primaryActionCard
-                  ]}
-                  onPress={action.action}
-                >
-                  {action.primary ? (
-                    <LinearGradient
-                      colors={['#9E7FFF', '#7C3AED']}
-                      style={styles.actionGradient}
-                    >
-                      {action.icon}
-                      <Text style={styles.actionTitle}>{action.title}</Text>
-                      <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={styles.actionContent}>
-                      {action.icon}
-                      <Text style={styles.secondaryActionTitle}>{action.title}</Text>
-                      <Text style={styles.secondaryActionSubtitle}>{action.subtitle}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Recent Activity */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Recent Activity</Text>
-                <Text style={styles.sectionSubtitle}>Your latest workouts</Text>
+      {/* Quick Stats */}
+      <View style={styles.statsContainer}>
+        <Text style={styles.sectionTitle}>Quick Stats</Text>
+        <View style={styles.statsGrid}>
+          {quickStats.map((stat, index) => (
+            <View key={index} style={[styles.statCard, { borderLeftColor: stat.color }]}>
+              <Text style={styles.statIcon}>{stat.icon}</Text>
+              <View style={styles.statInfo}>
+                <Text style={styles.statValue}>{stat.value}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
               </View>
-              <TouchableOpacity onPress={() => router.push('/workout-history')}>
-                <Text style={styles.seeAllText}>View All</Text>
-              </TouchableOpacity>
             </View>
-            
-            {recentWorkouts.map((workout) => (
-              <WorkoutCard
-                key={workout.id}
-                workout={workout}
-                onPress={() => router.push('/workout-detail')}
-                onQuickAction={() => router.push('/repeat-workout')}
-                showInsights={true}
-                syncStatus={workout.syncStatus}
-              />
-            ))}
-          </View>
-
-          {/* Achievement Highlight */}
-          <View style={styles.section}>
-            <TouchableOpacity 
-              style={styles.achievementCard}
-              onPress={() => router.push('/(tabs)/achievements')}
-            >
-              <LinearGradient
-                colors={['#FF6B6B', '#FF8E53']}
-                style={styles.achievementGradient}
-              >
-                <View style={styles.achievementContent}>
-                  <Award size={32} color="#FFFFFF" />
-                  <View style={styles.achievementText}>
-                    <Text style={styles.achievementTitle}>New Achievement!</Text>
-                    <Text style={styles.achievementDescription}>
-                      Consistency Champion - 7 day streak
-                    </Text>
-                  </View>
-                </View>
-                <ChevronRight size={20} color="#FFFFFF" />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+          ))}
         </View>
-      </ScrollView>
-    </View>
+      </View>
+
+      {/* Recent Achievements */}
+      {recentUnlocks.length > 0 && (
+        <View style={styles.achievementsContainer}>
+          <Text style={styles.sectionTitle}>Recent Achievements 🎉</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {recentUnlocks.slice(0, 5).map((achievement) => (
+              <View key={achievement.id} style={styles.achievementCard}>
+                <Text style={styles.achievementIcon}>{achievement.icon}</Text>
+                <Text style={styles.achievementName}>{achievement.name}</Text>
+                <Text style={styles.achievementPoints}>+{achievement.points} pts</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Quick Actions */}
+      <View style={styles.actionsContainer}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.actionsGrid}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+            onPress={() => router.push('/workout-session')}
+          >
+            <Text style={styles.actionIcon}>🏋️</Text>
+            <Text style={styles.actionText}>Start Workout</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+            onPress={() => router.push('/progress')}
+          >
+            <Text style={styles.actionIcon}>📊</Text>
+            <Text style={styles.actionText}>View Progress</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
+            onPress={() => router.push('/achievements')}
+          >
+            <Text style={styles.actionIcon}>🏆</Text>
+            <Text style={styles.actionText}>Achievements</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
+            onPress={() => router.push('/social')}
+          >
+            <Text style={styles.actionIcon}>👥</Text>
+            <Text style={styles.actionText}>Social</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Motivational Quote */}
+      <View style={styles.quoteContainer}>
+        <Text style={styles.quoteIcon}>💭</Text>
+        <Text style={styles.quoteText}>
+          "The groundwork for all happiness is good health."
+        </Text>
+        <Text style={styles.quoteAuthor}>- Leigh Hunt</Text>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: DesignTokens.colors.surface.primary,
+    backgroundColor: '#F9FAFB',
   },
-  scrollView: {
-    flex: 1,
-  },
-  hero: {
+  header: {
+    padding: 20,
     paddingTop: 60,
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingBottom: DesignTokens.spacing[6],
+    backgroundColor: 'white',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  heroContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: DesignTokens.spacing[4],
-  },
-  greetingSection: {
-    flex: 1,
-  },
-  greeting: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.regular,
-  },
-  userName: {
-    fontSize: DesignTokens.typography.fontSize['4xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginTop: DesignTokens.spacing[1],
-    marginBottom: DesignTokens.spacing[2],
-  },
-  motivationalMessage: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  profileButton: {
-    position: 'relative',
-  },
-  profileImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    borderColor: DesignTokens.colors.primary[500],
-  },
-  statusIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: DesignTokens.colors.success[500],
-    borderWidth: 2,
-    borderColor: DesignTokens.colors.surface.primary,
-  },
-  syncStatusContainer: {
-    alignItems: 'center',
-    marginBottom: DesignTokens.spacing[4],
-  },
-  primaryCTA: {
-    alignItems: 'center',
-  },
-  startButton: {
-    width: '100%',
-    marginBottom: DesignTokens.spacing[2],
-  },
-  ctaSubtext: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1F2937',
     textAlign: 'center',
   },
-  content: {
-    padding: DesignTokens.spacing[5],
-  },
-  section: {
-    marginBottom: DesignTokens.spacing[8],
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: DesignTokens.spacing[4],
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 4,
   },
   sectionTitle: {
-    fontSize: DesignTokens.typography.fontSize['2xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
   },
-  sectionSubtitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.regular,
-  },
-  seeAllText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.primary[500],
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+  statsContainer: {
+    padding: 20,
   },
   statsGrid: {
+    gap: 12,
+  },
+  statCard: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: DesignTokens.spacing[3],
-  },
-  actionsScroll: {
-    marginTop: DesignTokens.spacing[4],
-  },
-  actionCard: {
-    width: 140,
-    marginRight: DesignTokens.spacing[3],
-    borderRadius: DesignTokens.borderRadius.lg,
-    overflow: 'hidden',
-  },
-  primaryActionCard: {
-    width: 160,
-  },
-  actionGradient: {
-    padding: DesignTokens.spacing[4],
     alignItems: 'center',
-    gap: DesignTokens.spacing[2],
-    minHeight: 120,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  actionContent: {
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    padding: DesignTokens.spacing[4],
-    alignItems: 'center',
-    gap: DesignTokens.spacing[2],
-    minHeight: 120,
+  statIcon: {
+    fontSize: 24,
+    marginRight: 12,
   },
-  actionTitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    textAlign: 'center',
+  statInfo: {
+    flex: 1,
   },
-  actionSubtitle: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
-    opacity: 0.8,
-    textAlign: 'center',
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
   },
-  secondaryActionTitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    textAlign: 'center',
+  statLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
   },
-  secondaryActionSubtitle: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
+  achievementsContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   achievementCard: {
-    borderRadius: DesignTokens.borderRadius.xl,
-    overflow: 'hidden',
-    ...DesignTokens.shadow.lg,
-  },
-  achievementGradient: {
-    padding: DesignTokens.spacing[5],
-    flexDirection: 'row',
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
+    marginRight: 12,
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  achievementContent: {
+  achievementIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  achievementName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  achievementPoints: {
+    fontSize: 10,
+    color: '#F59E0B',
+    fontWeight: '500',
+  },
+  actionsContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  actionsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    minWidth: '45%',
+    padding: 20,
+    borderRadius: 16,
     alignItems: 'center',
-    flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  achievementText: {
-    marginLeft: DesignTokens.spacing[4],
-    flex: 1,
+  actionIcon: {
+    fontSize: 32,
+    marginBottom: 8,
   },
-  achievementTitle: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
+  actionText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  achievementDescription: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-    opacity: 0.9,
+  quoteContainer: {
+    margin: 20,
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quoteIcon: {
+    fontSize: 24,
+    marginBottom: 12,
+  },
+  quoteText: {
+    fontSize: 16,
+    color: '#374151',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  quoteAuthor: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });

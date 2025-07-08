@@ -3,15 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Dimensions,
+  PanGestureHandler,
+  State,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-
-const { width: screenWidth } = Dimensions.get('window');
+import Svg, { Path, Circle, Line, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
 interface DataPoint {
   date: string;
@@ -22,227 +22,430 @@ interface DataPoint {
 interface InteractiveChartProps {
   data: DataPoint[];
   metric: string;
-  color?: string;
+  color: string;
   height?: number;
-  onDataPointPress?: (dataPoint: DataPoint) => void;
+  onDataPointPress?: (point: DataPoint) => void;
+  showTrend?: boolean;
+  chartType?: 'line' | 'bar' | 'area';
 }
 
-export const InteractiveChart: React.FC<InteractiveChartProps> = ({
+const { width } = Dimensions.get('window');
+const CHART_WIDTH = width - 40;
+const CHART_PADDING = 20;
+
+export function InteractiveChart({
   data,
   metric,
-  color = DesignTokens.colors.primary[500],
+  color,
   height = 200,
   onDataPointPress,
-}) => {
-  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
-  
-  const chartWidth = screenWidth - (DesignTokens.spacing[5] * 2);
-  const chartHeight = height - 60; // Leave space for labels
-  
+  showTrend = true,
+  chartType = 'line',
+}: InteractiveChartProps) {
+  const [selectedPoint, setSelectedPoint] = useState<DataPoint | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
   if (data.length === 0) {
     return (
       <View style={[styles.container, { height }]}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>No data available</Text>
+          <Text style={styles.emptyText}>No data available</Text>
         </View>
       </View>
     );
   }
 
-  // Calculate chart dimensions and scaling
   const minValue = Math.min(...data.map(d => d.value));
   const maxValue = Math.max(...data.map(d => d.value));
   const valueRange = maxValue - minValue || 1;
-  
-  const pointSpacing = chartWidth / (data.length - 1 || 1);
-  
-  // Generate path for the line
-  const generatePath = () => {
-    return data.map((point, index) => {
-      const x = index * pointSpacing;
-      const y = chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
-      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-    }).join(' ');
+  const chartHeight = height - 60; // Account for labels and padding
+
+  const getTrendDirection = () => {
+    if (data.length < 2) return 'stable';
+    const firstValue = data[0].value;
+    const lastValue = data[data.length - 1].value;
+    const change = ((lastValue - firstValue) / firstValue) * 100;
+    
+    if (change > 5) return 'up';
+    if (change < -5) return 'down';
+    return 'stable';
   };
 
-  // Generate area path for gradient fill
-  const generateAreaPath = () => {
-    const linePath = generatePath();
-    const firstPoint = `M 0 ${chartHeight}`;
-    const lastPoint = `L ${(data.length - 1) * pointSpacing} ${chartHeight}`;
-    return `${firstPoint} ${linePath.substring(1)} ${lastPoint} Z`;
-  };
-
-  const handlePointPress = (index: number) => {
-    setSelectedPoint(index);
-    if (onDataPointPress) {
-      onDataPointPress(data[index]);
+  const getTrendIcon = () => {
+    const trend = getTrendDirection();
+    switch (trend) {
+      case 'up': return <TrendingUp size={16} color={DesignTokens.colors.success[500]} />;
+      case 'down': return <TrendingDown size={16} color={DesignTokens.colors.error[500]} />;
+      case 'stable': return <Minus size={16} color={DesignTokens.colors.text.secondary} />;
     }
   };
 
+  const getTrendPercentage = () => {
+    if (data.length < 2) return 0;
+    const firstValue = data[0].value;
+    const lastValue = data[data.length - 1].value;
+    return ((lastValue - firstValue) / firstValue) * 100;
+  };
+
+  const formatValue = (value: number) => {
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}k`;
+    }
+    return value.toFixed(1);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getPointX = (index: number) => {
+    return CHART_PADDING + (index / (data.length - 1 || 1)) * (CHART_WIDTH - CHART_PADDING * 2);
+  };
+
+  const getPointY = (value: number) => {
+    return CHART_PADDING + (1 - (value - minValue) / valueRange) * chartHeight;
+  };
+
+  const handlePointPress = (point: DataPoint, index: number) => {
+    setSelectedPoint(point);
+    setHoveredIndex(index);
+    onDataPointPress?.(point);
+  };
+
+  const renderLineChart = () => {
+    if (data.length < 2) return null;
+
+    const pathData = data.map((point, index) => {
+      const x = getPointX(index);
+      const y = getPointY(point.value);
+      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+    }).join(' ');
+
+    const areaPathData = [
+      pathData,
+      `L ${getPointX(data.length - 1)} ${CHART_PADDING + chartHeight}`,
+      `L ${CHART_PADDING} ${CHART_PADDING + chartHeight}`,
+      'Z'
+    ].join(' ');
+
+    return (
+      <Svg width={CHART_WIDTH} height={height} style={styles.svg}>
+        <Defs>
+          <SvgLinearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor={color} stopOpacity="0.3" />
+            <Stop offset="100%" stopColor={color} stopOpacity="0" />
+          </SvgLinearGradient>
+        </Defs>
+
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
+          const y = CHART_PADDING + (1 - ratio) * chartHeight;
+          return (
+            <Line
+              key={index}
+              x1={CHART_PADDING}
+              y1={y}
+              x2={CHART_WIDTH - CHART_PADDING}
+              y2={y}
+              stroke={DesignTokens.colors.neutral[800]}
+              strokeWidth="1"
+              opacity="0.3"
+            />
+          );
+        })}
+
+        {/* Area fill */}
+        {chartType === 'area' && (
+          <Path
+            d={areaPathData}
+            fill="url(#chartGradient)"
+          />
+        )}
+
+        {/* Chart line */}
+        <Path
+          d={pathData}
+          stroke={color}
+          strokeWidth="3"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Data points */}
+        {data.map((point, index) => {
+          const x = getPointX(index);
+          const y = getPointY(point.value);
+          const isSelected = hoveredIndex === index;
+          const isHighlighted = point.label;
+
+          return (
+            <Circle
+              key={index}
+              cx={x}
+              cy={y}
+              r={isSelected ? 8 : isHighlighted ? 6 : 4}
+              fill={color}
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              onPress={() => handlePointPress(point, index)}
+            />
+          );
+        })}
+      </Svg>
+    );
+  };
+
+  const renderBarChart = () => {
+    const barWidth = (CHART_WIDTH - CHART_PADDING * 2) / data.length * 0.8;
+    const barSpacing = (CHART_WIDTH - CHART_PADDING * 2) / data.length * 0.2;
+
+    return (
+      <Svg width={CHART_WIDTH} height={height} style={styles.svg}>
+        <Defs>
+          <SvgLinearGradient id="barGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor={color} stopOpacity="0.8" />
+            <Stop offset="100%" stopColor={color} stopOpacity="0.4" />
+          </SvgLinearGradient>
+        </Defs>
+
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
+          const y = CHART_PADDING + (1 - ratio) * chartHeight;
+          return (
+            <Line
+              key={index}
+              x1={CHART_PADDING}
+              y1={y}
+              x2={CHART_WIDTH - CHART_PADDING}
+              y2={y}
+              stroke={DesignTokens.colors.neutral[800]}
+              strokeWidth="1"
+              opacity="0.3"
+            />
+          );
+        })}
+
+        {/* Bars */}
+        {data.map((point, index) => {
+          const x = CHART_PADDING + index * (barWidth + barSpacing) + barSpacing / 2;
+          const y = getPointY(point.value);
+          const barHeight = (CHART_PADDING + chartHeight) - y;
+          const isSelected = hoveredIndex === index;
+
+          return (
+            <React.Fragment key={index}>
+              <Path
+                d={`M ${x} ${y} L ${x + barWidth} ${y} L ${x + barWidth} ${CHART_PADDING + chartHeight} L ${x} ${CHART_PADDING + chartHeight} Z`}
+                fill={isSelected ? color : "url(#barGradient)"}
+                stroke={isSelected ? "#FFFFFF" : "none"}
+                strokeWidth={isSelected ? "2" : "0"}
+                onPress={() => handlePointPress(point, index)}
+              />
+            </React.Fragment>
+          );
+        })}
+      </Svg>
+    );
+  };
+
   return (
-    <View style={[styles.container, { height }]}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.chartContainer}>
-          <Svg width={Math.max(chartWidth, data.length * 60)} height={chartHeight}>
-            <Defs>
-              <SvgLinearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <Stop offset="0%" stopColor={color} stopOpacity="0.3" />
-                <Stop offset="100%" stopColor={color} stopOpacity="0.05" />
-              </SvgLinearGradient>
-              <SvgLinearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <Stop offset="0%" stopColor={color} />
-                <Stop offset="100%" stopColor={DesignTokens.colors.primary[600]} />
-              </SvgLinearGradient>
-            </Defs>
-            
-            {/* Area fill */}
-            <Path
-              d={generateAreaPath()}
-              fill="url(#areaGradient)"
-            />
-            
-            {/* Line */}
-            <Path
-              d={generatePath()}
-              stroke="url(#lineGradient)"
-              strokeWidth="3"
-              fill="transparent"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            
-            {/* Data points */}
-            {data.map((point, index) => {
-              const x = index * pointSpacing;
-              const y = chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
-              const isSelected = selectedPoint === index;
-              
-              return (
-                <Circle
-                  key={index}
-                  cx={x}
-                  cy={y}
-                  r={isSelected ? 8 : 5}
-                  fill={isSelected ? DesignTokens.colors.text.primary : color}
-                  stroke={DesignTokens.colors.surface.primary}
-                  strokeWidth="2"
-                  onPress={() => handlePointPress(index)}
-                />
-              );
-            })}
-          </Svg>
-          
-          {/* Data point labels */}
-          <View style={styles.labelsContainer}>
-            {data.map((point, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.labelContainer,
-                  { left: index * pointSpacing - 30 }
-                ]}
-                onPress={() => handlePointPress(index)}
-              >
-                <Text style={styles.dateLabel}>
-                  {new Date(point.date).toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric' 
-                  })}
-                </Text>
-              </TouchableOpacity>
-            ))}
+    <View style={styles.container}>
+      {/* Chart Header */}
+      {showTrend && (
+        <View style={styles.header}>
+          <View style={styles.trendContainer}>
+            {getTrendIcon()}
+            <Text style={styles.trendText}>
+              {Math.abs(getTrendPercentage()).toFixed(1)}% 
+              {getTrendDirection() === 'up' ? ' increase' : getTrendDirection() === 'down' ? ' decrease' : ' stable'}
+            </Text>
           </View>
+          <Text style={styles.metricLabel}>{metric}</Text>
         </View>
-      </ScrollView>
-      
-      {/* Selected point info */}
-      {selectedPoint !== null && (
+      )}
+
+      {/* Chart */}
+      <View style={styles.chartContainer}>
+        {chartType === 'bar' ? renderBarChart() : renderLineChart()}
+      </View>
+
+      {/* X-axis labels */}
+      <View style={styles.xAxisLabels}>
+        {data.map((point, index) => {
+          // Show labels for first, last, and every few points
+          const shouldShowLabel = index === 0 || index === data.length - 1 || index % Math.ceil(data.length / 4) === 0;
+          
+          return (
+            <Text 
+              key={index} 
+              style={[
+                styles.xAxisLabel,
+                !shouldShowLabel && styles.hiddenLabel
+              ]}
+            >
+              {shouldShowLabel ? formatDate(point.date) : ''}
+            </Text>
+          );
+        })}
+      </View>
+
+      {/* Selected Point Info */}
+      {selectedPoint && (
         <View style={styles.selectedInfo}>
           <LinearGradient
             colors={['#1a1a1a', '#2a2a2a']}
             style={styles.selectedInfoGradient}
           >
-            <Text style={styles.selectedValue}>
-              {data[selectedPoint].value} {metric}
-            </Text>
-            <Text style={styles.selectedDate}>
-              {new Date(data[selectedPoint].date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
-            </Text>
-            {data[selectedPoint].label && (
-              <Text style={styles.selectedLabel}>
-                {data[selectedPoint].label}
+            <View style={styles.selectedInfoContent}>
+              <Text style={styles.selectedDate}>
+                {new Date(selectedPoint.date).toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
               </Text>
-            )}
+              <Text style={styles.selectedValue}>
+                {formatValue(selectedPoint.value)} {metric}
+              </Text>
+              {selectedPoint.label && (
+                <Text style={styles.selectedLabel}>{selectedPoint.label}</Text>
+              )}
+            </View>
           </LinearGradient>
         </View>
       )}
+
+      {/* Chart Stats */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Min</Text>
+          <Text style={styles.statValue}>{formatValue(minValue)}</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Max</Text>
+          <Text style={styles.statValue}>{formatValue(maxValue)}</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Avg</Text>
+          <Text style={styles.statValue}>
+            {formatValue(data.reduce((sum, d) => sum + d.value, 0) / data.length)}
+          </Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Latest</Text>
+          <Text style={styles.statValue}>{formatValue(data[data.length - 1]?.value || 0)}</Text>
+        </View>
+      </View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: DesignTokens.colors.surface.secondary,
     borderRadius: DesignTokens.borderRadius.lg,
     padding: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[4],
     ...DesignTokens.shadow.base,
   },
-  chartContainer: {
-    position: 'relative',
-  },
-  labelsContainer: {
-    position: 'absolute',
-    bottom: -30,
-    left: 0,
-    right: 0,
-    height: 30,
-  },
-  labelContainer: {
-    position: 'absolute',
-    width: 60,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: DesignTokens.spacing[4],
   },
-  dateLabel: {
-    fontSize: DesignTokens.typography.fontSize.xs,
+  trendContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+  trendText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  metricLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.tertiary,
+    textTransform: 'uppercase',
+  },
+  chartContainer: {
+    marginBottom: DesignTokens.spacing[3],
+  },
+  svg: {
+    overflow: 'visible',
+  },
+  xAxisLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: CHART_PADDING,
+    marginBottom: DesignTokens.spacing[3],
+  },
+  xAxisLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+    flex: 1,
+  },
+  hiddenLabel: {
+    opacity: 0,
   },
   selectedInfo: {
-    marginTop: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[3],
     borderRadius: DesignTokens.borderRadius.md,
     overflow: 'hidden',
   },
   selectedInfoGradient: {
     padding: DesignTokens.spacing[3],
-    alignItems: 'center',
   },
-  selectedValue: {
-    fontSize: DesignTokens.typography.fontSize.xl,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
+  selectedInfoContent: {
+    alignItems: 'center',
   },
   selectedDate: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
     marginBottom: DesignTokens.spacing[1],
   },
+  selectedValue: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
   selectedLabel: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.primary[500],
+    marginTop: DesignTokens.spacing[1],
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: DesignTokens.spacing[3],
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[800],
+  },
+  statItem: {
     alignItems: 'center',
   },
-  emptyStateText: {
+  statLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    textTransform: 'uppercase',
+    marginBottom: DesignTokens.spacing[1],
+  },
+  statValue: {
     fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.tertiary,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+  },
+  emptyText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
   },
 });

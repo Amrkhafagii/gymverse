@@ -1,259 +1,278 @@
-import { supabase } from './supabase';
-import { ACHIEVEMENT_TEMPLATES, AchievementTemplate } from './achievements';
+import { WorkoutSession } from '@/contexts/WorkoutSessionContext';
+import achievementRules from './achievements/achievementRules.json';
 
-export interface UserProgress {
-  userId: string;
-  workouts_completed: number;
-  personal_records: number;
-  workout_days_streak: number;
-  max_weight_kg: number;
-  powerlifting_total_kg: number;
-  cardio_minutes: number;
-  distance_km: number;
-  likes_given: number;
-  likes_received: number;
-  comments_made: number;
-  workouts_shared: number;
-  goals_completed: number;
-  progress_logged_days: number;
-  active_days: number;
-  unique_exercises: number;
-  workout_types: number;
-  early_morning_workouts: number;
-  workout_categories_completed: number;
-  [key: string]: any;
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  rarity: string;
+  points: number;
+  hidden: boolean;
+  unlocked: boolean;
+  unlockedAt?: string;
+  progress: number;
+  maxProgress: number;
+  rules: AchievementRule[];
+}
+
+export interface AchievementRule {
+  type: string;
+  operator: 'gte' | 'lte' | 'eq';
+  value: number;
+  timeframe: 'day' | 'week' | 'month' | 'year' | 'all_time';
+  condition?: string;
+  exercise_name?: string;
+}
+
+export interface WorkoutStats {
+  totalWorkouts: number;
+  totalSets: number;
+  totalReps: number;
+  totalWeight: number;
+  totalDuration: number;
+  currentStreak: number;
+  longestStreak: number;
+  workoutsThisWeek: number;
+  workoutsThisMonth: number;
 }
 
 export class AchievementEngine {
-  private static instance: AchievementEngine;
-  
-  static getInstance(): AchievementEngine {
-    if (!AchievementEngine.instance) {
-      AchievementEngine.instance = new AchievementEngine();
+  private static achievements: Achievement[] = [];
+  private static initialized = false;
+
+  static initialize(): Achievement[] {
+    if (this.initialized) {
+      return this.achievements;
     }
-    return AchievementEngine.instance;
+
+    this.achievements = achievementRules.achievements.map(rule => ({
+      ...rule,
+      unlocked: false,
+      progress: 0,
+      maxProgress: rule.rules[0]?.value || 100,
+    }));
+
+    this.initialized = true;
+    return this.achievements;
   }
 
-  async checkAchievements(userId: string, updatedMetrics: Partial<UserProgress>): Promise<string[]> {
-    try {
-      // Get current user progress
-      const userProgress = await this.getUserProgress(userId);
-      
-      // Update progress with new metrics
-      const newProgress = { ...userProgress, ...updatedMetrics };
-      
-      // Get user's current achievements
-      const { data: userAchievements } = await supabase
-        .from('user_achievements')
-        .select('achievement_id')
-        .eq('user_id', userId);
-      
-      const unlockedAchievementIds = new Set(
-        userAchievements?.map(ua => ua.achievement_id) || []
-      );
-      
-      // Check each achievement template
-      const newlyUnlocked: string[] = [];
-      
-      for (const template of ACHIEVEMENT_TEMPLATES) {
-        if (unlockedAchievementIds.has(template.id)) {
-          continue; // Already unlocked
-        }
-        
-        if (this.checkAchievementRequirement(template, newProgress)) {
-          await this.unlockAchievement(userId, template);
-          newlyUnlocked.push(template.id);
-        }
-      }
-      
-      // Update user progress in database
-      if (Object.keys(updatedMetrics).length > 0) {
-        await this.updateUserProgress(userId, updatedMetrics);
-      }
-      
-      return newlyUnlocked;
-    } catch (error) {
-      console.error('Error checking achievements:', error);
-      return [];
+  static getAllAchievements(): Achievement[] {
+    if (!this.initialized) {
+      this.initialize();
     }
+    return [...this.achievements];
   }
 
-  private checkAchievementRequirement(
-    template: AchievementTemplate, 
-    progress: UserProgress
+  static getAchievementById(id: string): Achievement | undefined {
+    return this.achievements.find(achievement => achievement.id === id);
+  }
+
+  static checkAchievements(
+    workouts: WorkoutSession[],
+    stats: WorkoutStats,
+    currentAchievements: Achievement[]
+  ): Achievement[] {
+    const newUnlocks: Achievement[] = [];
+
+    for (const achievement of currentAchievements) {
+      if (achievement.unlocked) continue;
+
+      const isUnlocked = this.evaluateAchievement(achievement, workouts, stats);
+      
+      if (isUnlocked) {
+        newUnlocks.push({
+          ...achievement,
+          unlocked: true,
+          unlockedAt: new Date().toISOString(),
+          progress: achievement.maxProgress,
+        });
+      }
+    }
+
+    return newUnlocks;
+  }
+
+  static calculateProgress(
+    achievement: Achievement,
+    workouts: WorkoutSession[],
+    stats: WorkoutStats
+  ): number {
+    if (achievement.unlocked) {
+      return achievement.maxProgress;
+    }
+
+    let totalProgress = 0;
+    const ruleCount = achievement.rules.length;
+
+    for (const rule of achievement.rules) {
+      const currentValue = this.getCurrentValue(rule, workouts, stats);
+      const progress = Math.min(currentValue, rule.value);
+      totalProgress += (progress / rule.value) * achievement.maxProgress;
+    }
+
+    return Math.round(totalProgress / ruleCount);
+  }
+
+  private static evaluateAchievement(
+    achievement: Achievement,
+    workouts: WorkoutSession[],
+    stats: WorkoutStats
   ): boolean {
-    const { requirement } = template;
-    const currentValue = progress[requirement.metric] || 0;
+    return achievement.rules.every(rule => 
+      this.evaluateRule(rule, workouts, stats)
+    );
+  }
+
+  private static evaluateRule(
+    rule: AchievementRule,
+    workouts: WorkoutSession[],
+    stats: WorkoutStats
+  ): boolean {
+    const currentValue = this.getCurrentValue(rule, workouts, stats);
     
-    switch (requirement.type) {
-      case 'count':
-        return currentValue >= requirement.target;
-      
-      case 'streak':
-        return currentValue >= requirement.target;
-      
-      case 'total':
-        return currentValue >= requirement.target;
-      
-      case 'single':
-        return currentValue >= requirement.target;
-      
-      case 'percentage':
-        return currentValue >= requirement.target;
-      
+    switch (rule.operator) {
+      case 'gte':
+        return currentValue >= rule.value;
+      case 'lte':
+        return currentValue <= rule.value;
+      case 'eq':
+        return currentValue === rule.value;
       default:
         return false;
     }
   }
 
-  private async unlockAchievement(userId: string, template: AchievementTemplate): Promise<void> {
-    try {
-      // Insert into user_achievements
-      await supabase
-        .from('user_achievements')
-        .insert({
-          user_id: userId,
-          achievement_id: template.id,
-          unlocked_at: new Date().toISOString(),
-          points_earned: template.points
-        });
+  private static getCurrentValue(
+    rule: AchievementRule,
+    workouts: WorkoutSession[],
+    stats: WorkoutStats
+  ): number {
+    const filteredWorkouts = this.filterWorkoutsByTimeframe(workouts, rule.timeframe);
 
-      // Update user's total points
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('total_points')
-        .eq('id', userId)
-        .single();
+    switch (rule.type) {
+      case 'workout_count':
+        return filteredWorkouts.length;
 
-      const currentPoints = profile?.total_points || 0;
-      
-      await supabase
-        .from('profiles')
-        .update({ 
-          total_points: currentPoints + template.points,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
+      case 'streak':
+        return stats.currentStreak;
 
-      console.log(`Achievement unlocked: ${template.name} for user ${userId}`);
-    } catch (error) {
-      console.error('Error unlocking achievement:', error);
+      case 'total_volume':
+        return stats.totalWeight;
+
+      case 'single_workout_duration':
+        return Math.max(...filteredWorkouts.map(w => w.total_duration_seconds), 0);
+
+      case 'total_duration':
+        return stats.totalDuration;
+
+      case 'total_sets':
+        return stats.totalSets;
+
+      case 'total_reps':
+        return stats.totalReps;
+
+      case 'workout_frequency':
+        return filteredWorkouts.length;
+
+      case 'time_based_workouts':
+        return this.countTimeBasedWorkouts(filteredWorkouts, rule.condition);
+
+      case 'exercise_frequency':
+        return this.countExerciseFrequency(filteredWorkouts, rule.exercise_name);
+
+      default:
+        return 0;
     }
   }
 
-  private async getUserProgress(userId: string): Promise<UserProgress> {
-    try {
-      const { data } = await supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      return data || this.getDefaultProgress(userId);
-    } catch (error) {
-      return this.getDefaultProgress(userId);
-    }
-  }
-
-  private async updateUserProgress(userId: string, metrics: Partial<UserProgress>): Promise<void> {
-    try {
-      await supabase
-        .from('user_progress')
-        .upsert({
-          user_id: userId,
-          ...metrics,
-          updated_at: new Date().toISOString()
-        });
-    } catch (error) {
-      console.error('Error updating user progress:', error);
-    }
-  }
-
-  private getDefaultProgress(userId: string): UserProgress {
-    return {
-      userId,
-      workouts_completed: 0,
-      personal_records: 0,
-      workout_days_streak: 0,
-      max_weight_kg: 0,
-      powerlifting_total_kg: 0,
-      cardio_minutes: 0,
-      distance_km: 0,
-      likes_given: 0,
-      likes_received: 0,
-      comments_made: 0,
-      workouts_shared: 0,
-      goals_completed: 0,
-      progress_logged_days: 0,
-      active_days: 0,
-      unique_exercises: 0,
-      workout_types: 0,
-      early_morning_workouts: 0,
-      workout_categories_completed: 0
-    };
-  }
-
-  // Helper methods for specific achievement triggers
-  async onWorkoutCompleted(userId: string, workoutData: any): Promise<string[]> {
-    const metrics: Partial<UserProgress> = {
-      workouts_completed: (await this.getUserProgress(userId)).workouts_completed + 1
-    };
-
-    // Check if it's an early morning workout (before 7 AM)
-    const workoutTime = new Date(workoutData.created_at);
-    if (workoutTime.getHours() < 7) {
-      metrics.early_morning_workouts = (await this.getUserProgress(userId)).early_morning_workouts + 1;
+  private static filterWorkoutsByTimeframe(
+    workouts: WorkoutSession[],
+    timeframe: string
+  ): WorkoutSession[] {
+    const completedWorkouts = workouts.filter(w => w.completed_at);
+    
+    if (timeframe === 'all_time') {
+      return completedWorkouts;
     }
 
-    // Update workout duration if it's a record
-    if (workoutData.duration_minutes) {
-      const currentProgress = await this.getUserProgress(userId);
-      if (workoutData.duration_minutes > (currentProgress.workout_duration_minutes || 0)) {
-        metrics.workout_duration_minutes = workoutData.duration_minutes;
-      }
+    const now = new Date();
+    let startDate: Date;
+
+    switch (timeframe) {
+      case 'day':
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date(now);
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case 'year':
+        startDate = new Date(now);
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        break;
+      default:
+        return completedWorkouts;
     }
 
-    return this.checkAchievements(userId, metrics);
-  }
-
-  async onPersonalRecordSet(userId: string, weight: number): Promise<string[]> {
-    const currentProgress = await this.getUserProgress(userId);
-    const metrics: Partial<UserProgress> = {
-      personal_records: currentProgress.personal_records + 1
-    };
-
-    if (weight > currentProgress.max_weight_kg) {
-      metrics.max_weight_kg = weight;
-    }
-
-    return this.checkAchievements(userId, metrics);
-  }
-
-  async onStreakUpdated(userId: string, streakDays: number): Promise<string[]> {
-    return this.checkAchievements(userId, {
-      workout_days_streak: streakDays
+    return completedWorkouts.filter(workout => {
+      const workoutDate = new Date(workout.completed_at!);
+      return workoutDate >= startDate;
     });
   }
 
-  async onSocialAction(userId: string, action: 'like_given' | 'like_received' | 'comment_made' | 'workout_shared'): Promise<string[]> {
-    const currentProgress = await this.getUserProgress(userId);
-    const metrics: Partial<UserProgress> = {};
+  private static countTimeBasedWorkouts(
+    workouts: WorkoutSession[],
+    condition?: string
+  ): number {
+    if (!condition) return 0;
 
-    switch (action) {
-      case 'like_given':
-        metrics.likes_given = currentProgress.likes_given + 1;
-        break;
-      case 'like_received':
-        metrics.likes_received = currentProgress.likes_received + 1;
-        break;
-      case 'comment_made':
-        metrics.comments_made = currentProgress.comments_made + 1;
-        break;
-      case 'workout_shared':
-        metrics.workouts_shared = currentProgress.workouts_shared + 1;
-        break;
-    }
+    return workouts.filter(workout => {
+      const hour = new Date(workout.started_at).getHours();
+      
+      switch (condition) {
+        case 'before_7am':
+          return hour < 7;
+        case 'after_9pm':
+          return hour >= 21;
+        default:
+          return false;
+      }
+    }).length;
+  }
 
-    return this.checkAchievements(userId, metrics);
+  private static countExerciseFrequency(
+    workouts: WorkoutSession[],
+    exerciseName?: string
+  ): number {
+    if (!exerciseName) return 0;
+
+    return workouts.filter(workout =>
+      workout.exercises.some(exercise =>
+        exercise.exercise_name.toLowerCase().includes(exerciseName.toLowerCase())
+      )
+    ).length;
+  }
+
+  static getCategories() {
+    return achievementRules.categories;
+  }
+
+  static getRarities() {
+    return achievementRules.rarities;
+  }
+
+  static getAchievementsByCategory(category: string): Achievement[] {
+    return this.achievements.filter(achievement => achievement.category === category);
+  }
+
+  static getAchievementsByRarity(rarity: string): Achievement[] {
+    return this.achievements.filter(achievement => achievement.rarity === rarity);
   }
 }

@@ -1,118 +1,173 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { MeasurementStats } from '@/lib/supabase/measurements';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Minus,
+  Calendar,
+  Edit3,
+  Trash2,
+} from 'lucide-react-native';
+import { DesignTokens } from '@/design-system/tokens';
+import { Measurement, MeasurementTrend } from '@/types/measurement';
+import { getMeasurementTypeById } from '@/lib/measurements/measurementTypes';
+import { MeasurementCalculations } from '@/lib/measurements/measurementCalculations';
 
 interface MeasurementCardProps {
-  stats: MeasurementStats;
+  measurement: Measurement;
+  trend?: MeasurementTrend | null;
+  showTrend?: boolean;
   onPress?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  compact?: boolean;
 }
 
-const measurementLabels: Record<string, { label: string; unit: string; icon: string }> = {
-  weight: { label: 'Weight', unit: 'kg', icon: 'scale' },
-  body_fat_percentage: { label: 'Body Fat', unit: '%', icon: 'fitness' },
-  muscle_mass: { label: 'Muscle Mass', unit: 'kg', icon: 'body' },
-  chest: { label: 'Chest', unit: 'cm', icon: 'resize' },
-  waist: { label: 'Waist', unit: 'cm', icon: 'resize' },
-  hips: { label: 'Hips', unit: 'cm', icon: 'resize' },
-  bicep_left: { label: 'Left Bicep', unit: 'cm', icon: 'fitness' },
-  bicep_right: { label: 'Right Bicep', unit: 'cm', icon: 'fitness' },
-  thigh_left: { label: 'Left Thigh', unit: 'cm', icon: 'resize' },
-  thigh_right: { label: 'Right Thigh', unit: 'cm', icon: 'resize' },
-  neck: { label: 'Neck', unit: 'cm', icon: 'resize' },
-  forearm_left: { label: 'Left Forearm', unit: 'cm', icon: 'fitness' },
-  forearm_right: { label: 'Right Forearm', unit: 'cm', icon: 'fitness' },
-  calf_left: { label: 'Left Calf', unit: 'cm', icon: 'resize' },
-  calf_right: { label: 'Right Calf', unit: 'cm', icon: 'resize' },
-};
+export function MeasurementCard({
+  measurement,
+  trend,
+  showTrend = true,
+  onPress,
+  onEdit,
+  onDelete,
+  compact = false,
+}: MeasurementCardProps) {
+  const measurementType = getMeasurementTypeById(measurement.type);
+  
+  if (!measurementType) {
+    return null;
+  }
 
-export default function MeasurementCard({ stats, onPress }: MeasurementCardProps) {
-  const measurementInfo = measurementLabels[stats.measurement_type];
-  if (!measurementInfo) return null;
+  const formatValue = (value: number, unit: string): string => {
+    return MeasurementCalculations.formatMeasurementValue(value, unit);
+  };
 
-  const getTrendColor = () => {
-    switch (stats.trend) {
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getTrendIcon = (trendDirection: 'up' | 'down' | 'stable') => {
+    switch (trendDirection) {
       case 'up':
-        return '#10b981';
+        return <TrendingUp size={16} color={DesignTokens.colors.success[500]} />;
       case 'down':
-        return '#ef4444';
-      default:
-        return '#A3A3A3';
+        return <TrendingDown size={16} color={DesignTokens.colors.error[500]} />;
+      case 'stable':
+        return <Minus size={16} color={DesignTokens.colors.text.secondary} />;
     }
   };
 
-  const getTrendIcon = () => {
-    switch (stats.trend) {
+  const getTrendColor = (trendDirection: 'up' | 'down' | 'stable') => {
+    switch (trendDirection) {
       case 'up':
-        return 'trending-up';
+        return DesignTokens.colors.success[500];
       case 'down':
-        return 'trending-down';
-      default:
-        return 'remove';
+        return DesignTokens.colors.error[500];
+      case 'stable':
+        return DesignTokens.colors.text.secondary;
     }
   };
 
-  const formatValue = (value: number) => {
-    if (measurementInfo.unit === '%') {
-      return value.toFixed(1);
-    }
-    return value.toFixed(1);
+  const getTrendText = (trend: MeasurementTrend): string => {
+    const changeText = trend.change > 0 ? '+' : '';
+    const formattedChange = formatValue(Math.abs(trend.change), measurement.unit);
+    const percentText = `${trend.changePercent > 0 ? '+' : ''}${trend.changePercent.toFixed(1)}%`;
+    
+    return `${changeText}${formattedChange} (${percentText})`;
   };
 
-  const formatChange = (change: number, percentage: number) => {
-    const sign = change > 0 ? '+' : '';
-    const changeText = `${sign}${formatValue(Math.abs(change))}${measurementInfo.unit}`;
-    const percentageText = `(${sign}${percentage.toFixed(1)}%)`;
-    return `${changeText} ${percentageText}`;
-  };
-
-  return (
-    <TouchableOpacity onPress={onPress} style={styles.container}>
-      <LinearGradient colors={['#1f2937', '#111827']} style={styles.gradient}>
-        <View style={styles.header}>
-          <View style={styles.titleContainer}>
-            <Ionicons name={measurementInfo.icon as any} size={20} color="#9E7FFF" />
-            <Text style={styles.title}>{measurementInfo.label}</Text>
-          </View>
-          <Ionicons name={getTrendIcon() as any} size={20} color={getTrendColor()} />
-        </View>
-
-        <View style={styles.content}>
-          <View style={styles.currentValue}>
-            <Text style={styles.value}>
-              {formatValue(stats.current_value)}
+  if (compact) {
+    return (
+      <TouchableOpacity style={styles.compactCard} onPress={onPress}>
+        <View style={styles.compactHeader}>
+          <Text style={styles.compactIcon}>{measurementType.icon}</Text>
+          <View style={styles.compactInfo}>
+            <Text style={styles.compactName}>{measurementType.name}</Text>
+            <Text style={styles.compactValue}>
+              {formatValue(measurement.value, measurement.unit)}
             </Text>
-            <Text style={styles.unit}>{measurementInfo.unit}</Text>
           </View>
-
-          {stats.previous_value && (
-            <View style={styles.change}>
-              <Text style={[styles.changeText, { color: getTrendColor() }]}>
-                {formatChange(stats.change, stats.change_percentage)}
-              </Text>
-              <Text style={styles.changeLabel}>from last measurement</Text>
+          {trend && showTrend && (
+            <View style={styles.compactTrend}>
+              {getTrendIcon(trend.trend)}
             </View>
           )}
+        </View>
+      </TouchableOpacity>
+    );
+  }
 
-          <View style={styles.stats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Best</Text>
-              <Text style={styles.statValue}>
-                {formatValue(stats.best_value)}{measurementInfo.unit}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Average</Text>
-              <Text style={styles.statValue}>
-                {formatValue(stats.average_value)}{measurementInfo.unit}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Records</Text>
-              <Text style={styles.statValue}>{stats.measurement_count}</Text>
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+      <LinearGradient
+        colors={[DesignTokens.colors.surface.secondary, DesignTokens.colors.surface.tertiary]}
+        style={styles.gradient}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.icon}>{measurementType.icon}</Text>
+            <View>
+              <Text style={styles.name}>{measurementType.name}</Text>
+              <Text style={styles.unit}>{measurementType.unit}</Text>
             </View>
           </View>
+          
+          {(onEdit || onDelete) && (
+            <View style={styles.actions}>
+              {onEdit && (
+                <TouchableOpacity style={styles.actionButton} onPress={onEdit}>
+                  <Edit3 size={16} color={DesignTokens.colors.text.secondary} />
+                </TouchableOpacity>
+              )}
+              {onDelete && (
+                <TouchableOpacity style={styles.actionButton} onPress={onDelete}>
+                  <Trash2 size={16} color={DesignTokens.colors.error[500]} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Value */}
+        <View style={styles.valueContainer}>
+          <Text style={styles.value}>
+            {formatValue(measurement.value, measurement.unit)}
+          </Text>
+          
+          {trend && showTrend && (
+            <View style={styles.trendContainer}>
+              {getTrendIcon(trend.trend)}
+              <Text style={[styles.trendText, { color: getTrendColor(trend.trend) }]}>
+                {getTrendText(trend)}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Date and Notes */}
+        <View style={styles.footer}>
+          <View style={styles.dateContainer}>
+            <Calendar size={14} color={DesignTokens.colors.text.secondary} />
+            <Text style={styles.date}>{formatDate(measurement.date)}</Text>
+          </View>
+          
+          {measurement.notes && (
+            <Text style={styles.notes} numberOfLines={2}>
+              {measurement.notes}
+            </Text>
+          )}
         </View>
       </LinearGradient>
     </TouchableOpacity>
@@ -120,80 +175,120 @@ export default function MeasurementCard({ stats, onPress }: MeasurementCardProps
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
+  card: {
+    borderRadius: DesignTokens.borderRadius.lg,
+    overflow: 'hidden',
+    marginBottom: DesignTokens.spacing[3],
+    ...DesignTokens.shadow.base,
   },
   gradient: {
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
+    padding: DesignTokens.spacing[4],
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: DesignTokens.spacing[3],
   },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: DesignTokens.spacing[3],
   },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
+  icon: {
+    fontSize: 24,
   },
-  content: {
-    gap: 12,
-  },
-  currentValue: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  value: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontFamily: 'Inter-Bold',
+  name: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
   },
   unit: {
-    color: '#A3A3A3',
-    fontSize: 18,
-    fontFamily: 'Inter-Medium',
-    marginLeft: 4,
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
   },
-  change: {
-    gap: 4,
-  },
-  changeText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-  },
-  changeLabel: {
-    color: '#A3A3A3',
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-  },
-  stats: {
+  actions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#2F2F2F',
+    gap: DesignTokens.spacing[2],
   },
-  statItem: {
+  actionButton: {
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    backgroundColor: DesignTokens.colors.surface.primary,
+  },
+  valueContainer: {
     alignItems: 'center',
+    marginBottom: DesignTokens.spacing[4],
   },
-  statLabel: {
-    color: '#A3A3A3',
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    marginBottom: 4,
+  value: {
+    fontSize: DesignTokens.typography.fontSize['3xl'],
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginBottom: DesignTokens.spacing[2],
   },
-  statValue: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+  trendContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.full,
+    backgroundColor: DesignTokens.colors.surface.primary,
+  },
+  trendText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  footer: {
+    gap: DesignTokens.spacing[2],
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+  },
+  date: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+  },
+  notes: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  
+  // Compact styles
+  compactCard: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[2],
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[800],
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[3],
+  },
+  compactIcon: {
+    fontSize: 20,
+  },
+  compactInfo: {
+    flex: 1,
+  },
+  compactName: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  compactValue: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  compactTrend: {
+    padding: DesignTokens.spacing[1],
   },
 });

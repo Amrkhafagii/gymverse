@@ -1,229 +1,330 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
-  ScrollView,
-  TextInput,
   TouchableOpacity,
+  TextInput,
+  ScrollView,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { addBodyMeasurement, BodyMeasurement } from '@/lib/supabase/measurements';
+import { 
+  X, 
+  Calendar, 
+  Ruler, 
+  Save,
+  Plus,
+  Minus,
+} from 'lucide-react-native';
+import { DesignTokens } from '@/design-system/tokens';
+import { MeasurementType } from '@/types/measurement';
+import { MEASUREMENT_TYPES, getMeasurementTypeById } from '@/lib/measurements/measurementTypes';
+import { MeasurementCalculations } from '@/lib/measurements/measurementCalculations';
 
 interface AddMeasurementModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess: (measurement: BodyMeasurement) => void;
+  onSave: (measurements: { type: string; value: number; unit: string; date: string; notes?: string }[]) => Promise<void>;
+  selectedTypes?: string[];
+  initialDate?: string;
 }
 
-interface MeasurementField {
-  key: keyof Omit<BodyMeasurement, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'measurement_date' | 'notes'>;
-  label: string;
-  unit: string;
-  icon: string;
-  category: 'body' | 'measurements';
+interface MeasurementInput {
+  type: string;
+  value: string;
+  notes: string;
 }
 
-const measurementFields: MeasurementField[] = [
-  { key: 'weight', label: 'Weight', unit: 'kg', icon: 'scale', category: 'body' },
-  { key: 'body_fat_percentage', label: 'Body Fat', unit: '%', icon: 'fitness', category: 'body' },
-  { key: 'muscle_mass', label: 'Muscle Mass', unit: 'kg', icon: 'body', category: 'body' },
-  { key: 'chest', label: 'Chest', unit: 'cm', icon: 'resize', category: 'measurements' },
-  { key: 'waist', label: 'Waist', unit: 'cm', icon: 'resize', category: 'measurements' },
-  { key: 'hips', label: 'Hips', unit: 'cm', icon: 'resize', category: 'measurements' },
-  { key: 'bicep_left', label: 'Left Bicep', unit: 'cm', icon: 'fitness', category: 'measurements' },
-  { key: 'bicep_right', label: 'Right Bicep', unit: 'cm', icon: 'fitness', category: 'measurements' },
-  { key: 'thigh_left', label: 'Left Thigh', unit: 'cm', icon: 'resize', category: 'measurements' },
-  { key: 'thigh_right', label: 'Right Thigh', unit: 'cm', icon: 'resize', category: 'measurements' },
-  { key: 'neck', label: 'Neck', unit: 'cm', icon: 'resize', category: 'measurements' },
-  { key: 'forearm_left', label: 'Left Forearm', unit: 'cm', icon: 'fitness', category: 'measurements' },
-  { key: 'forearm_right', label: 'Right Forearm', unit: 'cm', icon: 'fitness', category: 'measurements' },
-  { key: 'calf_left', label: 'Left Calf', unit: 'cm', icon: 'resize', category: 'measurements' },
-  { key: 'calf_right', label: 'Right Calf', unit: 'cm', icon: 'resize', category: 'measurements' },
-];
+export function AddMeasurementModal({
+  visible,
+  onClose,
+  onSave,
+  selectedTypes = [],
+  initialDate,
+}: AddMeasurementModalProps) {
+  const [selectedDate, setSelectedDate] = useState(initialDate || new Date().toISOString().split('T')[0]);
+  const [measurements, setMeasurements] = useState<MeasurementInput[]>([]);
+  const [availableTypes, setAvailableTypes] = useState<MeasurementType[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'weight' | 'body' | 'performance'>('weight');
 
-export default function AddMeasurementModal({ visible, onClose, onSuccess }: AddMeasurementModalProps) {
-  const [measurements, setMeasurements] = useState<Record<string, string>>({});
-  const [notes, setNotes] = useState('');
-  const [measurementDate, setMeasurementDate] = useState(new Date().toISOString().split('T')[0]);
-  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (visible) {
+      initializeMeasurements();
+    }
+  }, [visible, selectedTypes]);
 
-  const handleSave = async () => {
-    try {
-      setLoading(true);
-
-      // Convert string values to numbers and filter out empty values
-      const numericMeasurements: any = {};
-      let hasValidMeasurement = false;
-
-      for (const [key, value] of Object.entries(measurements)) {
-        if (value.trim()) {
-          const numValue = parseFloat(value);
-          if (!isNaN(numValue) && numValue > 0) {
-            numericMeasurements[key] = numValue;
-            hasValidMeasurement = true;
-          }
-        }
-      }
-
-      if (!hasValidMeasurement) {
-        Alert.alert('Error', 'Please enter at least one valid measurement');
-        return;
-      }
-
-      const measurement = await addBodyMeasurement({
-        ...numericMeasurements,
-        measurement_date: measurementDate,
-        notes: notes.trim() || undefined,
-      });
-
-      onSuccess(measurement);
-      handleClose();
-    } catch (error) {
-      console.error('Error saving measurement:', error);
-      Alert.alert('Error', 'Failed to save measurement. Please try again.');
-    } finally {
-      setLoading(false);
+  const initializeMeasurements = () => {
+    if (selectedTypes.length > 0) {
+      const initialMeasurements = selectedTypes.map(type => ({
+        type,
+        value: '',
+        notes: '',
+      }));
+      setMeasurements(initialMeasurements);
+      setAvailableTypes(MEASUREMENT_TYPES.filter(t => selectedTypes.includes(t.id)));
+    } else {
+      setMeasurements([]);
+      setAvailableTypes(MEASUREMENT_TYPES);
     }
   };
 
-  const handleClose = () => {
-    setMeasurements({});
-    setNotes('');
-    setMeasurementDate(new Date().toISOString().split('T')[0]);
-    onClose();
+  const addMeasurementType = (type: MeasurementType) => {
+    if (!measurements.find(m => m.type === type.id)) {
+      setMeasurements(prev => [...prev, {
+        type: type.id,
+        value: '',
+        notes: '',
+      }]);
+    }
   };
 
-  const updateMeasurement = (key: string, value: string) => {
-    setMeasurements(prev => ({
-      ...prev,
-      [key]: value,
-    }));
+  const removeMeasurementType = (typeId: string) => {
+    setMeasurements(prev => prev.filter(m => m.type !== typeId));
   };
 
-  const bodyFields = measurementFields.filter(f => f.category === 'body');
-  const measurementFieldsList = measurementFields.filter(f => f.category === 'measurements');
+  const updateMeasurement = (typeId: string, field: 'value' | 'notes', value: string) => {
+    setMeasurements(prev => prev.map(m =>
+      m.type === typeId ? { ...m, [field]: value } : m
+    ));
+  };
 
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <KeyboardAvoidingView 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Add Measurements</Text>
-            <TouchableOpacity 
-              onPress={handleSave} 
-              style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-              disabled={loading}
+  const adjustValue = (typeId: string, delta: number) => {
+    const measurement = measurements.find(m => m.type === typeId);
+    if (measurement) {
+      const currentValue = parseFloat(measurement.value) || 0;
+      const newValue = Math.max(0, currentValue + delta);
+      updateMeasurement(typeId, 'value', newValue.toString());
+    }
+  };
+
+  const validateMeasurements = (): boolean => {
+    if (measurements.length === 0) {
+      Alert.alert('Error', 'Please add at least one measurement');
+      return false;
+    }
+
+    for (const measurement of measurements) {
+      const value = parseFloat(measurement.value);
+      const type = getMeasurementTypeById(measurement.type);
+      
+      if (!type) continue;
+      
+      if (isNaN(value) || value <= 0) {
+        Alert.alert('Error', `Please enter a valid value for ${type.name}`);
+        return false;
+      }
+
+      if (type.minValue && value < type.minValue) {
+        Alert.alert('Error', `${type.name} value must be at least ${type.minValue} ${type.unit}`);
+        return false;
+      }
+
+      if (type.maxValue && value > type.maxValue) {
+        Alert.alert('Error', `${type.name} value must not exceed ${type.maxValue} ${type.unit}`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateMeasurements()) return;
+
+    try {
+      setIsLoading(true);
+      
+      const measurementData = measurements.map(m => {
+        const type = getMeasurementTypeById(m.type)!;
+        return {
+          type: m.type,
+          value: parseFloat(m.value),
+          unit: type.unit,
+          date: selectedDate,
+          notes: m.notes.trim() || undefined,
+        };
+      });
+
+      await onSave(measurementData);
+      onClose();
+    } catch (error) {
+      console.error('Error saving measurements:', error);
+      Alert.alert('Error', 'Failed to save measurements. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderMeasurementInput = (measurement: MeasurementInput) => {
+    const type = getMeasurementTypeById(measurement.type);
+    if (!type) return null;
+
+    const value = parseFloat(measurement.value) || 0;
+
+    return (
+      <View key={measurement.type} style={styles.measurementCard}>
+        <View style={styles.measurementHeader}>
+          <View style={styles.measurementInfo}>
+            <Text style={styles.measurementIcon}>{type.icon}</Text>
+            <View>
+              <Text style={styles.measurementName}>{type.name}</Text>
+              <Text style={styles.measurementUnit}>{type.unit}</Text>
+            </View>
+          </View>
+          
+          <TouchableOpacity
+            style={styles.removeButton}
+            onPress={() => removeMeasurementType(measurement.type)}
+          >
+            <X size={16} color={DesignTokens.colors.error[500]} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.valueInputContainer}>
+          <TouchableOpacity
+            style={styles.adjustButton}
+            onPress={() => adjustValue(measurement.type, -0.1)}
+          >
+            <Minus size={16} color={DesignTokens.colors.text.primary} />
+          </TouchableOpacity>
+          
+          <TextInput
+            style={styles.valueInput}
+            value={measurement.value}
+            onChangeText={(text) => updateMeasurement(measurement.type, 'value', text)}
+            placeholder="0"
+            keyboardType="numeric"
+            selectTextOnFocus
+          />
+          
+          <TouchableOpacity
+            style={styles.adjustButton}
+            onPress={() => adjustValue(measurement.type, 0.1)}
+          >
+            <Plus size={16} color={DesignTokens.colors.text.primary} />
+          </TouchableOpacity>
+        </View>
+
+        <TextInput
+          style={styles.notesInput}
+          value={measurement.notes}
+          onChangeText={(text) => updateMeasurement(measurement.type, 'notes', text)}
+          placeholder="Notes (optional)"
+          multiline
+          numberOfLines={2}
+        />
+      </View>
+    );
+  };
+
+  const renderTypeSelector = () => {
+    const categories = ['weight', 'body', 'performance'] as const;
+    const filteredTypes = availableTypes.filter(type => 
+      type.category === activeTab && !measurements.find(m => m.type === type.id)
+    );
+
+    return (
+      <View style={styles.typeSelector}>
+        <View style={styles.tabContainer}>
+          {categories.map(category => (
+            <TouchableOpacity
+              key={category}
+              style={[
+                styles.tab,
+                activeTab === category && styles.activeTab
+              ]}
+              onPress={() => setActiveTab(category)}
             >
-              <Text style={styles.saveButtonText}>
-                {loading ? 'Saving...' : 'Save'}
+              <Text style={[
+                styles.tabText,
+                activeTab === category && styles.activeTabText
+              ]}>
+                {category.charAt(0).toUpperCase() + category.slice(1)}
               </Text>
             </TouchableOpacity>
+          ))}
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeList}>
+          {filteredTypes.map(type => (
+            <TouchableOpacity
+              key={type.id}
+              style={styles.typeCard}
+              onPress={() => addMeasurementType(type)}
+            >
+              <Text style={styles.typeIcon}>{type.icon}</Text>
+              <Text style={styles.typeName}>{type.name}</Text>
+              <Text style={styles.typeUnit}>{type.unit}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <X size={24} color={DesignTokens.colors.text.primary} />
+          </TouchableOpacity>
+          
+          <Text style={styles.title}>Add Measurements</Text>
+          
+          <TouchableOpacity
+            style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={isLoading}
+          >
+            <Save size={20} color="#FFFFFF" />
+            <Text style={styles.saveButtonText}>
+              {isLoading ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Date Selector */}
+        <View style={styles.dateContainer}>
+          <Calendar size={20} color={DesignTokens.colors.primary[500]} />
+          <Text style={styles.dateLabel}>Date:</Text>
+          <TextInput
+            style={styles.dateInput}
+            value={selectedDate}
+            onChangeText={setSelectedDate}
+            placeholder="YYYY-MM-DD"
+          />
+        </View>
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Current Measurements */}
+          {measurements.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Measurements</Text>
+              {measurements.map(renderMeasurementInput)}
+            </View>
+          )}
+
+          {/* Type Selector */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Add More Measurements</Text>
+            {renderTypeSelector()}
           </View>
-
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Date Selection */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Date</Text>
-              <View style={styles.dateContainer}>
-                <LinearGradient colors={['#1f2937', '#111827']} style={styles.dateGradient}>
-                  <Ionicons name="calendar" size={20} color="#9E7FFF" />
-                  <TextInput
-                    style={styles.dateInput}
-                    value={measurementDate}
-                    onChangeText={setMeasurementDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor="#A3A3A3"
-                  />
-                </LinearGradient>
-              </View>
-            </View>
-
-            {/* Body Composition */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Body Composition</Text>
-              <View style={styles.fieldsGrid}>
-                {bodyFields.map((field) => (
-                  <View key={field.key} style={styles.fieldContainer}>
-                    <LinearGradient colors={['#1f2937', '#111827']} style={styles.fieldGradient}>
-                      <View style={styles.fieldHeader}>
-                        <Ionicons name={field.icon as any} size={16} color="#9E7FFF" />
-                        <Text style={styles.fieldLabel}>{field.label}</Text>
-                      </View>
-                      <View style={styles.inputContainer}>
-                        <TextInput
-                          style={styles.input}
-                          value={measurements[field.key] || ''}
-                          onChangeText={(value) => updateMeasurement(field.key, value)}
-                          placeholder="0"
-                          placeholderTextColor="#A3A3A3"
-                          keyboardType="decimal-pad"
-                        />
-                        <Text style={styles.unit}>{field.unit}</Text>
-                      </View>
-                    </LinearGradient>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* Body Measurements */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Body Measurements</Text>
-              <View style={styles.fieldsGrid}>
-                {measurementFieldsList.map((field) => (
-                  <View key={field.key} style={styles.fieldContainer}>
-                    <LinearGradient colors={['#1f2937', '#111827']} style={styles.fieldGradient}>
-                      <View style={styles.fieldHeader}>
-                        <Ionicons name={field.icon as any} size={16} color="#f472b6" />
-                        <Text style={styles.fieldLabel}>{field.label}</Text>
-                      </View>
-                      <View style={styles.inputContainer}>
-                        <TextInput
-                          style={styles.input}
-                          value={measurements[field.key] || ''}
-                          onChangeText={(value) => updateMeasurement(field.key, value)}
-                          placeholder="0"
-                          placeholderTextColor="#A3A3A3"
-                          keyboardType="decimal-pad"
-                        />
-                        <Text style={styles.unit}>{field.unit}</Text>
-                      </View>
-                    </LinearGradient>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* Notes */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Notes (Optional)</Text>
-              <LinearGradient colors={['#1f2937', '#111827']} style={styles.notesGradient}>
-                <TextInput
-                  style={styles.notesInput}
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder="Add any notes about your measurements..."
-                  placeholderTextColor="#A3A3A3"
-                  multiline
-                  numberOfLines={3}
-                />
-              </LinearGradient>
-            </View>
-          </ScrollView>
-        </LinearGradient>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -232,131 +333,212 @@ export default function AddMeasurementModal({ visible, onClose, onSuccess }: Add
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
+    backgroundColor: DesignTokens.colors.background.primary,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
+    justifyContent: 'space-between',
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[4],
     borderBottomWidth: 1,
-    borderBottomColor: '#2F2F2F',
+    borderBottomColor: DesignTokens.colors.neutral[800],
+    backgroundColor: DesignTokens.colors.surface.secondary,
   },
   closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#262626',
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.full,
+    backgroundColor: DesignTokens.colors.surface.tertiary,
   },
   title: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
+    fontSize: DesignTokens.typography.fontSize.xl,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
   saveButton: {
-    backgroundColor: '#9E7FFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    paddingHorizontal: DesignTokens.spacing[4],
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.lg,
+    backgroundColor: DesignTokens.colors.primary[500],
   },
   saveButtonDisabled: {
     opacity: 0.6,
   },
   saveButtonText: {
+    fontSize: DesignTokens.typography.fontSize.base,
     color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 16,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
   },
   dateContainer: {
-    marginBottom: 8,
-  },
-  dateGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2F2F2F',
+    gap: DesignTokens.spacing[3],
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[4],
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderBottomWidth: 1,
+    borderBottomColor: DesignTokens.colors.neutral[800],
+  },
+  dateLabel: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
   dateInput: {
     flex: 1,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    marginLeft: 12,
-  },
-  fieldsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -6,
-  },
-  fieldContainer: {
-    width: '50%',
-    paddingHorizontal: 6,
-    marginBottom: 12,
-  },
-  fieldGradient: {
-    padding: 16,
-    borderRadius: 12,
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    backgroundColor: DesignTokens.colors.surface.tertiary,
     borderWidth: 1,
-    borderColor: '#2F2F2F',
+    borderColor: DesignTokens.colors.neutral[700],
   },
-  fieldHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  fieldLabel: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    marginLeft: 8,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  input: {
+  content: {
     flex: 1,
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
   },
-  unit: {
-    color: '#A3A3A3',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    marginLeft: 8,
+  section: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[4],
   },
-  notesGradient: {
-    padding: 16,
-    borderRadius: 12,
+  sectionTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    marginBottom: DesignTokens.spacing[4],
+  },
+  measurementCard: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[3],
     borderWidth: 1,
-    borderColor: '#2F2F2F',
+    borderColor: DesignTokens.colors.neutral[800],
+  },
+  measurementHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: DesignTokens.spacing[3],
+  },
+  measurementInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[3],
+  },
+  measurementIcon: {
+    fontSize: 24,
+  },
+  measurementName: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  measurementUnit: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+  },
+  removeButton: {
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.full,
+    backgroundColor: DesignTokens.colors.surface.tertiary,
+  },
+  valueInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[3],
+  },
+  adjustButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: DesignTokens.borderRadius.md,
+    backgroundColor: DesignTokens.colors.surface.tertiary,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[700],
+  },
+  valueInput: {
+    flex: 1,
+    fontSize: DesignTokens.typography.fontSize.xl,
+    color: DesignTokens.colors.text.primary,
+    textAlign: 'center',
+    paddingVertical: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
+    backgroundColor: DesignTokens.colors.surface.tertiary,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[700],
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
   notesInput: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
+    backgroundColor: DesignTokens.colors.surface.tertiary,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[700],
+    minHeight: 60,
     textAlignVertical: 'top',
-    minHeight: 80,
+  },
+  typeSelector: {
+    gap: DesignTokens.spacing[4],
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[1],
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+  },
+  activeTab: {
+    backgroundColor: DesignTokens.colors.primary[500],
+  },
+  tabText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  activeTabText: {
+    color: '#FFFFFF',
+  },
+  typeList: {
+    flexDirection: 'row',
+  },
+  typeCard: {
+    alignItems: 'center',
+    padding: DesignTokens.spacing[4],
+    marginRight: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.lg,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.neutral[800],
+    minWidth: 80,
+  },
+  typeIcon: {
+    fontSize: 24,
+    marginBottom: DesignTokens.spacing[2],
+  },
+  typeName: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    textAlign: 'center',
+    marginBottom: DesignTokens.spacing[1],
+  },
+  typeUnit: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
   },
 });
