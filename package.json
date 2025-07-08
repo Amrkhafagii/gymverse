@@ -35,7 +35,7 @@
     "expo-splash-screen": "~0.30.6",
     "expo-sqlite": "~15.1.2",
     "react-dom": "18.2.0",
-    "expo-media-library": "~16.0.4"
+    "expo-media-library": "~16.0.4",
 
 
     "expo-system-ui": "~5.0.10",
