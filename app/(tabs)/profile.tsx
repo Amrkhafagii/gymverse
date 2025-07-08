@@ -39,6 +39,10 @@ import {
   LogOut,
   Download,
   Globe,
+  MessageCircle,
+  ThumbsUp,
+  Eye,
+  BarChart3,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { DesignTokens } from '@/design-system/tokens';
@@ -46,24 +50,43 @@ import { ProfileStatCard } from '@/components/ui/ProfileStatCard';
 import { AchievementBadge } from '@/components/ui/AchievementBadge';
 import { SettingsGroup } from '@/components/ui/SettingsGroup';
 import { Button } from '@/components/ui/Button';
+import { SocialStatsCard } from '@/components/social/SocialStatsCard';
+import { useSocial } from '@/contexts/SocialContext';
+import { usePostComments } from '@/hooks/usePostComments';
 import * as Haptics from 'expo-haptics';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { currentUser, posts, getUserPosts, getUserStats } = useSocial();
+  const { getPostComments } = usePostComments();
+  
   const [refreshing, setRefreshing] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
 
-  // Mock user data
+  // Get user's social data
+  const userPosts = getUserPosts(currentUser?.id || '');
+  const userStats = getUserStats(currentUser?.id || '');
+
+  // Calculate social metrics
+  const totalLikes = userPosts.reduce((sum, post) => sum + post.likes.length, 0);
+  const totalComments = userPosts.reduce((sum, post) => {
+    const comments = getPostComments(post.id);
+    return sum + comments.length;
+  }, 0);
+  const totalShares = userPosts.reduce((sum, post) => sum + post.shares.length, 0);
+  const totalViews = userPosts.reduce((sum, post) => sum + (post.views || 0), 0);
+
+  // Mock user data (enhanced with social features)
   const userData = {
-    id: '1',
-    name: 'Alex Johnson',
-    username: '@alexfitness',
-    email: 'alex@example.com',
+    id: currentUser?.id || '1',
+    name: currentUser?.name || 'Alex Johnson',
+    username: currentUser?.username || '@alexfitness',
+    email: currentUser?.email || 'alex@example.com',
     joinDate: 'January 2024',
-    avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+    avatar: currentUser?.avatar || 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
     coverImage: 'https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=800',
     isVerified: true,
     level: 25,
@@ -74,15 +97,23 @@ export default function ProfileScreen() {
       totalMinutes: 8420,
       achievements: 34,
       streak: 15,
-      followers: 1247,
-      following: 892,
-      posts: 156,
+      followers: userStats.followers,
+      following: userStats.following,
+      posts: userPosts.length,
     },
     weeklyStats: {
       workouts: 6,
       minutes: 420,
       calories: 2840,
       avgHeartRate: 142,
+    },
+    socialStats: {
+      posts: userPosts.length,
+      likes: totalLikes,
+      comments: totalComments,
+      shares: totalShares,
+      views: totalViews,
+      engagementRate: userPosts.length > 0 ? ((totalLikes + totalComments + totalShares) / (userPosts.length * 100)) * 100 : 0,
     },
     goals: {
       weeklyWorkouts: { current: 6, target: 5 },
@@ -110,41 +141,42 @@ export default function ProfileScreen() {
     },
     {
       id: '3',
-      name: 'Cardio Champion',
-      description: 'Burn 10,000 calories',
-      icon: '🔥',
+      name: 'Social Butterfly',
+      description: 'Get 100 likes on posts',
+      icon: '🦋',
       rarity: 'rare' as const,
       unlockedAt: '2024-05-05',
     },
     {
       id: '4',
-      name: 'Early Bird',
-      description: 'Complete 20 morning workouts',
-      icon: '🌅',
-      rarity: 'common' as const,
+      name: 'Community Leader',
+      description: 'Help 50 community members',
+      icon: '🌟',
+      rarity: 'epic' as const,
       unlockedAt: '2024-04-28',
     },
     {
       id: '5',
-      name: 'Marathon Runner',
-      description: 'Run 100 miles total',
-      icon: '🏃',
-      rarity: 'epic' as const,
-      progress: { current: 75, target: 100 },
+      name: 'Content Creator',
+      description: 'Share 25 workout posts',
+      icon: '📸',
+      rarity: 'rare' as const,
+      progress: { current: userPosts.length, target: 25 },
     },
     {
       id: '6',
-      name: 'Social Butterfly',
-      description: 'Get 100 likes on posts',
-      icon: '🦋',
-      rarity: 'rare' as const,
-      progress: { current: 67, target: 100 },
+      name: 'Engagement Master',
+      description: 'Receive 500 total likes',
+      icon: '❤️',
+      rarity: 'epic' as const,
+      progress: { current: totalLikes, target: 500 },
     },
   ];
 
   const onRefresh = async () => {
     setRefreshing(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Refresh social data here
     setTimeout(() => setRefreshing(false), 1000);
   };
 
@@ -195,6 +227,14 @@ export default function ProfileScreen() {
           onPress: handleEditProfile,
         },
         {
+          id: 'social-settings',
+          title: 'Social Settings',
+          subtitle: 'Manage your social preferences',
+          icon: <Users size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/social-settings'),
+        },
+        {
           id: 'goals',
           title: 'Goals & Preferences',
           subtitle: 'Set your fitness goals and preferences',
@@ -210,6 +250,44 @@ export default function ProfileScreen() {
           type: 'navigation' as const,
           badge: '34',
           onPress: () => router.push('/achievements'),
+        },
+      ],
+    },
+    {
+      title: 'Social & Community',
+      items: [
+        {
+          id: 'my-posts',
+          title: 'My Posts',
+          subtitle: `${userPosts.length} posts shared`,
+          icon: <MessageCircle size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          badge: userPosts.length.toString(),
+          onPress: () => router.push('/my-posts'),
+        },
+        {
+          id: 'social-analytics',
+          title: 'Social Analytics',
+          subtitle: 'View your engagement metrics',
+          icon: <BarChart3 size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/social-analytics'),
+        },
+        {
+          id: 'followers',
+          title: 'Followers & Following',
+          subtitle: `${userData.stats.followers} followers • ${userData.stats.following} following`,
+          icon: <Users size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/social-connections'),
+        },
+        {
+          id: 'blocked-users',
+          title: 'Blocked Users',
+          subtitle: 'Manage blocked accounts',
+          icon: <Shield size={20} color={DesignTokens.colors.primary[500]} />,
+          type: 'navigation' as const,
+          onPress: () => router.push('/blocked-users'),
         },
       ],
     },
@@ -412,20 +490,48 @@ export default function ProfileScreen() {
 
               {/* Social Stats */}
               <View style={styles.socialStats}>
-                <TouchableOpacity style={styles.socialStat}>
+                <TouchableOpacity style={styles.socialStat} onPress={() => router.push('/my-posts')}>
                   <Text style={styles.socialStatValue}>{userData.stats.posts}</Text>
                   <Text style={styles.socialStatLabel}>Posts</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.socialStat}>
+                <TouchableOpacity style={styles.socialStat} onPress={() => router.push('/social-connections')}>
                   <Text style={styles.socialStatValue}>{userData.stats.followers.toLocaleString()}</Text>
                   <Text style={styles.socialStatLabel}>Followers</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.socialStat}>
+                <TouchableOpacity style={styles.socialStat} onPress={() => router.push('/social-connections')}>
                   <Text style={styles.socialStatValue}>{userData.stats.following}</Text>
                   <Text style={styles.socialStatLabel}>Following</Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
+          </View>
+
+          {/* Social Analytics */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Social Activity</Text>
+              <TouchableOpacity onPress={() => router.push('/social-analytics')}>
+                <Text style={styles.sectionAction}>View Details</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <SocialStatsCard
+              title="Your Social Impact"
+              stats={{
+                posts: userData.socialStats.posts,
+                likes: userData.socialStats.likes,
+                comments: userData.socialStats.comments,
+                shares: userData.socialStats.shares,
+                views: userData.socialStats.views,
+                engagementRate: userData.socialStats.engagementRate,
+              }}
+              trend={{
+                direction: 'up',
+                percentage: 15.2,
+                timeframe: 'last week',
+              }}
+              variant="detailed"
+            />
           </View>
 
           {/* Weekly Stats */}
@@ -462,13 +568,13 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/calorie-stats')}
               />
               <ProfileStatCard
-                title="Avg HR"
-                value={`${userData.weeklyStats.avgHeartRate} bpm`}
-                subtitle="Heart rate"
+                title="Engagement"
+                value={`${userData.socialStats.engagementRate.toFixed(1)}%`}
+                subtitle="Social rate"
                 icon={<Heart size={20} color="#E74C3C" />}
                 color="#E74C3C"
-                trend={{ value: 3, isPositive: false }}
-                onPress={() => router.push('/heart-rate-stats')}
+                trend={{ value: 12, isPositive: true }}
+                onPress={() => router.push('/social-analytics')}
               />
             </View>
           </View>
