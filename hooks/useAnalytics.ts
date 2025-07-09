@@ -1,54 +1,85 @@
-/**
- * useAnalytics - Previously unused, now integrated into progress analytics
- * Comprehensive analytics hook with data processing and trend analysis
- */
-
 import { useState, useEffect, useMemo } from 'react';
 import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext';
-import { ChartDataPoint, TrendData, AnalyticsInsight } from '@/lib/analytics/chartDataProcessing';
+import { processWorkoutDataForChart, ChartDataPoint, TrendData, AnalyticsInsight } from '@/lib/analytics/chartDataProcessing';
 
 export type AnalyticsTimeframe = 'week' | 'month' | 'year';
 export type AnalyticsMetric = 'weight' | 'reps' | 'volume';
 
-interface AnalyticsSummaryStats {
+interface AnalyticsData {
+  volumeData: ChartDataPoint[];
+  frequencyData: ChartDataPoint[];
+  durationData: ChartDataPoint[];
+  insights: AnalyticsInsight[];
+}
+
+interface SummaryStats {
   totalWorkouts: number;
   averageWorkoutsPerWeek: number;
   uniqueExercises: number;
   averageWorkoutDuration: number;
   totalVolume: number;
-  totalSets: number;
+  averageVolume: number;
 }
 
-interface AnalyticsData {
-  volumeData: ChartDataPoint[];
-  frequencyData: ChartDataPoint[];
-  insights: AnalyticsInsight[];
-}
-
-export function useAnalytics(timeframe: AnalyticsTimeframe) {
+export function useAnalytics(timeframe: AnalyticsTimeframe = 'month') {
   const { workouts } = useWorkoutHistory();
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<AnalyticsMetric>('weight');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Filter workouts by timeframe
+  // Filter workouts based on timeframe
   const filteredWorkouts = useMemo(() => {
     const now = new Date();
-    const timeframeDays = {
-      week: 7,
-      month: 30,
-      year: 365,
-    }[timeframe];
-    
-    const cutoffDate = new Date(now.getTime() - timeframeDays * 24 * 60 * 60 * 1000);
-    
+    const cutoffDate = new Date();
+
+    switch (timeframe) {
+      case 'week':
+        cutoffDate.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        cutoffDate.setMonth(now.getMonth() - 1);
+        break;
+      case 'year':
+        cutoffDate.setFullYear(now.getFullYear() - 1);
+        break;
+    }
+
     return workouts.filter(workout => 
       new Date(workout.created_at) >= cutoffDate
     );
   }, [workouts, timeframe]);
 
+  // Process analytics data
+  const analyticsData = useMemo((): AnalyticsData => {
+    const volumeAnalysis = processWorkoutDataForChart(filteredWorkouts, 'volume', timeframe);
+    const frequencyAnalysis = processWorkoutDataForChart(filteredWorkouts, 'frequency', timeframe);
+    const durationAnalysis = processWorkoutDataForChart(filteredWorkouts, 'duration', timeframe);
+
+    // Combine insights from all analyses
+    const allInsights = [
+      ...volumeAnalysis.insights,
+      ...frequencyAnalysis.insights,
+      ...durationAnalysis.insights,
+    ];
+
+    // Remove duplicates and sort by priority
+    const uniqueInsights = allInsights.filter((insight, index, self) => 
+      index === self.findIndex(i => i.title === insight.title)
+    ).sort((a, b) => {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      return (priorityOrder[b.priority || 'low'] - priorityOrder[a.priority || 'low']);
+    });
+
+    return {
+      volumeData: volumeAnalysis.points,
+      frequencyData: frequencyAnalysis.points,
+      durationData: durationAnalysis.points,
+      insights: uniqueInsights.slice(0, 8), // Limit to 8 most important insights
+    };
+  }, [filteredWorkouts, timeframe]);
+
   // Calculate summary statistics
-  const summaryStats: AnalyticsSummaryStats = useMemo(() => {
+  const summaryStats = useMemo((): SummaryStats => {
     if (filteredWorkouts.length === 0) {
       return {
         totalWorkouts: 0,
@@ -56,25 +87,21 @@ export function useAnalytics(timeframe: AnalyticsTimeframe) {
         uniqueExercises: 0,
         averageWorkoutDuration: 0,
         totalVolume: 0,
-        totalSets: 0,
+        averageVolume: 0,
       };
     }
 
     const uniqueExercises = new Set();
     let totalVolume = 0;
-    let totalSets = 0;
     let totalDuration = 0;
 
     filteredWorkouts.forEach(workout => {
-      if (workout.duration_minutes) {
-        totalDuration += workout.duration_minutes;
-      }
-
-      workout.exercises?.forEach(exercise => {
+      totalDuration += workout.duration_minutes || 0;
+      
+      workout.exercises?.forEach((exercise: any) => {
         uniqueExercises.add(exercise.exercise_name);
         
-        exercise.sets?.forEach(set => {
-          totalSets++;
+        exercise.sets?.forEach((set: any) => {
           if (set.actual_weight_kg && set.actual_reps) {
             totalVolume += set.actual_weight_kg * set.actual_reps;
           }
@@ -82,215 +109,108 @@ export function useAnalytics(timeframe: AnalyticsTimeframe) {
       });
     });
 
-    const timeframeDays = {
-      week: 7,
-      month: 30,
-      year: 365,
-    }[timeframe];
-
+    // Calculate average workouts per week
+    const timeframeDays = timeframe === 'week' ? 7 : timeframe === 'month' ? 30 : 365;
     const averageWorkoutsPerWeek = (filteredWorkouts.length / timeframeDays) * 7;
 
     return {
       totalWorkouts: filteredWorkouts.length,
       averageWorkoutsPerWeek: Math.round(averageWorkoutsPerWeek * 10) / 10,
       uniqueExercises: uniqueExercises.size,
-      averageWorkoutDuration: totalDuration / filteredWorkouts.length || 0,
+      averageWorkoutDuration: totalDuration / filteredWorkouts.length,
       totalVolume,
-      totalSets,
+      averageVolume: totalVolume / filteredWorkouts.length,
     };
   }, [filteredWorkouts, timeframe]);
 
-  // Generate analytics data
-  const analyticsData: AnalyticsData = useMemo(() => {
-    if (filteredWorkouts.length === 0) {
-      return {
-        volumeData: [],
-        frequencyData: [],
-        insights: [],
-      };
-    }
-
-    // Group workouts by time period
-    const groupedData = new Map<string, { volume: number; count: number }>();
-    
-    filteredWorkouts.forEach(workout => {
-      const date = new Date(workout.created_at);
-      let key: string;
-      
-      if (timeframe === 'week') {
-        key = date.toISOString().split('T')[0]; // Daily
-      } else if (timeframe === 'month') {
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        key = weekStart.toISOString().split('T')[0]; // Weekly
-      } else {
-        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // Monthly
-      }
-
-      if (!groupedData.has(key)) {
-        groupedData.set(key, { volume: 0, count: 0 });
-      }
-
-      const data = groupedData.get(key)!;
-      data.count++;
-
-      // Calculate volume for this workout
-      let workoutVolume = 0;
-      workout.exercises?.forEach(exercise => {
-        exercise.sets?.forEach(set => {
-          if (set.actual_weight_kg && set.actual_reps) {
-            workoutVolume += set.actual_weight_kg * set.actual_reps;
-          }
-        });
-      });
-      data.volume += workoutVolume;
-    });
-
-    // Convert to chart data
-    const sortedEntries = Array.from(groupedData.entries()).sort(([a], [b]) => a.localeCompare(b));
-    
-    const volumeData: ChartDataPoint[] = sortedEntries.map(([date, data]) => ({
-      date,
-      value: data.volume,
-      label: `${data.volume.toFixed(0)}kg`,
-    }));
-
-    const frequencyData: ChartDataPoint[] = sortedEntries.map(([date, data]) => ({
-      date,
-      value: data.count,
-      label: `${data.count} workout${data.count !== 1 ? 's' : ''}`,
-    }));
-
-    // Generate insights
-    const insights: AnalyticsInsight[] = [];
-    
-    if (volumeData.length >= 2) {
-      const recentVolume = volumeData.slice(-3).reduce((sum, point) => sum + point.value, 0) / 3;
-      const previousVolume = volumeData.slice(-6, -3).reduce((sum, point) => sum + point.value, 0) / 3;
-      
-      if (recentVolume > previousVolume * 1.1) {
-        insights.push({
-          type: 'improvement',
-          title: 'Volume Increasing',
-          description: 'Your training volume has increased significantly in recent sessions.',
-          value: ((recentVolume - previousVolume) / previousVolume * 100).toFixed(1) + '%',
-          recommendation: 'Great progress! Consider adding more rest days to support recovery.',
-        });
-      } else if (recentVolume < previousVolume * 0.9) {
-        insights.push({
-          type: 'decline',
-          title: 'Volume Declining',
-          description: 'Your training volume has decreased recently.',
-          recommendation: 'Consider reviewing your program or addressing any recovery issues.',
-        });
-      }
-    }
-
-    if (summaryStats.averageWorkoutsPerWeek >= 4) {
-      insights.push({
-        type: 'milestone',
-        title: 'Consistency Champion',
-        description: 'You\'re maintaining excellent workout consistency!',
-        value: summaryStats.averageWorkoutsPerWeek.toFixed(1),
-        recommendation: 'Keep up the great work! Consider tracking sleep and nutrition for optimal results.',
-      });
-    }
-
-    return {
-      volumeData,
-      frequencyData,
-      insights,
-    };
-  }, [filteredWorkouts, timeframe, summaryStats]);
-
   // Calculate trends
-  const volumeTrend: TrendData = useMemo(() => {
-    if (analyticsData.volumeData.length < 2) {
-      return { trend: 'stable', current: 0, previous: 0, changePercent: 0 };
-    }
+  const volumeTrend = useMemo((): TrendData => {
+    const volumeAnalysis = processWorkoutDataForChart(filteredWorkouts, 'volume', timeframe);
+    return volumeAnalysis.trend;
+  }, [filteredWorkouts, timeframe]);
 
-    const data = analyticsData.volumeData;
-    const current = data.slice(-3).reduce((sum, point) => sum + point.value, 0) / 3;
-    const previous = data.slice(-6, -3).reduce((sum, point) => sum + point.value, 0) / 3;
-    
-    const changePercent = previous !== 0 ? ((current - previous) / previous) * 100 : 0;
-    const trend = changePercent > 5 ? 'up' : changePercent < -5 ? 'down' : 'stable';
+  const frequencyTrend = useMemo((): TrendData => {
+    const frequencyAnalysis = processWorkoutDataForChart(filteredWorkouts, 'frequency', timeframe);
+    return frequencyAnalysis.trend;
+  }, [filteredWorkouts, timeframe]);
 
-    return { trend, current, previous, changePercent };
-  }, [analyticsData.volumeData]);
-
-  const frequencyTrend: TrendData = useMemo(() => {
-    if (analyticsData.frequencyData.length < 2) {
-      return { trend: 'stable', current: 0, previous: 0, changePercent: 0 };
-    }
-
-    const data = analyticsData.frequencyData;
-    const current = data.slice(-3).reduce((sum, point) => sum + point.value, 0) / 3;
-    const previous = data.slice(-6, -3).reduce((sum, point) => sum + point.value, 0) / 3;
-    
-    const changePercent = previous !== 0 ? ((current - previous) / previous) * 100 : 0;
-    const trend = changePercent > 10 ? 'up' : changePercent < -10 ? 'down' : 'stable';
-
-    return { trend, current, previous, changePercent };
-  }, [analyticsData.frequencyData]);
-
-  // Get available exercises
+  // Get available exercises for selection
   const availableExercises = useMemo(() => {
     const exercises = new Set<string>();
+    
     filteredWorkouts.forEach(workout => {
-      workout.exercises?.forEach(exercise => {
+      workout.exercises?.forEach((exercise: any) => {
         exercises.add(exercise.exercise_name);
       });
     });
+
     return Array.from(exercises).sort();
   }, [filteredWorkouts]);
 
-  // Generate exercise-specific data
-  const exerciseData: ChartDataPoint[] = useMemo(() => {
+  // Process exercise-specific data
+  const exerciseData = useMemo((): ChartDataPoint[] => {
     if (!selectedExercise) return [];
 
     const exerciseWorkouts = filteredWorkouts.filter(workout =>
-      workout.exercises?.some(ex => ex.exercise_name === selectedExercise)
+      workout.exercises?.some((ex: any) => ex.exercise_name === selectedExercise)
     );
 
     return exerciseWorkouts.map(workout => {
-      const exercise = workout.exercises?.find(ex => ex.exercise_name === selectedExercise);
+      const exercise = workout.exercises?.find((ex: any) => ex.exercise_name === selectedExercise);
       if (!exercise) return null;
 
       let value = 0;
+      let label = '';
+
       switch (selectedMetric) {
         case 'weight':
-          value = Math.max(...(exercise.sets?.map(set => set.actual_weight_kg || 0) || [0]));
+          const maxWeight = Math.max(...(exercise.sets?.map((set: any) => set.actual_weight_kg || 0) || [0]));
+          value = maxWeight;
+          label = `${maxWeight}kg`;
           break;
         case 'reps':
-          value = Math.max(...(exercise.sets?.map(set => set.actual_reps || 0) || [0]));
+          const maxReps = Math.max(...(exercise.sets?.map((set: any) => set.actual_reps || 0) || [0]));
+          value = maxReps;
+          label = `${maxReps} reps`;
           break;
         case 'volume':
-          value = exercise.sets?.reduce((sum, set) => 
-            sum + ((set.actual_weight_kg || 0) * (set.actual_reps || 0)), 0
-          ) || 0;
+          const totalVolume = exercise.sets?.reduce((sum: number, set: any) => 
+            sum + ((set.actual_weight_kg || 0) * (set.actual_reps || 0)), 0) || 0;
+          value = totalVolume;
+          label = `${totalVolume}kg`;
           break;
       }
 
       return {
         date: workout.created_at,
         value,
-        label: selectedMetric === 'volume' ? `${value.toFixed(0)}kg` : `${value}${selectedMetric === 'weight' ? 'kg' : ''}`,
+        label,
+        metadata: { workoutId: workout.id, exerciseId: exercise.id },
       };
     }).filter(Boolean) as ChartDataPoint[];
   }, [filteredWorkouts, selectedExercise, selectedMetric]);
 
   // Calculate exercise trend
-  const exerciseTrend: TrendData = useMemo(() => {
+  const exerciseTrend = useMemo((): TrendData => {
     if (exerciseData.length < 2) {
       return { trend: 'stable', current: 0, previous: 0, changePercent: 0 };
     }
 
-    const current = exerciseData[exerciseData.length - 1].value;
-    const previous = exerciseData[exerciseData.length - 2].value;
-    
+    const recentPoints = exerciseData.slice(-3);
+    const previousPoints = exerciseData.slice(-6, -3);
+
+    if (previousPoints.length === 0) {
+      return { trend: 'stable', current: 0, previous: 0, changePercent: 0 };
+    }
+
+    const current = recentPoints.reduce((sum, p) => sum + p.value, 0) / recentPoints.length;
+    const previous = previousPoints.reduce((sum, p) => sum + p.value, 0) / previousPoints.length;
+
     const changePercent = previous !== 0 ? ((current - previous) / previous) * 100 : 0;
-    const trend = changePercent > 5 ? 'up' : changePercent < -5 ? 'down' : 'stable';
+    
+    let trend: 'up' | 'down' | 'stable' = 'stable';
+    if (changePercent > 5) trend = 'up';
+    else if (changePercent < -5) trend = 'down';
 
     return { trend, current, previous, changePercent };
   }, [exerciseData]);

@@ -1,149 +1,98 @@
-/**
- * ExerciseProgressChart - Previously unused, now integrated into workout progress views
- * Visual chart showing exercise performance over time with trend analysis
- */
-
-import React, { useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
+  ScrollView,
   Dimensions,
 } from 'react-native';
+import { VictoryChart, VictoryLine, VictoryArea, VictoryAxis, VictoryScatter, VictoryTooltip } from 'victory-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Minus,
-  BarChart3,
-  Calendar,
-  Target,
-  Award,
-} from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
+import { TrendingUp, TrendingDown, Minus, BarChart3, Target, Calendar } from 'lucide-react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
+const chartWidth = screenWidth - (DesignTokens.spacing[5] * 2);
 
-export interface ExerciseDataPoint {
+interface ExerciseProgressData {
   date: string;
   weight: number;
   reps: number;
-  volume: number; // weight * reps
-  oneRepMax?: number;
+  volume: number;
   sets: number;
 }
 
-export interface ExerciseProgressChartProps {
+interface ExerciseProgressChartProps {
   exerciseName: string;
-  data: ExerciseDataPoint[];
-  timeRange: '1W' | '1M' | '3M' | '6M' | '1Y';
-  onTimeRangeChange: (range: '1W' | '1M' | '3M' | '6M' | '1Y') => void;
-  metric: 'weight' | 'volume' | 'oneRepMax';
-  onMetricChange: (metric: 'weight' | 'volume' | 'oneRepMax') => void;
-  showPersonalRecords?: boolean;
+  data: ExerciseProgressData[];
+  metric: 'weight' | 'reps' | 'volume' | 'sets';
+  timeframe: 'week' | 'month' | 'year';
+  onMetricChange?: (metric: 'weight' | 'reps' | 'volume' | 'sets') => void;
+  onTimeframeChange?: (timeframe: 'week' | 'month' | 'year') => void;
 }
 
-export const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
+export function ExerciseProgressChart({
   exerciseName,
   data,
-  timeRange,
-  onTimeRangeChange,
   metric,
+  timeframe,
   onMetricChange,
-  showPersonalRecords = true,
-}) => {
-  const chartWidth = screenWidth - (DesignTokens.spacing[5] * 2);
-  const chartHeight = 200;
+  onTimeframeChange,
+}: ExerciseProgressChartProps) {
+  const [selectedPoint, setSelectedPoint] = useState<ExerciseProgressData | null>(null);
 
-  // Calculate chart data and statistics
-  const chartData = useMemo(() => {
-    if (data.length === 0) return { points: [], stats: null };
+  if (data.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>{exerciseName} Progress</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <BarChart3 size={48} color={DesignTokens.colors.text.tertiary} />
+          <Text style={styles.emptyStateText}>No progress data available</Text>
+          <Text style={styles.emptyStateSubtext}>
+            Complete workouts with {exerciseName} to see your progress
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
-    const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // Prepare chart data
+  const chartData = data.map((point, index) => ({
+    x: index + 1,
+    y: point[metric],
+    label: getMetricLabel(point[metric], metric),
+    date: point.date,
+    originalData: point,
+  }));
+
+  // Calculate trend
+  const calculateTrend = () => {
+    if (chartData.length < 2) return { trend: 'stable', change: 0 };
     
-    // Get values based on selected metric
-    const values = sortedData.map(point => {
-      switch (metric) {
-        case 'weight':
-          return point.weight;
-        case 'volume':
-          return point.volume;
-        case 'oneRepMax':
-          return point.oneRepMax || 0;
-        default:
-          return point.weight;
-      }
-    });
-
-    const minValue = Math.min(...values);
-    const maxValue = Math.max(...values);
-    const range = maxValue - minValue || 1;
-
-    // Calculate chart points
-    const points = sortedData.map((point, index) => {
-      const value = values[index];
-      const x = (index / (sortedData.length - 1)) * chartWidth;
-      const y = chartHeight - ((value - minValue) / range) * chartHeight;
-      
-      return {
-        x,
-        y,
-        value,
-        date: point.date,
-        isPersonalRecord: value === maxValue,
-      };
-    });
-
-    // Calculate statistics
-    const firstValue = values[0];
-    const lastValue = values[values.length - 1];
-    const change = lastValue - firstValue;
-    const changePercentage = firstValue !== 0 ? (change / firstValue) * 100 : 0;
-    const trend = change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
-
-    const stats = {
-      current: lastValue,
-      change,
-      changePercentage,
-      trend,
-      min: minValue,
-      max: maxValue,
-      average: values.reduce((sum, val) => sum + val, 0) / values.length,
-      personalRecords: sortedData.filter(point => values[sortedData.indexOf(point)] === maxValue).length,
-    };
-
-    return { points, stats };
-  }, [data, metric, chartWidth, chartHeight]);
-
-  const getMetricLabel = () => {
-    switch (metric) {
-      case 'weight':
-        return 'Max Weight (kg)';
-      case 'volume':
-        return 'Total Volume (kg)';
-      case 'oneRepMax':
-        return '1RM Estimate (kg)';
-      default:
-        return 'Weight (kg)';
-    }
+    const recent = chartData.slice(-3);
+    const previous = chartData.slice(-6, -3);
+    
+    if (previous.length === 0) return { trend: 'stable', change: 0 };
+    
+    const recentAvg = recent.reduce((sum, p) => sum + p.y, 0) / recent.length;
+    const previousAvg = previous.reduce((sum, p) => sum + p.y, 0) / previous.length;
+    
+    const change = previousAvg !== 0 ? ((recentAvg - previousAvg) / previousAvg) * 100 : 0;
+    
+    let trend: 'up' | 'down' | 'stable' = 'stable';
+    if (change > 5) trend = 'up';
+    else if (change < -5) trend = 'down';
+    
+    return { trend, change };
   };
 
-  const getMetricUnit = () => {
-    switch (metric) {
-      case 'weight':
-      case 'oneRepMax':
-        return 'kg';
-      case 'volume':
-        return 'kg';
-      default:
-        return 'kg';
-    }
-  };
+  const trendData = calculateTrend();
 
-  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
-    switch (trend) {
+  const getTrendIcon = () => {
+    switch (trendData.trend) {
       case 'up':
         return <TrendingUp size={16} color={DesignTokens.colors.success[500]} />;
       case 'down':
@@ -153,8 +102,8 @@ export const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
     }
   };
 
-  const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
-    switch (trend) {
+  const getTrendColor = () => {
+    switch (trendData.trend) {
       case 'up':
         return DesignTokens.colors.success[500];
       case 'down':
@@ -164,445 +113,411 @@ export const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
-
-  const createSVGPath = (points: typeof chartData.points) => {
-    if (points.length === 0) return '';
-    
-    let path = `M ${points[0].x} ${points[0].y}`;
-    
-    for (let i = 1; i < points.length; i++) {
-      const prevPoint = points[i - 1];
-      const currentPoint = points[i];
-      
-      // Create smooth curve using quadratic bezier
-      const cpx = (prevPoint.x + currentPoint.x) / 2;
-      const cpy = (prevPoint.y + currentPoint.y) / 2;
-      
-      path += ` Q ${cpx} ${prevPoint.y} ${currentPoint.x} ${currentPoint.y}`;
+  const getMetricColor = () => {
+    switch (metric) {
+      case 'weight':
+        return DesignTokens.colors.primary[500];
+      case 'reps':
+        return DesignTokens.colors.success[500];
+      case 'volume':
+        return DesignTokens.colors.warning[500];
+      case 'sets':
+        return DesignTokens.colors.info[500];
+      default:
+        return DesignTokens.colors.primary[500];
     }
-    
-    return path;
   };
 
-  if (data.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{exerciseName} Progress</Text>
-          <BarChart3 size={20} color={DesignTokens.colors.primary[500]} />
-        </View>
-        
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>No data available</Text>
-          <Text style={styles.emptyStateSubtext}>
-            Complete some workouts to see your progress
-          </Text>
-        </View>
-      </View>
-    );
+  function getMetricLabel(value: number, metricType: string): string {
+    switch (metricType) {
+      case 'weight':
+        return `${value}kg`;
+      case 'reps':
+        return `${value}`;
+      case 'volume':
+        return `${value}kg`;
+      case 'sets':
+        return `${value}`;
+      default:
+        return `${value}`;
+    }
   }
 
+  const MetricButton = ({ metricType, label }: { metricType: 'weight' | 'reps' | 'volume' | 'sets'; label: string }) => (
+    <TouchableOpacity
+      style={[
+        styles.metricButton,
+        metric === metricType && styles.metricButtonActive
+      ]}
+      onPress={() => onMetricChange?.(metricType)}
+    >
+      <Text style={[
+        styles.metricButtonText,
+        metric === metricType && styles.metricButtonTextActive
+      ]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const TimeframeButton = ({ timeframeType, label }: { timeframeType: 'week' | 'month' | 'year'; label: string }) => (
+    <TouchableOpacity
+      style={[
+        styles.timeframeButton,
+        timeframe === timeframeType && styles.timeframeButtonActive
+      ]}
+      onPress={() => onTimeframeChange?.(timeframeType)}
+    >
+      <Text style={[
+        styles.timeframeButtonText,
+        timeframe === timeframeType && styles.timeframeButtonTextActive
+      ]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.titleContainer}>
           <Text style={styles.title}>{exerciseName}</Text>
-          <Text style={styles.subtitle}>{getMetricLabel()}</Text>
+          <Text style={styles.subtitle}>Progress Tracking</Text>
         </View>
-        <BarChart3 size={20} color={DesignTokens.colors.primary[500]} />
+        
+        <View style={styles.trendContainer}>
+          <View style={styles.trendIndicator}>
+            {getTrendIcon()}
+            <Text style={[styles.trendValue, { color: getTrendColor() }]}>
+              {trendData.change > 0 ? '+' : ''}{trendData.change.toFixed(1)}%
+            </Text>
+          </View>
+          <Text style={styles.trendLabel}>vs previous period</Text>
+        </View>
       </View>
 
-      {/* Statistics */}
-      {chartData.stats && (
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {chartData.stats.current.toFixed(1)} {getMetricUnit()}
-            </Text>
-            <Text style={styles.statLabel}>Current</Text>
-          </View>
-          
-          <View style={styles.statItem}>
-            <View style={styles.trendContainer}>
-              {getTrendIcon(chartData.stats.trend)}
-              <Text style={[styles.statValue, { color: getTrendColor(chartData.stats.trend) }]}>
-                {chartData.stats.changePercentage > 0 ? '+' : ''}{chartData.stats.changePercentage.toFixed(1)}%
-              </Text>
+      {/* Controls */}
+      <View style={styles.controlsContainer}>
+        <View style={styles.controlGroup}>
+          <Text style={styles.controlLabel}>Metric</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.metricContainer}>
+              <MetricButton metricType="weight" label="Weight" />
+              <MetricButton metricType="reps" label="Reps" />
+              <MetricButton metricType="volume" label="Volume" />
+              <MetricButton metricType="sets" label="Sets" />
             </View>
-            <Text style={styles.statLabel}>Change</Text>
-          </View>
-          
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {chartData.stats.max.toFixed(1)} {getMetricUnit()}
-            </Text>
-            <Text style={styles.statLabel}>Best</Text>
-          </View>
-          
-          {showPersonalRecords && (
-            <View style={styles.statItem}>
-              <View style={styles.prContainer}>
-                <Award size={14} color="#FFD700" />
-                <Text style={styles.statValue}>{chartData.stats.personalRecords}</Text>
-              </View>
-              <Text style={styles.statLabel}>PRs</Text>
-            </View>
-          )}
+          </ScrollView>
         </View>
-      )}
 
-      {/* Time Range Selector */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.timeRangeContainer}
-      >
-        {(['1W', '1M', '3M', '6M', '1Y'] as const).map((range) => (
-          <TouchableOpacity
-            key={range}
-            style={[
-              styles.timeRangeButton,
-              timeRange === range && styles.activeTimeRangeButton,
-            ]}
-            onPress={() => onTimeRangeChange(range)}
-          >
-            <Text
-              style={[
-                styles.timeRangeText,
-                timeRange === range && styles.activeTimeRangeText,
-              ]}
-            >
-              {range}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Metric Selector */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.metricContainer}
-      >
-        {(['weight', 'volume', 'oneRepMax'] as const).map((metricOption) => (
-          <TouchableOpacity
-            key={metricOption}
-            style={[
-              styles.metricButton,
-              metric === metricOption && styles.activeMetricButton,
-            ]}
-            onPress={() => onMetricChange(metricOption)}
-          >
-            <Text
-              style={[
-                styles.metricText,
-                metric === metricOption && styles.activeMetricText,
-              ]}
-            >
-              {metricOption === 'weight' ? 'Weight' : 
-               metricOption === 'volume' ? 'Volume' : '1RM'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        <View style={styles.controlGroup}>
+          <Text style={styles.controlLabel}>Timeframe</Text>
+          <View style={styles.timeframeContainer}>
+            <TimeframeButton timeframeType="week" label="Week" />
+            <TimeframeButton timeframeType="month" label="Month" />
+            <TimeframeButton timeframeType="year" label="Year" />
+          </View>
+        </View>
+      </View>
 
       {/* Chart */}
       <View style={styles.chartContainer}>
-        <LinearGradient colors={['#1F2937', '#111827']} style={styles.chartGradient}>
-          {/* SVG would go here in a real implementation */}
-          <View style={styles.chartPlaceholder}>
-            {chartData.points.map((point, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dataPoint,
-                  {
-                    left: point.x - 4,
-                    top: point.y - 4,
-                  },
-                  point.isPersonalRecord && styles.prDataPoint,
-                ]}
-              />
-            ))}
-            
-            {/* Connect points with lines */}
-            {chartData.points.map((point, index) => {
-              if (index === 0) return null;
-              const prevPoint = chartData.points[index - 1];
-              
-              return (
-                <View
-                  key={`line-${index}`}
-                  style={[
-                    styles.connectionLine,
-                    {
-                      left: prevPoint.x,
-                      top: prevPoint.y,
-                      width: Math.sqrt(
-                        Math.pow(point.x - prevPoint.x, 2) + 
-                        Math.pow(point.y - prevPoint.y, 2)
-                      ),
-                      transform: [
-                        {
-                          rotate: `${Math.atan2(
-                            point.y - prevPoint.y,
-                            point.x - prevPoint.x
-                          )}rad`,
-                        },
-                      ],
-                    },
-                  ]}
-                />
-              );
-            })}
-          </View>
+        <VictoryChart
+          width={chartWidth}
+          height={200}
+          padding={{ left: 60, top: 20, right: 40, bottom: 40 }}
+        >
+          <VictoryAxis dependentAxis tickFormat={(t) => getMetricLabel(t, metric)} />
+          <VictoryAxis tickFormat={() => ''} />
           
-          {/* Y-axis labels */}
-          <View style={styles.yAxisLabels}>
-            <Text style={styles.axisLabel}>
-              {chartData.stats?.max.toFixed(0)}
-            </Text>
-            <Text style={styles.axisLabel}>
-              {chartData.stats?.min.toFixed(0)}
-            </Text>
-          </View>
-        </LinearGradient>
+          <VictoryArea
+            data={chartData}
+            style={{
+              data: { 
+                fill: getMetricColor(), 
+                fillOpacity: 0.2,
+                stroke: getMetricColor(),
+                strokeWidth: 3,
+              },
+            }}
+            animate={{
+              duration: 1000,
+              onLoad: { duration: 500 }
+            }}
+          />
+          
+          <VictoryScatter
+            data={chartData}
+            style={{ data: { fill: getMetricColor() } }}
+            size={5}
+            labelComponent={<VictoryTooltip />}
+            events={[{
+              target: "data",
+              eventHandlers: {
+                onPress: () => {
+                  return [{
+                    target: "data",
+                    mutation: (props) => {
+                      const point = chartData[props.index];
+                      setSelectedPoint(point.originalData);
+                      return null;
+                    }
+                  }];
+                }
+              }
+            }]}
+          />
+        </VictoryChart>
       </View>
 
-      {/* Recent Data Points */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.recentDataContainer}
-      >
-        {data.slice(-5).map((point, index) => (
-          <View key={index} style={styles.recentDataPoint}>
-            <Text style={styles.recentDataValue}>
-              {point[metric as keyof ExerciseDataPoint] || 0} {getMetricUnit()}
+      {/* Selected Point Info */}
+      {selectedPoint && (
+        <View style={styles.selectedPointContainer}>
+          <View style={styles.selectedPointHeader}>
+            <Text style={styles.selectedPointDate}>
+              {new Date(selectedPoint.date).toLocaleDateString()}
             </Text>
-            <Text style={styles.recentDataDate}>
-              {formatDate(point.date)}
-            </Text>
+            <TouchableOpacity onPress={() => setSelectedPoint(null)}>
+              <Text style={styles.closeButton}>×</Text>
+            </TouchableOpacity>
           </View>
-        ))}
-      </ScrollView>
-    </View>
+          
+          <View style={styles.selectedPointStats}>
+            <View style={styles.selectedPointStat}>
+              <Text style={styles.selectedPointStatLabel}>Weight</Text>
+              <Text style={styles.selectedPointStatValue}>{selectedPoint.weight}kg</Text>
+            </View>
+            <View style={styles.selectedPointStat}>
+              <Text style={styles.selectedPointStatLabel}>Reps</Text>
+              <Text style={styles.selectedPointStatValue}>{selectedPoint.reps}</Text>
+            </View>
+            <View style={styles.selectedPointStat}>
+              <Text style={styles.selectedPointStatLabel}>Volume</Text>
+              <Text style={styles.selectedPointStatValue}>{selectedPoint.volume}kg</Text>
+            </View>
+            <View style={styles.selectedPointStat}>
+              <Text style={styles.selectedPointStatLabel}>Sets</Text>
+              <Text style={styles.selectedPointStatValue}>{selectedPoint.sets}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Summary Stats */}
+      <View style={styles.summaryContainer}>
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryCard}>
+            <Target size={20} color={DesignTokens.colors.primary[500]} />
+            <Text style={styles.summaryValue}>
+              {Math.max(...data.map(d => d[metric]))}
+            </Text>
+            <Text style={styles.summaryLabel}>Best {metric}</Text>
+          </View>
+          
+          <View style={styles.summaryCard}>
+            <Calendar size={20} color={DesignTokens.colors.success[500]} />
+            <Text style={styles.summaryValue}>{data.length}</Text>
+            <Text style={styles.summaryLabel}>Sessions</Text>
+          </View>
+          
+          <View style={styles.summaryCard}>
+            <BarChart3 size={20} color={DesignTokens.colors.warning[500]} />
+            <Text style={styles.summaryValue}>
+              {(data.reduce((sum, d) => sum + d[metric], 0) / data.length).toFixed(1)}
+            </Text>
+            <Text style={styles.summaryLabel}>Average</Text>
+          </View>
+        </View>
+      </View>
+    </LinearGradient>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    borderRadius: DesignTokens.borderRadius.xl,
-    padding: DesignTokens.spacing[5],
-    ...DesignTokens.shadow.md,
+    borderRadius: DesignTokens.borderRadius.lg,
+    marginHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[4],
+    overflow: 'hidden',
+    ...DesignTokens.shadow.base,
   },
-
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: DesignTokens.spacing[4],
+    alignItems: 'flex-start',
+    padding: DesignTokens.spacing[4],
+    paddingBottom: DesignTokens.spacing[2],
   },
-
+  titleContainer: {
+    flex: 1,
+  },
   title: {
     fontSize: DesignTokens.typography.fontSize.lg,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
   },
-
   subtitle: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
-    marginTop: DesignTokens.spacing[1],
   },
-
-  statsContainer: {
+  trendContainer: {
+    alignItems: 'flex-end',
+  },
+  trendIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+    marginBottom: DesignTokens.spacing[1],
+  },
+  trendValue: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  trendLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.tertiary,
+  },
+  controlsContainer: {
+    paddingHorizontal: DesignTokens.spacing[4],
+    paddingBottom: DesignTokens.spacing[2],
+  },
+  controlGroup: {
+    marginBottom: DesignTokens.spacing[3],
+  },
+  controlLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[2],
+  },
+  metricContainer: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[2],
+    paddingRight: DesignTokens.spacing[4],
+  },
+  metricButton: {
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+  },
+  metricButtonActive: {
+    backgroundColor: DesignTokens.colors.primary[500],
+  },
+  metricButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  metricButtonTextActive: {
+    color: DesignTokens.colors.text.primary,
+  },
+  timeframeContainer: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[2],
+  },
+  timeframeButton: {
+    paddingHorizontal: DesignTokens.spacing[4],
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+  },
+  timeframeButtonActive: {
+    backgroundColor: DesignTokens.colors.primary[500],
+  },
+  timeframeButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  timeframeButtonTextActive: {
+    color: DesignTokens.colors.text.primary,
+  },
+  chartContainer: {
+    alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[2],
+  },
+  selectedPointContainer: {
+    margin: DesignTokens.spacing[4],
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[3],
+  },
+  selectedPointHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: DesignTokens.spacing[4],
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[2],
   },
-
-  statItem: {
+  selectedPointDate: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+  },
+  closeButton: {
+    fontSize: 24,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  selectedPointStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  selectedPointStat: {
     alignItems: 'center',
   },
-
-  statValue: {
+  selectedPointStatLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  selectedPointStatValue: {
     fontSize: DesignTokens.typography.fontSize.base,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
   },
-
-  statLabel: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-    marginTop: DesignTokens.spacing[1],
+  summaryContainer: {
+    padding: DesignTokens.spacing[4],
+    paddingTop: DesignTokens.spacing[2],
   },
-
-  trendContainer: {
+  summaryGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
-  },
-
-  prContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
-  },
-
-  timeRangeContainer: {
-    marginBottom: DesignTokens.spacing[3],
-  },
-
-  timeRangeButton: {
-    backgroundColor: DesignTokens.colors.surface.tertiary,
-    paddingHorizontal: DesignTokens.spacing[3],
-    paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
-    marginRight: DesignTokens.spacing[2],
-  },
-
-  activeTimeRangeButton: {
-    backgroundColor: DesignTokens.colors.primary[500],
-  },
-
-  timeRangeText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-
-  activeTimeRangeText: {
-    color: '#FFFFFF',
-  },
-
-  metricContainer: {
-    marginBottom: DesignTokens.spacing[4],
-  },
-
-  metricButton: {
-    backgroundColor: DesignTokens.colors.surface.tertiary,
-    paddingHorizontal: DesignTokens.spacing[4],
-    paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
-    marginRight: DesignTokens.spacing[2],
-  },
-
-  activeMetricButton: {
-    backgroundColor: DesignTokens.colors.primary[500],
-  },
-
-  metricText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-
-  activeMetricText: {
-    color: '#FFFFFF',
-  },
-
-  chartContainer: {
-    height: 200,
-    marginBottom: DesignTokens.spacing[4],
-    borderRadius: DesignTokens.borderRadius.lg,
-    overflow: 'hidden',
-  },
-
-  chartGradient: {
-    flex: 1,
-    position: 'relative',
-  },
-
-  chartPlaceholder: {
-    flex: 1,
-    position: 'relative',
-  },
-
-  dataPoint: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: DesignTokens.colors.primary[500],
-  },
-
-  prDataPoint: {
-    backgroundColor: '#FFD700',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-
-  connectionLine: {
-    position: 'absolute',
-    height: 2,
-    backgroundColor: DesignTokens.colors.primary[500],
-    transformOrigin: '0 50%',
-  },
-
-  yAxisLabels: {
-    position: 'absolute',
-    left: DesignTokens.spacing[2],
-    top: DesignTokens.spacing[2],
-    bottom: DesignTokens.spacing[2],
     justifyContent: 'space-between',
   },
-
-  axisLabel: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-  },
-
-  recentDataContainer: {
-    marginTop: DesignTokens.spacing[2],
-  },
-
-  recentDataPoint: {
-    backgroundColor: DesignTokens.colors.surface.tertiary,
-    paddingHorizontal: DesignTokens.spacing[3],
-    paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
-    marginRight: DesignTokens.spacing[2],
+  summaryCard: {
     alignItems: 'center',
+    flex: 1,
   },
-
-  recentDataValue: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  summaryValue: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[1],
+    marginBottom: DesignTokens.spacing[1],
   },
-
-  recentDataDate: {
+  summaryLabel: {
     fontSize: DesignTokens.typography.fontSize.xs,
     color: DesignTokens.colors.text.secondary,
-    marginTop: DesignTokens.spacing[1],
+    textAlign: 'center',
   },
-
   emptyState: {
     alignItems: 'center',
-    paddingVertical: DesignTokens.spacing[8],
+    paddingVertical: DesignTokens.spacing[12],
+    paddingHorizontal: DesignTokens.spacing[5],
   },
-
   emptyStateText: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    marginTop: DesignTokens.spacing[3],
     marginBottom: DesignTokens.spacing[2],
   },
-
   emptyStateSubtext: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
     textAlign: 'center',
+    lineHeight: 20,
   },
 });

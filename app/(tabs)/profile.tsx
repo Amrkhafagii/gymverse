@@ -51,13 +51,22 @@ import { AchievementBadge } from '@/components/ui/AchievementBadge';
 import { SettingsGroup } from '@/components/ui/SettingsGroup';
 import { Button } from '@/components/ui/Button';
 import { SocialStatsCard } from '@/components/social/SocialStatsCard';
+import { SocialProfileCard } from '@/components/social/SocialProfileCard';
+import { SocialAnalyticsDashboard } from '@/components/social/SocialAnalyticsDashboard';
 import { useSocial } from '@/contexts/SocialContext';
 import { usePostComments } from '@/hooks/usePostComments';
 import * as Haptics from 'expo-haptics';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { currentUser, posts, getUserPosts, getUserStats } = useSocial();
+  const { 
+    currentUser, 
+    posts, 
+    getUserPosts, 
+    getUserStats,
+    updateProfile,
+    myPosts,
+  } = useSocial();
   const { getPostComments } = usePostComments();
   
   const [refreshing, setRefreshing] = useState(false);
@@ -71,18 +80,18 @@ export default function ProfileScreen() {
   const userStats = getUserStats(currentUser?.id || '');
 
   // Calculate social metrics
-  const totalLikes = userPosts.reduce((sum, post) => sum + post.likes.length, 0);
+  const totalLikes = userPosts.reduce((sum, post) => sum + post.likes, 0);
   const totalComments = userPosts.reduce((sum, post) => {
     const comments = getPostComments(post.id);
     return sum + comments.length;
   }, 0);
-  const totalShares = userPosts.reduce((sum, post) => sum + post.shares.length, 0);
+  const totalShares = userPosts.reduce((sum, post) => sum + post.shares, 0);
   const totalViews = userPosts.reduce((sum, post) => sum + (post.views || 0), 0);
 
   // Mock user data (enhanced with social features)
   const userData = {
     id: currentUser?.id || '1',
-    name: currentUser?.name || 'Alex Johnson',
+    name: currentUser?.displayName || 'Alex Johnson',
     username: currentUser?.username || '@alexfitness',
     email: currentUser?.email || 'alex@example.com',
     joinDate: 'January 2024',
@@ -92,6 +101,7 @@ export default function ProfileScreen() {
     level: 25,
     xp: 12847,
     xpToNext: 2153,
+    bio: currentUser?.bio || 'Fitness enthusiast on a journey to better health',
     stats: {
       workoutsCompleted: 247,
       totalMinutes: 8420,
@@ -417,106 +427,62 @@ export default function ProfileScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {/* Profile Header */}
-          <View style={styles.profileHeader}>
-            <LinearGradient
-              colors={['#1a1a1a', '#2a2a2a']}
-              style={styles.profileCard}
-            >
-              {/* Cover Image */}
-              <View style={styles.coverContainer}>
-                <Image source={{ uri: userData.coverImage }} style={styles.coverImage} />
-                <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.6)']}
-                  style={styles.coverOverlay}
-                />
-              </View>
-
-              {/* Profile Info */}
-              <View style={styles.profileInfo}>
-                <View style={styles.avatarContainer}>
-                  <Image source={{ uri: userData.avatar }} style={styles.avatar} />
-                  <TouchableOpacity style={styles.cameraButton}>
-                    <Camera size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                  <View style={styles.levelBadge}>
-                    <Text style={styles.levelText}>{userData.level}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.userInfo}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name}>{userData.name}</Text>
-                    {userData.isVerified && (
-                      <View style={styles.verifiedBadge}>
-                        <Text style={styles.verifiedIcon}>✓</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.username}>{userData.username}</Text>
-                  <Text style={styles.joinDate}>Member since {userData.joinDate}</Text>
-                </View>
-
-                <View style={styles.profileActions}>
-                  <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-                    <Edit3 size={20} color={DesignTokens.colors.primary[500]} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.shareButton} onPress={handleShareProfile}>
-                    <Share2 size={20} color={DesignTokens.colors.text.secondary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* XP Progress */}
-              <View style={styles.xpContainer}>
-                <View style={styles.xpHeader}>
-                  <Text style={styles.xpLabel}>Level {userData.level}</Text>
-                  <Text style={styles.xpText}>
-                    {userData.xp.toLocaleString()} XP
-                  </Text>
-                </View>
-                <View style={styles.xpBar}>
-                  <View 
-                    style={[
-                      styles.xpFill,
-                      { width: `${(userData.xp / (userData.xp + userData.xpToNext)) * 100}%` }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.xpNext}>
-                  {userData.xpToNext.toLocaleString()} XP to level {userData.level + 1}
-                </Text>
-              </View>
-
-              {/* Social Stats */}
-              <View style={styles.socialStats}>
-                <TouchableOpacity style={styles.socialStat} onPress={() => router.push('/my-posts')}>
-                  <Text style={styles.socialStatValue}>{userData.stats.posts}</Text>
-                  <Text style={styles.socialStatLabel}>Posts</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialStat} onPress={() => router.push('/social-connections')}>
-                  <Text style={styles.socialStatValue}>{userData.stats.followers.toLocaleString()}</Text>
-                  <Text style={styles.socialStatLabel}>Followers</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialStat} onPress={() => router.push('/social-connections')}>
-                  <Text style={styles.socialStatValue}>{userData.stats.following}</Text>
-                  <Text style={styles.socialStatLabel}>Following</Text>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
+          {/* Enhanced Social Profile Card */}
+          <View style={styles.profileSection}>
+            <SocialProfileCard
+              user={{
+                id: userData.id,
+                username: userData.username,
+                displayName: userData.name,
+                avatar: userData.avatar,
+                bio: userData.bio,
+                isFollowing: false,
+                isFollower: false,
+                stats: {
+                  posts: userData.stats.posts,
+                  followers: userData.stats.followers,
+                  following: userData.stats.following,
+                  workouts: userData.stats.workoutsCompleted,
+                  achievements: userData.stats.achievements,
+                },
+                joinDate: userData.joinDate,
+                lastActive: new Date().toISOString(),
+              }}
+              isCurrentUser={true}
+              onEdit={handleEditProfile}
+              onShare={handleShareProfile}
+              variant="full"
+            />
           </View>
 
-          {/* Social Analytics */}
+          {/* Social Analytics Dashboard */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Social Activity</Text>
+              <Text style={styles.sectionTitle}>Social Analytics</Text>
               <TouchableOpacity onPress={() => router.push('/social-analytics')}>
                 <Text style={styles.sectionAction}>View Details</Text>
               </TouchableOpacity>
             </View>
             
+            <SocialAnalyticsDashboard
+              userId={userData.id}
+              timeframe="week"
+              showComparison={true}
+              variant="compact"
+            />
+          </View>
+
+          {/* Enhanced Social Stats */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your Social Impact</Text>
+              <TouchableOpacity onPress={() => router.push('/social-analytics')}>
+                <Text style={styles.sectionAction}>View Trends</Text>
+              </TouchableOpacity>
+            </View>
+            
             <SocialStatsCard
-              title="Your Social Impact"
+              title="Community Engagement"
               stats={{
                 posts: userData.socialStats.posts,
                 likes: userData.socialStats.likes,
@@ -706,194 +672,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 120,
   },
-  profileHeader: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingTop: DesignTokens.spacing[4],
+  profileSection: {
     marginBottom: DesignTokens.spacing[6],
-  },
-  profileCard: {
-    borderRadius: DesignTokens.borderRadius.xl,
-    overflow: 'hidden',
-    ...DesignTokens.shadow.lg,
-  },
-  coverContainer: {
-    height: 120,
-    position: 'relative',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  coverOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-  },
-  profileInfo: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: DesignTokens.spacing[5],
-    paddingTop: DesignTokens.spacing[3],
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: DesignTokens.spacing[4],
-    marginTop: -30,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 4,
-    borderColor: DesignTokens.colors.surface.secondary,
-  },
-  cameraButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: DesignTokens.colors.primary[500],
-    borderRadius: 16,
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: DesignTokens.colors.surface.secondary,
-  },
-  levelBadge: {
-    position: 'absolute',
-    top: -8,
-    left: -8,
-    backgroundColor: DesignTokens.colors.primary[500],
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: DesignTokens.colors.surface.secondary,
-  },
-  levelText: {
-    fontSize: 10,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: DesignTokens.spacing[1],
-  },
-  name: {
-    fontSize: DesignTokens.typography.fontSize['2xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginRight: DesignTokens.spacing[2],
-  },
-  verifiedBadge: {
-    backgroundColor: DesignTokens.colors.primary[500],
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  verifiedIcon: {
-    fontSize: 12,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  username: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.primary[500],
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    marginBottom: DesignTokens.spacing[1],
-  },
-  joinDate: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-  },
-  profileActions: {
-    flexDirection: 'row',
-    gap: DesignTokens.spacing[2],
-  },
-  editButton: {
-    backgroundColor: `${DesignTokens.colors.primary[500]}20`,
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shareButton: {
-    backgroundColor: DesignTokens.colors.surface.tertiary,
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  xpContainer: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingBottom: DesignTokens.spacing[4],
-    borderBottomWidth: 1,
-    borderBottomColor: DesignTokens.colors.neutral[800],
-  },
-  xpHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: DesignTokens.spacing[2],
-  },
-  xpLabel: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-  },
-  xpText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.primary[500],
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  xpBar: {
-    height: 8,
-    backgroundColor: DesignTokens.colors.neutral[800],
-    borderRadius: 4,
-    marginBottom: DesignTokens.spacing[2],
-  },
-  xpFill: {
-    height: '100%',
-    backgroundColor: DesignTokens.colors.primary[500],
-    borderRadius: 4,
-  },
-  xpNext: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
-  },
-  socialStats: {
-    flexDirection: 'row',
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingVertical: DesignTokens.spacing[4],
-  },
-  socialStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  socialStatValue: {
-    fontSize: DesignTokens.typography.fontSize.xl,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
-  },
-  socialStatLabel: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
   },
   section: {
     marginBottom: DesignTokens.spacing[6],

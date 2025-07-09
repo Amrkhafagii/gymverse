@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,26 +7,41 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { 
+import {
+  Calendar,
   Clock,
+  Flame,
   Target,
-  Dumbbell,
   MoreVertical,
   Share2,
   Trash2,
-  Calendar,
+  Eye,
+  Trophy,
   TrendingUp,
-  Award,
 } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-import { WorkoutSession } from '@/contexts/WorkoutSessionContext';
+import * as Haptics from 'expo-haptics';
 
 interface WorkoutHistoryCardProps {
-  workout: WorkoutSession;
-  onPress: () => void;
-  onDelete: () => void;
-  onShare: () => void;
-  showActions?: boolean;
+  workout: {
+    id: string;
+    name: string;
+    created_at: string;
+    duration_minutes: number;
+    calories_burned?: number;
+    exercises?: Array<{
+      id: string;
+      exercise_name: string;
+      sets?: Array<{
+        actual_weight_kg?: number;
+        actual_reps?: number;
+      }>;
+    }>;
+    notes?: string;
+  };
+  onPress?: () => void;
+  onDelete?: () => void;
+  onShare?: () => void;
 }
 
 export function WorkoutHistoryCard({
@@ -34,19 +49,37 @@ export function WorkoutHistoryCard({
   onPress,
   onDelete,
   onShare,
-  showActions = true,
 }: WorkoutHistoryCardProps) {
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
+  const [showActions, setShowActions] = useState(false);
 
-  const formatDate = (dateString: string): string => {
+  // Calculate workout stats
+  const stats = React.useMemo(() => {
+    let totalSets = 0;
+    let totalReps = 0;
+    let totalVolume = 0;
+    let maxWeight = 0;
+
+    workout.exercises?.forEach(exercise => {
+      exercise.sets?.forEach(set => {
+        totalSets++;
+        totalReps += set.actual_reps || 0;
+        const weight = set.actual_weight_kg || 0;
+        const reps = set.actual_reps || 0;
+        totalVolume += weight * reps;
+        maxWeight = Math.max(maxWeight, weight);
+      });
+    });
+
+    return {
+      totalSets,
+      totalReps,
+      totalVolume,
+      maxWeight,
+      exerciseCount: workout.exercises?.length || 0,
+    };
+  }, [workout]);
+
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
@@ -56,326 +89,303 @@ export function WorkoutHistoryCard({
     if (diffDays === 2) return 'Yesterday';
     if (diffDays <= 7) return `${diffDays - 1} days ago`;
     
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     });
   };
 
-  const calculateTotalVolume = (): number => {
-    return workout.exercises.reduce((total, exercise) => {
-      return total + exercise.sets
-        .filter(set => set.is_completed)
-        .reduce((setTotal, set) => {
-          return setTotal + ((set.actual_weight_kg || 0) * (set.actual_reps || 0));
-        }, 0);
-    }, 0);
-  };
-
-  const getTotalSets = (): number => {
-    return workout.exercises.reduce((total, exercise) => {
-      return total + exercise.sets.filter(set => set.is_completed).length;
-    }, 0);
-  };
-
-  const getTotalReps = (): number => {
-    return workout.exercises.reduce((total, exercise) => {
-      return total + exercise.sets
-        .filter(set => set.is_completed)
-        .reduce((setTotal, set) => setTotal + (set.actual_reps || 0), 0);
-    }, 0);
-  };
-
-  const getWorkoutIntensity = (): 'low' | 'medium' | 'high' => {
-    const totalSets = getTotalSets();
-    const duration = workout.total_duration_seconds / 60; // in minutes
-    const volume = calculateTotalVolume();
-
-    // Simple intensity calculation based on sets per minute and volume
-    const setsPerMinute = totalSets / duration;
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
     
-    if (setsPerMinute > 0.5 && volume > 5000) return 'high';
-    if (setsPerMinute > 0.3 && volume > 2000) return 'medium';
-    return 'low';
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
   };
 
-  const getIntensityColor = (intensity: 'low' | 'medium' | 'high'): string => {
-    switch (intensity) {
-      case 'high': return DesignTokens.colors.error[500];
-      case 'medium': return DesignTokens.colors.warning[500];
-      case 'low': return DesignTokens.colors.success[500];
+  const handleMorePress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowActions(!showActions);
+  };
+
+  const handleActionPress = async (action: 'view' | 'share' | 'delete') => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowActions(false);
+
+    switch (action) {
+      case 'view':
+        onPress?.();
+        break;
+      case 'share':
+        onShare?.();
+        break;
+      case 'delete':
+        Alert.alert(
+          'Delete Workout',
+          'Are you sure you want to delete this workout? This action cannot be undone.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Delete', 
+              style: 'destructive',
+              onPress: onDelete
+            },
+          ]
+        );
+        break;
     }
   };
 
-  const handleMorePress = () => {
-    Alert.alert(
-      'Workout Actions',
-      `Actions for "${workout.workout_name}"`,
-      [
-        { text: 'Share', onPress: onShare },
-        { text: 'Delete', onPress: onDelete, style: 'destructive' },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+  const getWorkoutTypeColor = () => {
+    const exerciseNames = workout.exercises?.map(e => e.exercise_name.toLowerCase()) || [];
+    
+    if (exerciseNames.some(name => name.includes('squat') || name.includes('deadlift') || name.includes('bench'))) {
+      return '#FF6B35'; // Strength - Orange
+    }
+    if (exerciseNames.some(name => name.includes('run') || name.includes('bike') || name.includes('cardio'))) {
+      return '#00D4AA'; // Cardio - Green
+    }
+    if (exerciseNames.some(name => name.includes('yoga') || name.includes('stretch') || name.includes('mobility'))) {
+      return '#9E7FFF'; // Flexibility - Purple
+    }
+    
+    return '#4ECDC4'; // General - Teal
   };
 
-  const totalVolume = calculateTotalVolume();
-  const totalSets = getTotalSets();
-  const totalReps = getTotalReps();
-  const intensity = getWorkoutIntensity();
-  const hasPersonalRecords = workout.exercises.some(exercise => 
-    exercise.sets.some(set => set.is_personal_record)
-  );
-
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
+    <View style={styles.container}>
       <LinearGradient
         colors={['#1a1a1a', '#2a2a2a']}
-        style={styles.gradient}
+        style={styles.card}
       >
-        <View style={styles.content}>
+        <TouchableOpacity
+          style={styles.cardContent}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <Text style={styles.workoutName}>{workout.workout_name}</Text>
-              <View style={styles.dateContainer}>
-                <Calendar size={14} color={DesignTokens.colors.text.secondary} />
-                <Text style={styles.date}>
-                  {formatDate(workout.completed_at || workout.started_at)}
-                </Text>
+              <View style={[styles.workoutTypeIndicator, { backgroundColor: getWorkoutTypeColor() }]} />
+              <View>
+                <Text style={styles.workoutName}>{workout.name}</Text>
+                <Text style={styles.workoutDate}>{formatDate(workout.created_at)}</Text>
               </View>
             </View>
+            
+            <TouchableOpacity
+              style={styles.moreButton}
+              onPress={handleMorePress}
+            >
+              <MoreVertical size={20} color={DesignTokens.colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
 
-            <View style={styles.headerRight}>
-              {hasPersonalRecords && (
-                <View style={styles.prBadge}>
-                  <Award size={12} color="#F59E0B" />
-                  <Text style={styles.prText}>PR</Text>
+          {/* Stats Grid */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Clock size={16} color="#4ECDC4" />
+              <Text style={styles.statValue}>{formatDuration(workout.duration_minutes)}</Text>
+              <Text style={styles.statLabel}>Duration</Text>
+            </View>
+
+            <View style={styles.statItem}>
+              <Target size={16} color="#9E7FFF" />
+              <Text style={styles.statValue}>{stats.exerciseCount}</Text>
+              <Text style={styles.statLabel}>Exercises</Text>
+            </View>
+
+            <View style={styles.statItem}>
+              <TrendingUp size={16} color="#FF6B35" />
+              <Text style={styles.statValue}>{stats.totalSets}</Text>
+              <Text style={styles.statLabel}>Sets</Text>
+            </View>
+
+            {workout.calories_burned && (
+              <View style={styles.statItem}>
+                <Flame size={16} color="#E74C3C" />
+                <Text style={styles.statValue}>{workout.calories_burned}</Text>
+                <Text style={styles.statLabel}>Calories</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Volume and Weight Info */}
+          {stats.totalVolume > 0 && (
+            <View style={styles.volumeInfo}>
+              <View style={styles.volumeItem}>
+                <Trophy size={14} color="#FFD700" />
+                <Text style={styles.volumeText}>
+                  {(stats.totalVolume / 1000).toFixed(1)}k kg total volume
+                </Text>
+              </View>
+              {stats.maxWeight > 0 && (
+                <View style={styles.volumeItem}>
+                  <Target size={14} color="#00D4AA" />
+                  <Text style={styles.volumeText}>
+                    {stats.maxWeight}kg max weight
+                  </Text>
                 </View>
               )}
-              
-              <View style={[styles.intensityBadge, { backgroundColor: `${getIntensityColor(intensity)}20` }]}>
-                <Text style={[styles.intensityText, { color: getIntensityColor(intensity) }]}>
-                  {intensity.toUpperCase()}
-                </Text>
-              </View>
-
-              {showActions && (
-                <TouchableOpacity style={styles.moreButton} onPress={handleMorePress}>
-                  <MoreVertical size={16} color={DesignTokens.colors.text.secondary} />
-                </TouchableOpacity>
-              )}
             </View>
-          </View>
+          )}
 
-          {/* Stats */}
-          <View style={styles.stats}>
-            <View style={styles.statItem}>
-              <View style={styles.statIcon}>
-                <Clock size={16} color="#4ECDC4" />
-              </View>
-              <View style={styles.statInfo}>
-                <Text style={styles.statValue}>{formatDuration(workout.total_duration_seconds)}</Text>
-                <Text style={styles.statLabel}>Duration</Text>
-              </View>
-            </View>
-
-            <View style={styles.statItem}>
-              <View style={styles.statIcon}>
-                <Target size={16} color="#9E7FFF" />
-              </View>
-              <View style={styles.statInfo}>
-                <Text style={styles.statValue}>{totalSets}</Text>
-                <Text style={styles.statLabel}>Sets</Text>
-              </View>
-            </View>
-
-            <View style={styles.statItem}>
-              <View style={styles.statIcon}>
-                <Dumbbell size={16} color="#FF6B35" />
-              </View>
-              <View style={styles.statInfo}>
-                <Text style={styles.statValue}>
-                  {totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : Math.round(totalVolume)}
-                </Text>
-                <Text style={styles.statLabel}>Volume (kg)</Text>
-              </View>
-            </View>
-
-            <View style={styles.statItem}>
-              <View style={styles.statIcon}>
-                <TrendingUp size={16} color="#10B981" />
-              </View>
-              <View style={styles.statInfo}>
-                <Text style={styles.statValue}>{totalReps}</Text>
-                <Text style={styles.statLabel}>Reps</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Exercises Preview */}
-          <View style={styles.exercisesPreview}>
-            <Text style={styles.exercisesTitle}>
-              {workout.exercises.length} exercise{workout.exercises.length !== 1 ? 's' : ''}
-            </Text>
-            <View style={styles.exercisesList}>
-              {workout.exercises.slice(0, 3).map((exercise, index) => (
-                <Text key={index} style={styles.exerciseName}>
-                  {exercise.exercise_name}
-                  {index < Math.min(workout.exercises.length, 3) - 1 ? ' • ' : ''}
-                </Text>
-              ))}
-              {workout.exercises.length > 3 && (
-                <Text style={styles.exerciseName}>
-                  {' '}+{workout.exercises.length - 3} more
-                </Text>
-              )}
-            </View>
-          </View>
-
-          {/* Progress Indicators */}
+          {/* Notes Preview */}
           {workout.notes && (
             <View style={styles.notesContainer}>
-              <Text style={styles.notes} numberOfLines={2}>
-                "{workout.notes}"
+              <Text style={styles.notesText} numberOfLines={2}>
+                {workout.notes}
               </Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
+
+        {/* Action Menu */}
+        {showActions && (
+          <View style={styles.actionsMenu}>
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => handleActionPress('view')}
+            >
+              <Eye size={18} color={DesignTokens.colors.text.primary} />
+              <Text style={styles.actionText}>View Details</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => handleActionPress('share')}
+            >
+              <Share2 size={18} color={DesignTokens.colors.text.primary} />
+              <Text style={styles.actionText}>Share Workout</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionItem, styles.destructiveAction]}
+              onPress={() => handleActionPress('delete')}
+            >
+              <Trash2 size={18} color={DesignTokens.colors.error[500]} />
+              <Text style={[styles.actionText, styles.destructiveText]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </LinearGradient>
-    </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     marginBottom: DesignTokens.spacing[3],
+  },
+  card: {
     borderRadius: DesignTokens.borderRadius.lg,
     overflow: 'hidden',
     ...DesignTokens.shadow.base,
   },
-  gradient: {
+  cardContent: {
     padding: DesignTokens.spacing[4],
-  },
-  content: {
-    gap: DesignTokens.spacing[3],
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[4],
   },
   headerLeft: {
-    flex: 1,
-  },
-  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: DesignTokens.spacing[2],
+    flex: 1,
+  },
+  workoutTypeIndicator: {
+    width: 4,
+    height: 40,
+    borderRadius: 2,
+    marginRight: DesignTokens.spacing[3],
   },
   workoutName: {
     fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
     fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
     marginBottom: DesignTokens.spacing[1],
   },
-  dateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
-  },
-  date: {
+  workoutDate: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
   },
-  prBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
-    backgroundColor: '#F59E0B20',
-    paddingHorizontal: DesignTokens.spacing[2],
-    paddingVertical: DesignTokens.spacing[1],
-    borderRadius: DesignTokens.borderRadius.full,
-  },
-  prText: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: '#F59E0B',
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  intensityBadge: {
-    paddingHorizontal: DesignTokens.spacing[2],
-    paddingVertical: DesignTokens.spacing[1],
-    borderRadius: DesignTokens.borderRadius.full,
-  },
-  intensityText: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
   moreButton: {
-    padding: DesignTokens.spacing[1],
+    padding: DesignTokens.spacing[2],
+    marginTop: -DesignTokens.spacing[2],
+    marginRight: -DesignTokens.spacing[2],
   },
-  stats: {
+  statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: DesignTokens.spacing[2],
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: DesignTokens.colors.neutral[800],
+    marginBottom: DesignTokens.spacing[4],
   },
   statItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: DesignTokens.spacing[2],
-    flex: 1,
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statInfo: {
     flex: 1,
   },
   statValue: {
     fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.primary,
     fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[1],
+    marginBottom: DesignTokens.spacing[1],
   },
   statLabel: {
     fontSize: DesignTokens.typography.fontSize.xs,
     color: DesignTokens.colors.text.secondary,
   },
-  exercisesPreview: {
-    gap: DesignTokens.spacing[1],
+  volumeInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: DesignTokens.spacing[3],
   },
-  exercisesTitle: {
+  volumeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+  },
+  volumeText: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  exercisesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  exerciseName: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.primary,
   },
   notesContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: DesignTokens.spacing[3],
+    backgroundColor: DesignTokens.colors.surface.secondary,
     borderRadius: DesignTokens.borderRadius.md,
-    borderLeftWidth: 3,
-    borderLeftColor: DesignTokens.colors.primary[500],
+    padding: DesignTokens.spacing[3],
+    marginTop: DesignTokens.spacing[2],
   },
-  notes: {
+  notesText: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
-    fontStyle: 'italic',
     lineHeight: 18,
+  },
+  actionsMenu: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[800],
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: DesignTokens.spacing[4],
+    gap: DesignTokens.spacing[3],
+  },
+  actionText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  destructiveAction: {
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[800],
+  },
+  destructiveText: {
+    color: DesignTokens.colors.error[500],
   },
 });
