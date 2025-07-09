@@ -1,8 +1,3 @@
-/**
- * Production-ready ProgressBar component with context integration
- * Integrates with achievement and workout systems for dynamic progress tracking
- */
-
 import React, { useEffect, useRef } from 'react';
 import {
   View,
@@ -10,296 +5,521 @@ import {
   StyleSheet,
   Animated,
   ViewStyle,
+  TextStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { DesignTokens } from '@/design-system/tokens';
-import { useAchievements } from '@/contexts/AchievementContext';
-import { useOfflineSync } from '@/hooks/useOfflineSync';
 
-export interface ProgressBarProps {
+interface ProgressBarProps {
   progress: number; // 0-100
   height?: number;
+  width?: number | string;
+  backgroundColor?: string;
+  color?: string;
+  borderRadius?: number;
+  animated?: boolean;
+  duration?: number;
+  showPercentage?: boolean;
   showLabel?: boolean;
   label?: string;
-  variant?: 'default' | 'gradient' | 'success' | 'warning' | 'error';
-  animated?: boolean;
+  labelPosition?: 'top' | 'bottom' | 'inside' | 'overlay';
+  gradient?: boolean;
+  gradientColors?: string[];
+  gradientDirection?: 'horizontal' | 'vertical';
+  striped?: boolean;
+  glowEffect?: boolean;
+  pulseAnimation?: boolean;
+  segments?: number;
+  segmentGap?: number;
   style?: ViewStyle;
-  achievementId?: string;
-  syncStatus?: 'synced' | 'pending' | 'failed' | 'offline';
+  containerStyle?: ViewStyle;
+  labelStyle?: TextStyle;
+  textColor?: string;
+  fontSize?: number;
+  fontWeight?: 'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
+  min?: number;
+  max?: number;
+  value?: number;
+  formatValue?: (value: number) => string;
+  showMinMax?: boolean;
+  trackStyle?: ViewStyle;
+  fillStyle?: ViewStyle;
+  children?: React.ReactNode;
 }
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({
+export function ProgressBar({
   progress,
   height = 8,
+  width = '100%',
+  backgroundColor = DesignTokens.colors.neutral[200],
+  color = DesignTokens.colors.primary[500],
+  borderRadius,
+  animated = true,
+  duration = 1000,
+  showPercentage = false,
   showLabel = false,
   label,
-  variant = 'default',
-  animated = true,
+  labelPosition = 'top',
+  gradient = false,
+  gradientColors = [DesignTokens.colors.primary[400], DesignTokens.colors.primary[600]],
+  gradientDirection = 'horizontal',
+  striped = false,
+  glowEffect = false,
+  pulseAnimation = false,
+  segments,
+  segmentGap = 2,
   style,
-  achievementId,
-  syncStatus,
-}) => {
-  const { getAchievementProgress } = useAchievements();
-  const { isOnline } = useOfflineSync();
+  containerStyle,
+  labelStyle,
+  textColor = DesignTokens.colors.text.primary,
+  fontSize = 12,
+  fontWeight = '500',
+  min = 0,
+  max = 100,
+  value,
+  formatValue,
+  showMinMax = false,
+  trackStyle,
+  fillStyle,
+  children,
+}: ProgressBarProps) {
   const animatedWidth = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseValue = useRef(new Animated.Value(1)).current;
 
-  // Get achievement progress if achievementId is provided
-  const achievementProgress = achievementId ? getAchievementProgress(achievementId) : null;
-  const currentProgress = achievementProgress?.progress ?? progress;
-  const displayLabel = label || achievementProgress?.title || `${Math.round(currentProgress)}%`;
+  const actualProgress = value !== undefined ? ((value - min) / (max - min)) * 100 : progress;
+  const clampedProgress = Math.max(0, Math.min(100, actualProgress));
+
+  const calculatedBorderRadius = borderRadius !== undefined ? borderRadius : height / 2;
 
   useEffect(() => {
     if (animated) {
       Animated.timing(animatedWidth, {
-        toValue: currentProgress,
-        duration: 800,
+        toValue: clampedProgress,
+        duration,
         useNativeDriver: false,
       }).start();
     } else {
-      animatedWidth.setValue(currentProgress);
+      animatedWidth.setValue(clampedProgress);
     }
-  }, [currentProgress, animated]);
+  }, [clampedProgress, animated, duration]);
 
   useEffect(() => {
-    if (currentProgress >= 100) {
-      // Pulse animation for completed progress
-      Animated.loop(
+    if (pulseAnimation) {
+      const pulse = () => {
         Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.1,
-            duration: 600,
+          Animated.timing(pulseValue, {
+            toValue: 1.05,
+            duration: 800,
             useNativeDriver: true,
           }),
-          Animated.timing(pulseAnim, {
+          Animated.timing(pulseValue, {
             toValue: 1,
-            duration: 600,
+            duration: 800,
             useNativeDriver: true,
           }),
-        ])
-      ).start();
+        ]).start(() => pulse());
+      };
+      pulse();
     }
-  }, [currentProgress]);
+  }, [pulseAnimation]);
 
-  const getProgressColor = () => {
-    switch (variant) {
-      case 'success':
-        return DesignTokens.colors.success[500];
-      case 'warning':
-        return DesignTokens.colors.warning[500];
-      case 'error':
-        return DesignTokens.colors.error[500];
-      case 'gradient':
-        return null; // Will use gradient
-      default:
-        return DesignTokens.colors.primary[500];
-    }
+  const animatedWidthStyle = {
+    width: animatedWidth.interpolate({
+      inputRange: [0, 100],
+      outputRange: ['0%', '100%'],
+    }),
   };
 
-  const getBackgroundColor = () => {
-    if (!isOnline) return DesignTokens.colors.surface.secondary;
-    return DesignTokens.colors.surface.tertiary;
-  };
+  const renderLabel = () => {
+    if (!showLabel && !showPercentage && !children) return null;
 
-  const containerStyles = [
-    styles.container,
-    !isOnline && styles.offline,
-    syncStatus && styles[`sync_${syncStatus}`],
-    style,
-  ];
+    const displayText = children || (
+      <View style={styles.labelContainer}>
+        {showLabel && label && (
+          <Text style={[styles.labelText, { color: textColor, fontSize, fontWeight }, labelStyle]}>
+            {label}
+          </Text>
+        )}
+        {showPercentage && (
+          <Text style={[styles.percentageText, { color: textColor, fontSize, fontWeight }, labelStyle]}>
+            {formatValue ? formatValue(value || clampedProgress) : `${Math.round(clampedProgress)}%`}
+          </Text>
+        )}
+      </View>
+    );
 
-  const trackStyles = [
-    styles.track,
-    {
-      height,
-      backgroundColor: getBackgroundColor(),
-    },
-  ];
-
-  const progressStyles = [
-    styles.progress,
-    {
-      height,
-      backgroundColor: variant !== 'gradient' ? getProgressColor() : 'transparent',
-    },
-  ];
-
-  const animatedProgressWidth = animatedWidth.interpolate({
-    inputRange: [0, 100],
-    outputRange: ['0%', '100%'],
-    extrapolate: 'clamp',
-  });
-
-  const renderProgressFill = () => {
-    if (variant === 'gradient') {
-      return (
-        <Animated.View style={[progressStyles, { width: animatedProgressWidth }]}>
-          <LinearGradient
-            colors={
-              currentProgress >= 100
-                ? ['#10B981', '#059669'] // Success gradient for completion
-                : ['#9E7FFF', '#7C3AED']
-            }
-            style={styles.gradientFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          />
-        </Animated.View>
-      );
+    if (labelPosition === 'inside' || labelPosition === 'overlay') {
+      return null; // Rendered inside the progress bar
     }
 
     return (
-      <Animated.View style={[progressStyles, { width: animatedProgressWidth }]} />
+      <View style={[
+        styles.labelWrapper,
+        labelPosition === 'bottom' && styles.labelBottom,
+      ]}>
+        {displayText}
+      </View>
+    );
+  };
+
+  const renderMinMaxLabels = () => {
+    if (!showMinMax) return null;
+
+    return (
+      <View style={styles.minMaxContainer}>
+        <Text style={[styles.minMaxText, { color: textColor, fontSize: fontSize * 0.8 }]}>
+          {formatValue ? formatValue(min) : min}
+        </Text>
+        <Text style={[styles.minMaxText, { color: textColor, fontSize: fontSize * 0.8 }]}>
+          {formatValue ? formatValue(max) : max}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderSegmentedBar = () => {
+    if (!segments) return null;
+
+    const segmentWidth = 100 / segments;
+    const segmentElements = [];
+
+    for (let i = 0; i < segments; i++) {
+      const segmentProgress = Math.max(0, Math.min(segmentWidth, clampedProgress - i * segmentWidth));
+      const isActive = segmentProgress > 0;
+
+      segmentElements.push(
+        <View
+          key={i}
+          style={[
+            styles.segment,
+            {
+              width: `${segmentWidth}%`,
+              height,
+              backgroundColor: isActive ? color : backgroundColor,
+              marginRight: i < segments - 1 ? segmentGap : 0,
+              borderRadius: calculatedBorderRadius,
+            },
+          ]}
+        />
+      );
+    }
+
+    return <View style={styles.segmentContainer}>{segmentElements}</View>;
+  };
+
+  const renderProgressFill = () => {
+    if (segments) return null;
+
+    const fillComponent = gradient ? (
+      <LinearGradient
+        colors={gradientColors}
+        start={gradientDirection === 'horizontal' ? { x: 0, y: 0 } : { x: 0, y: 0 }}
+        end={gradientDirection === 'horizontal' ? { x: 1, y: 0 } : { x: 0, y: 1 }}
+        style={[
+          styles.progressFill,
+          {
+            height,
+            borderRadius: calculatedBorderRadius,
+          },
+          fillStyle,
+        ]}
+      />
+    ) : (
+      <View
+        style={[
+          styles.progressFill,
+          {
+            height,
+            backgroundColor: color,
+            borderRadius: calculatedBorderRadius,
+          },
+          striped && styles.stripedFill,
+          fillStyle,
+        ]}
+      />
+    );
+
+    return (
+      <Animated.View style={[animatedWidthStyle, styles.fillContainer]}>
+        {fillComponent}
+        {glowEffect && (
+          <View
+            style={[
+              styles.glowEffect,
+              {
+                height: height + 4,
+                backgroundColor: color,
+                borderRadius: calculatedBorderRadius,
+                shadowColor: color,
+              },
+            ]}
+          />
+        )}
+      </Animated.View>
+    );
+  };
+
+  const renderInsideLabel = () => {
+    if (labelPosition !== 'inside' && labelPosition !== 'overlay') return null;
+
+    const displayText = children || (
+      <View style={styles.insideLabelContainer}>
+        {showLabel && label && (
+          <Text style={[
+            styles.insideLabelText,
+            {
+              color: labelPosition === 'overlay' ? textColor : '#FFFFFF',
+              fontSize: fontSize * 0.9,
+              fontWeight,
+            },
+            labelStyle,
+          ]}>
+            {label}
+          </Text>
+        )}
+        {showPercentage && (
+          <Text style={[
+            styles.insidePercentageText,
+            {
+              color: labelPosition === 'overlay' ? textColor : '#FFFFFF',
+              fontSize: fontSize * 0.9,
+              fontWeight,
+            },
+            labelStyle,
+          ]}>
+            {formatValue ? formatValue(value || clampedProgress) : `${Math.round(clampedProgress)}%`}
+          </Text>
+        )}
+      </View>
+    );
+
+    return (
+      <View style={[
+        styles.insideLabelWrapper,
+        {
+          height,
+          paddingHorizontal: 8,
+        },
+        labelPosition === 'overlay' && styles.overlayLabel,
+      ]}>
+        {displayText}
+      </View>
     );
   };
 
   return (
-    <Animated.View style={[containerStyles, { transform: [{ scale: pulseAnim }] }]}>
-      {showLabel && (
-        <View style={styles.labelContainer}>
-          <Text style={styles.label}>{displayLabel}</Text>
-          <Text style={styles.percentage}>{Math.round(currentProgress)}%</Text>
+    <Animated.View
+      style={[
+        styles.container,
+        { transform: [{ scale: pulseValue }] },
+        containerStyle,
+      ]}
+    >
+      {renderLabel()}
+      
+      <View style={[styles.progressContainer, { width }, style]}>
+        <View
+          style={[
+            styles.progressTrack,
+            {
+              height,
+              backgroundColor,
+              borderRadius: calculatedBorderRadius,
+            },
+            trackStyle,
+          ]}
+        >
+          {renderSegmentedBar()}
+          {renderProgressFill()}
+          {renderInsideLabel()}
         </View>
-      )}
-      
-      <View style={trackStyles}>
-        {renderProgressFill()}
-        
-        {syncStatus && (
-          <View style={[styles.syncIndicator, styles[`syncIndicator_${syncStatus}`]]} />
-        )}
-        
-        {achievementProgress?.isCompleted && (
-          <View style={styles.completionIndicator}>
-            <Text style={styles.completionText}>✓</Text>
-          </View>
-        )}
       </View>
-      
-      {achievementProgress && (
-        <Text style={styles.achievementDescription}>
-          {achievementProgress.description}
-        </Text>
-      )}
+
+      {renderMinMaxLabels()}
     </Animated.View>
   );
-};
+}
+
+// Preset variants for common use cases
+export function ProgressBarThin(props: Partial<ProgressBarProps>) {
+  return <ProgressBar height={4} {...props} />;
+}
+
+export function ProgressBarThick(props: Partial<ProgressBarProps>) {
+  return <ProgressBar height={16} {...props} />;
+}
+
+export function ProgressBarGradient(props: Partial<ProgressBarProps>) {
+  return (
+    <ProgressBar
+      gradient={true}
+      glowEffect={true}
+      gradientColors={[DesignTokens.colors.primary[400], DesignTokens.colors.primary[600]]}
+      {...props}
+    />
+  );
+}
+
+export function ProgressBarSegmented(props: Partial<ProgressBarProps>) {
+  return (
+    <ProgressBar
+      segments={10}
+      segmentGap={2}
+      height={12}
+      {...props}
+    />
+  );
+}
+
+export function ProgressBarWithLabel(props: Partial<ProgressBarProps>) {
+  return (
+    <ProgressBar
+      showLabel={true}
+      showPercentage={true}
+      labelPosition="top"
+      height={12}
+      {...props}
+    />
+  );
+}
+
+export function ProgressBarMinimal(props: Partial<ProgressBarProps>) {
+  return (
+    <ProgressBar
+      height={2}
+      backgroundColor="transparent"
+      borderRadius={0}
+      {...props}
+    />
+  );
+}
+
+export function ProgressBarSuccess(props: Partial<ProgressBarProps>) {
+  return (
+    <ProgressBar
+      color={DesignTokens.colors.success[500]}
+      gradient={true}
+      gradientColors={[DesignTokens.colors.success[400], DesignTokens.colors.success[600]]}
+      {...props}
+    />
+  );
+}
+
+export function ProgressBarWarning(props: Partial<ProgressBarProps>) {
+  return (
+    <ProgressBar
+      color={DesignTokens.colors.warning[500]}
+      gradient={true}
+      gradientColors={[DesignTokens.colors.warning[400], DesignTokens.colors.warning[600]]}
+      {...props}
+    />
+  );
+}
+
+export function ProgressBarError(props: Partial<ProgressBarProps>) {
+  return (
+    <ProgressBar
+      color={DesignTokens.colors.error[500]}
+      gradient={true}
+      gradientColors={[DesignTokens.colors.error[400], DesignTokens.colors.error[600]]}
+      {...props}
+    />
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
     width: '100%',
   },
-  
-  // States
-  offline: {
-    opacity: 0.7,
+  progressContainer: {
+    position: 'relative',
   },
-  
-  // Sync status
-  sync_synced: {
-    borderLeftWidth: 2,
-    borderLeftColor: DesignTokens.colors.success[500],
-    paddingLeft: DesignTokens.spacing[2],
+  progressTrack: {
+    overflow: 'hidden',
+    position: 'relative',
   },
-  sync_pending: {
-    borderLeftWidth: 2,
-    borderLeftColor: DesignTokens.colors.warning[500],
-    paddingLeft: DesignTokens.spacing[2],
+  fillContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
   },
-  sync_failed: {
-    borderLeftWidth: 2,
-    borderLeftColor: DesignTokens.colors.error[500],
-    paddingLeft: DesignTokens.spacing[2],
+  progressFill: {
+    flex: 1,
   },
-  sync_offline: {
-    borderLeftWidth: 2,
-    borderLeftColor: DesignTokens.colors.text.secondary,
-    paddingLeft: DesignTokens.spacing[2],
+  stripedFill: {
+    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px)',
   },
-  
+  glowEffect: {
+    position: 'absolute',
+    top: -2,
+    left: 0,
+    right: 0,
+    opacity: 0.3,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  segmentContainer: {
+    flexDirection: 'row',
+    height: '100%',
+    alignItems: 'center',
+  },
+  segment: {
+    borderRadius: 2,
+  },
+  labelWrapper: {
+    marginBottom: 4,
+  },
+  labelBottom: {
+    marginBottom: 0,
+    marginTop: 4,
+  },
   labelContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: DesignTokens.spacing[2],
   },
-  
-  label: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-    color: DesignTokens.colors.text.primary,
+  labelText: {
     flex: 1,
   },
-  
-  percentage: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    color: DesignTokens.colors.text.secondary,
+  percentageText: {
+    textAlign: 'right',
   },
-  
-  track: {
-    borderRadius: DesignTokens.borderRadius.full,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  
-  progress: {
-    borderRadius: DesignTokens.borderRadius.full,
+  insideLabelWrapper: {
     position: 'absolute',
-    left: 0,
     top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
   },
-  
-  gradientFill: {
-    flex: 1,
-    borderRadius: DesignTokens.borderRadius.full,
+  overlayLabel: {
+    backgroundColor: 'transparent',
   },
-  
-  syncIndicator: {
-    position: 'absolute',
-    right: 2,
-    top: '50%',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    transform: [{ translateY: -2 }],
-  },
-  
-  syncIndicator_synced: {
-    backgroundColor: DesignTokens.colors.success[500],
-  },
-  syncIndicator_pending: {
-    backgroundColor: DesignTokens.colors.warning[500],
-  },
-  syncIndicator_failed: {
-    backgroundColor: DesignTokens.colors.error[500],
-  },
-  syncIndicator_offline: {
-    backgroundColor: DesignTokens.colors.text.secondary,
-  },
-  
-  completionIndicator: {
-    position: 'absolute',
-    right: 4,
-    top: '50%',
-    transform: [{ translateY: -8 }],
-    backgroundColor: DesignTokens.colors.success[500],
-    borderRadius: 8,
-    width: 16,
-    height: 16,
+  insideLabelContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
-  completionText: {
-    color: 'white',
+  insideLabelText: {
+    marginRight: 4,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
-  
-  achievementDescription: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-    marginTop: DesignTokens.spacing[1],
+  insidePercentageText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  minMaxContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  minMaxText: {
+    opacity: 0.7,
   },
 });

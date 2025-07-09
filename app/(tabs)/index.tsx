@@ -1,6 +1,6 @@
 /**
- * Enhanced Home Screen with Challenge System Integration
- * Chunk 5: Bringing challenge visibility and quick actions to home screen
+ * Enhanced Home Screen with AI Integration
+ * Chunk 10: Adding AI-powered insights and smart recommendations
  */
 
 import React, { useState, useEffect } from 'react';
@@ -32,6 +32,9 @@ import {
   Plus,
   Fire,
   CheckCircle,
+  Brain,
+  Sparkles,
+  Lightbulb,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 
@@ -46,7 +49,13 @@ import { useStreakTracking } from '@/contexts/StreakContext';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useAnalytics } from '@/hooks/useAnalytics';
 
-// Challenge System Components - Now Featured on Home
+// AI Integration - NEW
+import { useSmartInsights } from '@/hooks/useSmartInsights';
+import { useAIWorkoutSuggestions } from '@/hooks/useAIWorkoutSuggestions';
+import { SmartInsightsCard } from '@/components/ai/SmartInsightsCard';
+import { AIWorkoutSuggestions } from '@/components/ai/AIWorkoutSuggestions';
+
+// Challenge System Components
 import { ChallengeCard } from '@/components/challenges/ChallengeCard';
 import { ChallengeProgress } from '@/components/challenges/ChallengeProgress';
 
@@ -69,6 +78,7 @@ export default function HomeScreen() {
   const [showAllAchievements, setShowAllAchievements] = useState(false);
   const [showAllChallenges, setShowAllChallenges] = useState(false);
   const [recentUnlocks, setRecentUnlocks] = useState<any[]>([]);
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
 
   // Context Integration
   const { 
@@ -105,6 +115,23 @@ export default function HomeScreen() {
   
   const { isOnline, syncStatus } = useOfflineSync();
   const { getWeeklyStats, getTrendData } = useAnalytics('week');
+
+  // AI Integration - NEW
+  const { 
+    insights, 
+    dismissInsight, 
+    getHighPriorityInsights,
+    getActionableInsights,
+    insightStats 
+  } = useSmartInsights();
+
+  const {
+    suggestions,
+    isGenerating,
+    confidence,
+    generateSuggestions,
+    refreshSuggestions,
+  } = useAIWorkoutSuggestions();
 
   // Challenge System Data - Mock for now, would come from ChallengeContext
   const [activeChallenges] = useState([
@@ -201,6 +228,11 @@ export default function HomeScreen() {
     .filter(c => c.isParticipating)
     .reduce((sum, c) => sum + (c.progress / c.target), 0) / Math.max(activeChallengeCount, 1) * 100;
 
+  // AI-specific data
+  const highPriorityInsights = getHighPriorityInsights();
+  const actionableInsights = getActionableInsights();
+  const aiConfidence = Math.round((confidence + (insightStats.averageConfidence / 100)) / 2 * 100);
+
   // Data Processing
   const weeklyStats = getWeeklyStats();
   const workoutStats = getWorkoutStats();
@@ -220,6 +252,13 @@ export default function HomeScreen() {
     checkUnlocks();
   }, [workoutStats, currentStreak, totalWorkouts]);
 
+  // Generate AI suggestions on mount
+  useEffect(() => {
+    if (totalWorkouts > 0 && suggestions.length === 0) {
+      generateSuggestions();
+    }
+  }, [totalWorkouts]);
+
   // Refresh Handler
   const onRefresh = async () => {
     if (!isOnline) return;
@@ -230,6 +269,7 @@ export default function HomeScreen() {
         refreshHistory(),
         refreshAchievements(),
         refreshStreak(),
+        refreshSuggestions(),
       ]);
     } catch (error) {
       console.error('Refresh failed:', error);
@@ -274,6 +314,50 @@ export default function HomeScreen() {
 
   const handleCreateChallenge = () => {
     router.push('/social?tab=challenges&action=create');
+  };
+
+  // AI Handlers - NEW
+  const handleInsightAction = (insight: any) => {
+    switch (insight.action?.type) {
+      case 'workout':
+        if (insight.action.data?.focusMuscles) {
+          // Start targeted workout
+          startQuickWorkout();
+        } else {
+          router.push('/workouts');
+        }
+        break;
+      case 'exercise':
+        router.push('/exercises');
+        break;
+      case 'rest':
+        router.push('/recovery');
+        break;
+      default:
+        router.push('/progress');
+    }
+  };
+
+  const handleWorkoutSelect = (workoutId: string) => {
+    // Handle AI workout suggestion selection
+    Alert.alert(
+      'Start AI Workout',
+      'Ready to start this AI-recommended workout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Start Workout', 
+          onPress: () => {
+            startQuickWorkout();
+            Alert.alert('Success', 'AI workout started! Follow the recommendations for best results.');
+          }
+        },
+      ]
+    );
+  };
+
+  const handleCreateCustom = () => {
+    router.push('/workouts/create');
   };
 
   // Quick Action Handlers
@@ -327,21 +411,21 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header with Dual Progress */}
+        {/* Header with Triple Progress Rings */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Text style={styles.greeting}>Good {getTimeOfDay()}</Text>
-            <Text style={styles.subtitle}>Ready to crush your goals?</Text>
+            <Text style={styles.subtitle}>AI-powered fitness insights ready</Text>
           </View>
           
-          {/* Dual Progress Rings */}
+          {/* Triple Progress Rings */}
           <View style={styles.progressRings}>
             {/* Achievement Progress Ring */}
             <TouchableOpacity onPress={handleViewAllAchievements} style={styles.progressRing}>
               <View style={styles.ringContent}>
-                <Trophy size={16} color={DesignTokens.colors.warning[500]} />
+                <Trophy size={14} color={DesignTokens.colors.warning[500]} />
                 <Text style={styles.ringValue}>{unlockedCount}</Text>
-                <Text style={styles.ringLabel}>Achievements</Text>
+                <Text style={styles.ringLabel}>Goals</Text>
               </View>
               <View style={[styles.progressCircle, { 
                 transform: [{ rotate: `${(achievementProgress * 3.6)}deg` }],
@@ -353,7 +437,7 @@ export default function HomeScreen() {
             {/* Challenge Progress Ring */}
             <TouchableOpacity onPress={handleViewAllChallenges} style={styles.progressRing}>
               <View style={styles.ringContent}>
-                <Target size={16} color={DesignTokens.colors.primary[500]} />
+                <Target size={14} color={DesignTokens.colors.primary[500]} />
                 <Text style={styles.ringValue}>{activeChallengeCount}</Text>
                 <Text style={styles.ringLabel}>Challenges</Text>
               </View>
@@ -361,6 +445,20 @@ export default function HomeScreen() {
                 transform: [{ rotate: `${(challengeProgress * 3.6)}deg` }],
                 borderTopColor: DesignTokens.colors.primary[500],
                 borderRightColor: DesignTokens.colors.primary[500],
+              }]} />
+            </TouchableOpacity>
+
+            {/* AI Confidence Ring - NEW */}
+            <TouchableOpacity onPress={() => setShowAISuggestions(!showAISuggestions)} style={styles.progressRing}>
+              <View style={styles.ringContent}>
+                <Brain size={14} color={DesignTokens.colors.success[500]} />
+                <Text style={styles.ringValue}>{aiConfidence}</Text>
+                <Text style={styles.ringLabel}>AI</Text>
+              </View>
+              <View style={[styles.progressCircle, { 
+                transform: [{ rotate: `${(aiConfidence * 3.6)}deg` }],
+                borderTopColor: DesignTokens.colors.success[500],
+                borderRightColor: DesignTokens.colors.success[500],
               }]} />
             </TouchableOpacity>
           </View>
@@ -377,6 +475,49 @@ export default function HomeScreen() {
               <ChevronRight size={20} color="#FFFFFF" />
             </LinearGradient>
           </TouchableOpacity>
+        )}
+
+        {/* AI INSIGHTS SECTION - NEW */}
+        {highPriorityInsights.length > 0 && (
+          <View style={styles.aiInsightsSection}>
+            <SmartInsightsCard
+              insights={insights}
+              onInsightAction={handleInsightAction}
+              onDismissInsight={dismissInsight}
+              maxVisible={3}
+              showHeader={true}
+            />
+          </View>
+        )}
+
+        {/* AI WORKOUT SUGGESTIONS - NEW */}
+        {(showAISuggestions || suggestions.length > 0) && (
+          <View style={styles.aiSuggestionsSection}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <Brain size={20} color={DesignTokens.colors.success[500]} />
+                <Text style={styles.sectionTitle}>AI Recommendations</Text>
+                <View style={styles.confidenceBadge}>
+                  <Sparkles size={12} color="#FFD700" />
+                  <Text style={styles.confidenceBadgeText}>{aiConfidence}%</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setShowAISuggestions(!showAISuggestions)}>
+                <Text style={styles.viewAllText}>
+                  {showAISuggestions ? 'Hide' : 'Show'} AI
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {showAISuggestions && (
+              <AIWorkoutSuggestions
+                onWorkoutSelect={handleWorkoutSelect}
+                onCreateCustom={handleCreateCustom}
+                maxSuggestions={2}
+                showRefresh={true}
+              />
+            )}
+          </View>
         )}
 
         {/* FEATURED: Active Challenges Section */}
@@ -473,87 +614,18 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* FEATURED: Challenge Discovery Section */}
-        <View style={styles.challengeDiscoverySection}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <Star size={20} color={DesignTokens.colors.warning[500]} />
-              <Text style={styles.sectionTitle}>Featured Challenges</Text>
-            </View>
-            <TouchableOpacity onPress={handleViewAllChallenges}>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.challengeScroll}>
-            {featuredChallenges.map((challenge) => (
-              <View key={challenge.id} style={styles.featuredChallengeContainer}>
-                <LinearGradient 
-                  colors={challenge.trending ? ['#FF6B35', '#F7931E'] : ['#667EEA', '#764BA2']}
-                  style={styles.featuredChallengeGradient}
-                >
-                  {challenge.trending && (
-                    <View style={styles.trendingBadge}>
-                      <TrendingUp size={12} color="#FFFFFF" />
-                      <Text style={styles.trendingText}>TRENDING</Text>
-                    </View>
-                  )}
-                  
-                  <View style={styles.featuredChallengeContent}>
-                    <Text style={styles.featuredChallengeTitle}>{challenge.title}</Text>
-                    <Text style={styles.featuredChallengeDescription}>
-                      {challenge.description}
-                    </Text>
-                    
-                    <View style={styles.featuredChallengeStats}>
-                      <View style={styles.challengeStat}>
-                        <Users size={16} color="rgba(255, 255, 255, 0.8)" />
-                        <Text style={styles.challengeStatText}>
-                          {challenge.participants} participants
-                        </Text>
-                      </View>
-                      <View style={styles.challengeStat}>
-                        <Calendar size={16} color="rgba(255, 255, 255, 0.8)" />
-                        <Text style={styles.challengeStatText}>
-                          {challenge.duration} days
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    <TouchableOpacity 
-                      style={styles.joinChallengeButton}
-                      onPress={() => handleJoinChallenge(challenge.id)}
-                    >
-                      <Text style={styles.joinChallengeText}>Join Challenge</Text>
-                      <Target size={16} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                </LinearGradient>
-              </View>
-            ))}
-
-            {/* Create Challenge Card */}
-            <TouchableOpacity 
-              style={styles.createChallengeCard}
-              onPress={handleCreateChallenge}
-            >
-              <LinearGradient colors={['#10B981', '#059669']} style={styles.createChallengeGradient}>
-                <Plus size={32} color="#FFFFFF" />
-                <Text style={styles.createChallengeTitle}>Create Challenge</Text>
-                <Text style={styles.createChallengeDescription}>
-                  Lead your own fitness challenge
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
-        {/* Achievement Spotlight - Enhanced with Challenge Context */}
+        {/* Achievement Spotlight - Enhanced with AI Context */}
         <View style={styles.achievementSpotlight}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
               <Trophy size={20} color={DesignTokens.colors.primary[500]} />
               <Text style={styles.sectionTitle}>Achievement Progress</Text>
+              {actionableInsights.length > 0 && (
+                <View style={styles.aiHintBadge}>
+                  <Lightbulb size={12} color="#FFD700" />
+                  <Text style={styles.aiHintText}>AI Tips</Text>
+                </View>
+              )}
             </View>
             <TouchableOpacity onPress={handleViewAllAchievements}>
               <Text style={styles.viewAllText}>View All</Text>
@@ -594,39 +666,39 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Daily Motivation with Challenge Context */}
+        {/* Daily Motivation with AI Context */}
         <View style={styles.dailySection}>
           <MotivationalQuote
-            category="challenge"
+            category="ai_powered"
             refreshOnMount={true}
             style={styles.motivationalQuote}
           />
         </View>
 
-        {/* Quick Actions with Challenge Hints */}
+        {/* Quick Actions with AI Hints */}
         <View style={styles.quickActions}>
           <Text style={styles.sectionTitle}>Quick Start</Text>
           <View style={styles.quickActionGrid}>
             <QuickStartCard
+              title="AI Workout"
+              subtitle="Personalized for you"
+              icon={<Brain size={24} color="#FFFFFF" />}
+              gradient={['#667EEA', '#764BA2']}
+              onPress={() => setShowAISuggestions(true)}
+              badge={suggestions.length > 0 ? '🤖' : undefined}
+            />
+            <QuickStartCard
               title="Quick Workout"
-              subtitle="Progress your challenges"
+              subtitle="Start immediately"
               icon={<Zap size={24} color="#FFFFFF" />}
               gradient={['#9E7FFF', '#7C3AED']}
               onPress={handleQuickWorkout}
               badge={activeChallengeCount > 0 ? '🔥' : undefined}
             />
-            <QuickStartCard
-              title="Browse Challenges"
-              subtitle="Find new goals"
-              icon={<Target size={24} color="#FFFFFF" />}
-              gradient={['#4ECDC4', '#44A08D']}
-              onPress={handleViewAllChallenges}
-              badge={featuredChallenges.length > 0 ? '⭐' : undefined}
-            />
           </View>
         </View>
 
-        {/* Stats with Challenge Context */}
+        {/* Stats with AI Context */}
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Your Progress</Text>
           <QuickStatsCard
@@ -639,15 +711,18 @@ export default function HomeScreen() {
               personalRecords: workoutStats.personalRecords,
               achievementsUnlocked: unlockedCount,
               activeChallenges: activeChallengeCount,
+              aiInsights: insightStats.total,
+              aiConfidence: aiConfidence,
             }}
             trends={getTrendData()}
             onPress={() => router.push('/stats')}
             achievementHints={nearCompletionAchievements.slice(0, 2)}
             challengeHints={activeChallenges.slice(0, 2)}
+            aiInsights={highPriorityInsights.slice(0, 2)}
           />
         </View>
 
-        {/* Individual Stats Grid with Challenge Indicators */}
+        {/* Individual Stats Grid with AI Indicators */}
         <View style={styles.individualStats}>
           <View style={styles.statsGrid}>
             <StatCard
@@ -660,6 +735,7 @@ export default function HomeScreen() {
               analyticsKey="weekly_workouts"
               achievementProgress={getAchievementProgress('weekly_5')}
               challengeProgress={activeChallenges.find(c => c.type === 'consistency')?.progress}
+              aiInsight={highPriorityInsights.find(i => i.type === 'pattern')}
             />
             <StatCard
               label="Total Volume"
@@ -671,6 +747,7 @@ export default function HomeScreen() {
               analyticsKey="total_volume"
               achievementProgress={getAchievementProgress('volume_10000')}
               challengeProgress={activeChallenges.find(c => c.type === 'volume')?.progress}
+              aiInsight={highPriorityInsights.find(i => i.type === 'suggestion')}
             />
             <StatCard
               label="Current Streak"
@@ -681,16 +758,18 @@ export default function HomeScreen() {
               analyticsKey="current_streak"
               achievementProgress={getAchievementProgress('streak_30')}
               challengeProgress={activeChallenges.find(c => c.type === 'consistency')?.progress}
+              aiInsight={highPriorityInsights.find(i => i.type === 'achievement')}
             />
             <StatCard
-              label="Active Goals"
-              value={(unlockedCount + activeChallengeCount).toString()}
-              unit="total"
-              icon={<Award size={20} color={DesignTokens.colors.error[500]} />}
+              label="AI Insights"
+              value={insightStats.total.toString()}
+              unit="active"
+              icon={<Brain size={20} color={DesignTokens.colors.info[500]} />}
               trend="up"
-              trendValue={`${activeChallengeCount} challenges`}
-              analyticsKey="active_goals"
-              onPress={() => router.push('/social?tab=challenges')}
+              trendValue={`${insightStats.actionable} actionable`}
+              analyticsKey="ai_insights"
+              onPress={() => router.push('/insights')}
+              aiInsight={highPriorityInsights[0]}
             />
           </View>
         </View>
@@ -717,7 +796,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Recent Workouts with Challenge Context */}
+        {/* Recent Workouts with AI Context */}
         <View style={styles.recentWorkoutsSection}>
           <Text style={styles.sectionTitle}>Recent Workouts</Text>
           {recentWorkouts.slice(0, 3).map((workout) => (
@@ -737,6 +816,7 @@ export default function HomeScreen() {
               onRepeat={() => {/* Repeat workout */}}
               achievementProgress={getWorkoutAchievementProgress(workout)}
               challengeProgress={getWorkoutChallengeProgress(workout)}
+              aiInsights={getWorkoutAIInsights(workout)}
             />
           ))}
         </View>
@@ -819,6 +899,14 @@ function getWorkoutChallengeProgress(workout: any): any {
   };
 }
 
+function getWorkoutAIInsights(workout: any): any {
+  return {
+    hasInsights: Math.random() > 0.6,
+    insightType: 'improvement',
+    confidence: Math.floor(Math.random() * 40) + 60,
+  };
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -862,12 +950,12 @@ const styles = StyleSheet.create({
   
   progressRings: {
     flexDirection: 'row',
-    gap: DesignTokens.spacing[3],
+    gap: DesignTokens.spacing[2],
   },
   
   progressRing: {
-    width: 70,
-    height: 70,
+    width: 60,
+    height: 60,
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
@@ -880,23 +968,23 @@ const styles = StyleSheet.create({
   },
   
   ringValue: {
-    fontSize: DesignTokens.typography.fontSize.sm,
+    fontSize: DesignTokens.typography.fontSize.xs,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
     marginTop: DesignTokens.spacing[1],
   },
   
   ringLabel: {
-    fontSize: DesignTokens.typography.fontSize.xs,
+    fontSize: 10,
     color: DesignTokens.colors.text.secondary,
     textAlign: 'center',
   },
   
   progressCircle: {
     position: 'absolute',
-    width: 66,
-    height: 66,
-    borderRadius: 33,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     borderWidth: 3,
     borderColor: 'transparent',
     borderBottomColor: DesignTokens.colors.surface.secondary,
@@ -927,6 +1015,48 @@ const styles = StyleSheet.create({
     fontSize: DesignTokens.typography.fontSize.base,
     fontWeight: DesignTokens.typography.fontWeight.semibold,
     color: '#FFFFFF',
+  },
+  
+  // AI Sections - NEW
+  aiInsightsSection: {
+    marginBottom: DesignTokens.spacing[6],
+  },
+  
+  aiSuggestionsSection: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[6],
+  },
+  
+  confidenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: DesignTokens.colors.success[500] + '20',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+    gap: DesignTokens.spacing[1],
+  },
+  
+  confidenceBadgeText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.success[500],
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+  
+  aiHintBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFD700' + '20',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+    gap: DesignTokens.spacing[1],
+  },
+  
+  aiHintText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: '#FFD700',
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
   
   activeChallengesSection: {
@@ -1099,126 +1229,6 @@ const styles = StyleSheet.create({
     fontSize: DesignTokens.typography.fontSize.sm,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.primary[500],
-  },
-  
-  challengeDiscoverySection: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    marginBottom: DesignTokens.spacing[6],
-  },
-  
-  featuredChallengeContainer: {
-    width: 280,
-    marginRight: DesignTokens.spacing[3],
-    borderRadius: DesignTokens.borderRadius.lg,
-    overflow: 'hidden',
-    ...DesignTokens.shadow.md,
-  },
-  
-  featuredChallengeGradient: {
-    padding: DesignTokens.spacing[4],
-    position: 'relative',
-    minHeight: 160,
-  },
-  
-  trendingBadge: {
-    position: 'absolute',
-    top: DesignTokens.spacing[3],
-    right: DesignTokens.spacing[3],
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: DesignTokens.spacing[2],
-    paddingVertical: DesignTokens.spacing[1],
-    borderRadius: DesignTokens.borderRadius.sm,
-    gap: DesignTokens.spacing[1],
-  },
-  
-  trendingText: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    color: '#FFFFFF',
-  },
-  
-  featuredChallengeContent: {
-    paddingRight: DesignTokens.spacing[8],
-  },
-  
-  featuredChallengeTitle: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    color: '#FFFFFF',
-    marginBottom: DesignTokens.spacing[2],
-  },
-  
-  featuredChallengeDescription: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: DesignTokens.spacing[3],
-    lineHeight: 20,
-  },
-  
-  featuredChallengeStats: {
-    flexDirection: 'row',
-    gap: DesignTokens.spacing[3],
-    marginBottom: DesignTokens.spacing[3],
-  },
-  
-  challengeStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
-  },
-  
-  challengeStatText: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  
-  joinChallengeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: DesignTokens.spacing[3],
-    paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
-    gap: DesignTokens.spacing[2],
-    alignSelf: 'flex-start',
-  },
-  
-  joinChallengeText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    color: '#FFFFFF',
-  },
-  
-  createChallengeCard: {
-    width: 200,
-    marginRight: DesignTokens.spacing[3],
-    borderRadius: DesignTokens.borderRadius.lg,
-    overflow: 'hidden',
-    ...DesignTokens.shadow.md,
-  },
-  
-  createChallengeGradient: {
-    padding: DesignTokens.spacing[4],
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 160,
-  },
-  
-  createChallengeTitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    color: '#FFFFFF',
-    marginTop: DesignTokens.spacing[2],
-    marginBottom: DesignTokens.spacing[1],
-  },
-  
-  createChallengeDescription: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
   },
   
   achievementSpotlight: {

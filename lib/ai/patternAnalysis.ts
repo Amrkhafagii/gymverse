@@ -1,144 +1,185 @@
 import { WorkoutSession } from '@/types/workout';
 import { PersonalRecord } from '@/types/personalRecord';
-import { WorkoutPattern, UserProfile, AIInsight } from '@/types/aiRecommendation';
+
+export interface UserProfile {
+  fitnessLevel: 'beginner' | 'intermediate' | 'advanced';
+  primaryGoals: string[];
+  availableTime: number; // minutes
+  preferredWorkoutTypes: string[];
+  equipmentAccess: string[];
+  injuryHistory: string[];
+  workoutFrequency: number; // per week
+}
+
+export interface MuscleGroupAnalysis {
+  muscleGroup: string;
+  frequency: number;
+  lastWorked: string;
+  averageVolume: number;
+  trend: 'increasing' | 'decreasing' | 'stable';
+  needsAttention: boolean;
+}
+
+export interface WorkoutPattern {
+  type: string;
+  frequency: number;
+  averageDuration: number;
+  preferredTime: string;
+  consistency: number; // 0-1 scale
+}
+
+export interface ProgressTrend {
+  exercise: string;
+  trend: 'improving' | 'plateauing' | 'declining';
+  changeRate: number; // percentage
+  confidence: number; // 0-1 scale
+  recommendation: string;
+}
 
 export class PatternAnalysis {
-  // Analyze workout frequency patterns
-  static analyzeWorkoutFrequency(workouts: WorkoutSession[]): {
-    weeklyAverage: number;
-    consistency: number;
-    preferredDays: string[];
-    trend: 'increasing' | 'decreasing' | 'stable';
-  } {
-    if (workouts.length === 0) {
-      return {
-        weeklyAverage: 0,
-        consistency: 0,
-        preferredDays: [],
-        trend: 'stable'
-      };
-    }
-
-    // Calculate weekly frequency
-    const sortedWorkouts = workouts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const firstDate = new Date(sortedWorkouts[0].date);
-    const lastDate = new Date(sortedWorkouts[sortedWorkouts.length - 1].date);
-    const weeksDiff = Math.max(1, (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
-    const weeklyAverage = workouts.length / weeksDiff;
-
-    // Calculate consistency (how evenly distributed workouts are)
-    const dayOfWeekCounts = new Array(7).fill(0);
-    workouts.forEach(workout => {
-      const dayOfWeek = new Date(workout.date).getDay();
-      dayOfWeekCounts[dayOfWeek]++;
-    });
-
-    const maxCount = Math.max(...dayOfWeekCounts);
-    const minCount = Math.min(...dayOfWeekCounts);
-    const consistency = maxCount > 0 ? (1 - (maxCount - minCount) / maxCount) * 100 : 0;
-
-    // Find preferred days
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const preferredDays = dayOfWeekCounts
-      .map((count, index) => ({ day: dayNames[index], count }))
-      .filter(item => item.count > weeklyAverage * 0.5)
-      .sort((a, b) => b.count - a.count)
-      .map(item => item.day);
-
-    // Analyze trend (last 4 weeks vs previous 4 weeks)
-    const recentWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.date);
-      const fourWeeksAgo = new Date();
-      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
-      return workoutDate >= fourWeeksAgo;
-    });
-
-    const olderWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.date);
-      const eightWeeksAgo = new Date();
-      eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
-      const fourWeeksAgo = new Date();
-      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
-      return workoutDate >= eightWeeksAgo && workoutDate < fourWeeksAgo;
-    });
-
-    let trend: 'increasing' | 'decreasing' | 'stable' = 'stable';
-    if (recentWorkouts.length > olderWorkouts.length * 1.2) {
-      trend = 'increasing';
-    } else if (recentWorkouts.length < olderWorkouts.length * 0.8) {
-      trend = 'decreasing';
-    }
-
-    return {
-      weeklyAverage,
-      consistency,
-      preferredDays,
-      trend
-    };
-  }
-
-  // Analyze muscle group patterns
+  // Analyze muscle group training patterns
   static analyzeMuscleGroupPatterns(workouts: WorkoutSession[]): {
-    frequency: Record<string, number>;
-    lastWorked: Record<string, string>;
+    analysis: MuscleGroupAnalysis[];
     needsAttention: string[];
     balanced: boolean;
   } {
-    const muscleGroupFreq: Record<string, number> = {};
-    const muscleGroupLastWorked: Record<string, string> = {};
+    const muscleGroups = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'];
+    const analysis: MuscleGroupAnalysis[] = [];
+    const now = new Date();
 
-    workouts.forEach(workout => {
-      const muscleGroups = new Set<string>();
-      
-      workout.exercises.forEach(exercise => {
-        // Extract muscle groups from exercise (simplified)
-        const exerciseName = exercise.name.toLowerCase();
-        if (exerciseName.includes('chest') || exerciseName.includes('bench')) {
-          muscleGroups.add('Chest');
+    muscleGroups.forEach(muscleGroup => {
+      const relevantWorkouts = workouts.filter(workout =>
+        workout.exercises.some(exercise =>
+          exercise.primaryMuscleGroup === muscleGroup ||
+          exercise.secondaryMuscleGroups?.includes(muscleGroup)
+        )
+      );
+
+      let totalVolume = 0;
+      let lastWorkedDate = new Date(0);
+
+      relevantWorkouts.forEach(workout => {
+        const workoutDate = new Date(workout.startedAt);
+        if (workoutDate > lastWorkedDate) {
+          lastWorkedDate = workoutDate;
         }
-        if (exerciseName.includes('back') || exerciseName.includes('row') || exerciseName.includes('pull')) {
-          muscleGroups.add('Back');
-        }
-        if (exerciseName.includes('shoulder') || exerciseName.includes('press')) {
-          muscleGroups.add('Shoulders');
-        }
-        if (exerciseName.includes('leg') || exerciseName.includes('squat') || exerciseName.includes('quad')) {
-          muscleGroups.add('Legs');
-        }
-        if (exerciseName.includes('arm') || exerciseName.includes('bicep') || exerciseName.includes('tricep')) {
-          muscleGroups.add('Arms');
-        }
-        if (exerciseName.includes('core') || exerciseName.includes('ab')) {
-          muscleGroups.add('Core');
-        }
+
+        workout.exercises.forEach(exercise => {
+          if (exercise.primaryMuscleGroup === muscleGroup ||
+              exercise.secondaryMuscleGroups?.includes(muscleGroup)) {
+            exercise.sets.forEach(set => {
+              if (set.isCompleted && set.actualWeight && set.actualReps) {
+                totalVolume += set.actualWeight * set.actualReps;
+              }
+            });
+          }
+        });
       });
 
-      muscleGroups.forEach(group => {
-        muscleGroupFreq[group] = (muscleGroupFreq[group] || 0) + 1;
-        if (!muscleGroupLastWorked[group] || workout.date > muscleGroupLastWorked[group]) {
-          muscleGroupLastWorked[group] = workout.date;
-        }
+      const frequency = relevantWorkouts.length;
+      const averageVolume = frequency > 0 ? totalVolume / frequency : 0;
+      const daysSinceLastWorked = Math.floor((now.getTime() - lastWorkedDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Calculate trend based on recent vs older workouts
+      const recentWorkouts = relevantWorkouts.filter(w =>
+        new Date(w.startedAt) > new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+      );
+      const olderWorkouts = relevantWorkouts.filter(w =>
+        new Date(w.startedAt) <= new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) &&
+        new Date(w.startedAt) > new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000)
+      );
+
+      let trend: 'increasing' | 'decreasing' | 'stable' = 'stable';
+      if (recentWorkouts.length > olderWorkouts.length) trend = 'increasing';
+      else if (recentWorkouts.length < olderWorkouts.length) trend = 'decreasing';
+
+      analysis.push({
+        muscleGroup,
+        frequency,
+        lastWorked: lastWorkedDate.toISOString(),
+        averageVolume,
+        trend,
+        needsAttention: daysSinceLastWorked > 7 || frequency < 2,
       });
     });
 
-    // Find muscle groups that need attention (not worked in last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    const needsAttention = Object.entries(muscleGroupLastWorked)
-      .filter(([_, lastDate]) => new Date(lastDate) < sevenDaysAgo)
-      .map(([group, _]) => group);
+    const needsAttention = analysis
+      .filter(a => a.needsAttention)
+      .map(a => a.muscleGroup);
 
-    // Check if training is balanced
-    const frequencies = Object.values(muscleGroupFreq);
-    const avgFreq = frequencies.reduce((sum, freq) => sum + freq, 0) / frequencies.length;
-    const balanced = frequencies.every(freq => Math.abs(freq - avgFreq) <= avgFreq * 0.3);
+    const balanced = needsAttention.length <= 1;
+
+    return { analysis, needsAttention, balanced };
+  }
+
+  // Analyze workout frequency and timing patterns
+  static analyzeWorkoutFrequency(workouts: WorkoutSession[]): {
+    averageFrequency: number;
+    preferredDays: string[];
+    preferredTimes: string[];
+    consistency: number;
+    recommendation: string;
+  } {
+    if (workouts.length === 0) {
+      return {
+        averageFrequency: 0,
+        preferredDays: [],
+        preferredTimes: [],
+        consistency: 0,
+        recommendation: 'Start with 2-3 workouts per week for optimal results.',
+      };
+    }
+
+    const dayCount: Record<string, number> = {};
+    const timeCount: Record<string, number> = {};
+    const weeklyWorkouts: Record<string, number> = {};
+
+    workouts.forEach(workout => {
+      const date = new Date(workout.startedAt);
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+      const hour = date.getHours();
+      const timeSlot = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
+      const weekKey = `${date.getFullYear()}-W${Math.ceil(date.getDate() / 7)}`;
+
+      dayCount[dayName] = (dayCount[dayName] || 0) + 1;
+      timeCount[timeSlot] = (timeCount[timeSlot] || 0) + 1;
+      weeklyWorkouts[weekKey] = (weeklyWorkouts[weekKey] || 0) + 1;
+    });
+
+    const preferredDays = Object.entries(dayCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([day]) => day);
+
+    const preferredTimes = Object.entries(timeCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 2)
+      .map(([time]) => time);
+
+    const weeklyFrequencies = Object.values(weeklyWorkouts);
+    const averageFrequency = weeklyFrequencies.reduce((sum, freq) => sum + freq, 0) / weeklyFrequencies.length;
+
+    // Calculate consistency (how close to average each week is)
+    const variance = weeklyFrequencies.reduce((sum, freq) => sum + Math.pow(freq - averageFrequency, 2), 0) / weeklyFrequencies.length;
+    const consistency = Math.max(0, 1 - (variance / averageFrequency));
+
+    let recommendation = '';
+    if (averageFrequency < 2) {
+      recommendation = 'Try to increase workout frequency to 2-3 times per week for better results.';
+    } else if (averageFrequency > 6) {
+      recommendation = 'Consider adding rest days to prevent overtraining and improve recovery.';
+    } else if (consistency < 0.7) {
+      recommendation = 'Try to maintain a more consistent workout schedule for optimal progress.';
+    } else {
+      recommendation = 'Great job maintaining a consistent workout routine!';
+    }
 
     return {
-      frequency: muscleGroupFreq,
-      lastWorked: muscleGroupLastWorked,
-      needsAttention,
-      balanced
+      averageFrequency,
+      preferredDays,
+      preferredTimes,
+      consistency,
+      recommendation,
     };
   }
 
@@ -147,189 +188,181 @@ export class PatternAnalysis {
     averageIntensity: number;
     intensityTrend: 'increasing' | 'decreasing' | 'stable';
     recoveryNeeded: boolean;
-    optimalRestDays: number;
+    recommendation: string;
   } {
     if (workouts.length === 0) {
       return {
         averageIntensity: 0,
         intensityTrend: 'stable',
         recoveryNeeded: false,
-        optimalRestDays: 1
+        recommendation: 'Start with moderate intensity and gradually increase as you build strength.',
       };
     }
 
-    // Calculate intensity based on volume and duration
-    const intensities = workouts.map(workout => {
-      const totalVolume = workout.exercises.reduce((sum, exercise) => {
-        return sum + exercise.sets.reduce((setSum, set) => setSum + (set.weight * set.reps), 0);
-      }, 0);
-      
-      const duration = workout.duration || 60;
-      return totalVolume / duration; // Volume per minute as intensity metric
+    // Calculate intensity based on volume, duration, and RPE
+    const intensityScores = workouts.map(workout => {
+      let totalVolume = 0;
+      let totalSets = 0;
+
+      workout.exercises.forEach(exercise => {
+        exercise.sets.forEach(set => {
+          if (set.isCompleted) {
+            totalSets++;
+            if (set.actualWeight && set.actualReps) {
+              totalVolume += set.actualWeight * set.actualReps;
+            }
+          }
+        });
+      });
+
+      const duration = workout.totalDurationSeconds / 60; // minutes
+      const volumePerMinute = duration > 0 ? totalVolume / duration : 0;
+      const setsPerMinute = duration > 0 ? totalSets / duration : 0;
+
+      // Normalize intensity score (0-10 scale)
+      return Math.min(10, (volumePerMinute / 100) + (setsPerMinute * 2));
     });
 
-    const averageIntensity = intensities.reduce((sum, intensity) => sum + intensity, 0) / intensities.length;
+    const averageIntensity = intensityScores.reduce((sum, score) => sum + score, 0) / intensityScores.length;
 
-    // Analyze trend (last 5 workouts vs previous 5)
-    const recentIntensities = intensities.slice(-5);
-    const previousIntensities = intensities.slice(-10, -5);
-    
+    // Calculate trend
+    const recentScores = intensityScores.slice(-5);
+    const olderScores = intensityScores.slice(-10, -5);
+
     let intensityTrend: 'increasing' | 'decreasing' | 'stable' = 'stable';
-    if (recentIntensities.length > 0 && previousIntensities.length > 0) {
-      const recentAvg = recentIntensities.reduce((sum, i) => sum + i, 0) / recentIntensities.length;
-      const previousAvg = previousIntensities.reduce((sum, i) => sum + i, 0) / previousIntensities.length;
-      
-      if (recentAvg > previousAvg * 1.1) {
-        intensityTrend = 'increasing';
-      } else if (recentAvg < previousAvg * 0.9) {
-        intensityTrend = 'decreasing';
-      }
+    if (recentScores.length > 0 && olderScores.length > 0) {
+      const recentAvg = recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
+      const olderAvg = olderScores.reduce((sum, score) => sum + score, 0) / olderScores.length;
+
+      if (recentAvg > olderAvg * 1.1) intensityTrend = 'increasing';
+      else if (recentAvg < olderAvg * 0.9) intensityTrend = 'decreasing';
     }
 
-    // Check if recovery is needed (high intensity for 3+ consecutive workouts)
-    const lastThreeIntensities = intensities.slice(-3);
-    const recoveryNeeded = lastThreeIntensities.length >= 3 && 
-      lastThreeIntensities.every(intensity => intensity > averageIntensity * 1.2);
+    // Check if recovery is needed
+    const recentHighIntensity = recentScores.filter(score => score > 7).length;
+    const recoveryNeeded = recentHighIntensity >= 3 || averageIntensity > 8;
 
-    // Calculate optimal rest days based on intensity
-    const optimalRestDays = averageIntensity > 100 ? 2 : 1;
+    let recommendation = '';
+    if (recoveryNeeded) {
+      recommendation = 'Consider incorporating rest days or lower intensity workouts for better recovery.';
+    } else if (averageIntensity < 4) {
+      recommendation = 'You can safely increase workout intensity to see better results.';
+    } else if (intensityTrend === 'decreasing') {
+      recommendation = 'Try to maintain or gradually increase workout intensity to continue progressing.';
+    } else {
+      recommendation = 'Your workout intensity is well-balanced. Keep up the great work!';
+    }
 
     return {
       averageIntensity,
       intensityTrend,
       recoveryNeeded,
-      optimalRestDays
+      recommendation,
     };
   }
 
-  // Analyze progress trends
+  // Analyze progress trends from personal records
   static analyzeProgressTrends(personalRecords: PersonalRecord[]): {
-    recentPRs: PersonalRecord[];
+    trends: ProgressTrend[];
     plateauExercises: string[];
     improvingExercises: string[];
-    progressRate: number;
+    overallProgress: 'excellent' | 'good' | 'moderate' | 'needs_attention';
   } {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const exerciseGroups: Record<string, PersonalRecord[]> = {};
 
-    const recentPRs = personalRecords.filter(pr => new Date(pr.date) >= thirtyDaysAgo);
-
-    // Group PRs by exercise
-    const exercisePRs: Record<string, PersonalRecord[]> = {};
-    personalRecords.forEach(pr => {
-      if (!exercisePRs[pr.exerciseName]) {
-        exercisePRs[pr.exerciseName] = [];
+    // Group records by exercise
+    personalRecords.forEach(record => {
+      if (!exerciseGroups[record.exerciseName]) {
+        exerciseGroups[record.exerciseName] = [];
       }
-      exercisePRs[pr.exerciseName].push(pr);
+      exerciseGroups[record.exerciseName].push(record);
     });
 
+    const trends: ProgressTrend[] = [];
     const plateauExercises: string[] = [];
     const improvingExercises: string[] = [];
 
-    Object.entries(exercisePRs).forEach(([exercise, prs]) => {
-      const sortedPRs = prs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-      if (sortedPRs.length >= 2) {
-        const lastPR = sortedPRs[sortedPRs.length - 1];
-        const secondLastPR = sortedPRs[sortedPRs.length - 2];
-        
-        const daysBetween = (new Date(lastPR.date).getTime() - new Date(secondLastPR.date).getTime()) / (1000 * 60 * 60 * 24);
-        
-        if (daysBetween > 30) {
-          plateauExercises.push(exercise);
-        } else if (lastPR.value > secondLastPR.value) {
-          improvingExercises.push(exercise);
+    Object.entries(exerciseGroups).forEach(([exercise, records]) => {
+      if (records.length < 2) return;
+
+      // Sort by date
+      const sortedRecords = records.sort((a, b) => 
+        new Date(a.achievedAt).getTime() - new Date(b.achievedAt).getTime()
+      );
+
+      const recent = sortedRecords.slice(-3);
+      const older = sortedRecords.slice(-6, -3);
+
+      if (recent.length === 0) return;
+
+      let trend: 'improving' | 'plateauing' | 'declining' = 'plateauing';
+      let changeRate = 0;
+      let confidence = 0.5;
+
+      if (older.length > 0) {
+        const recentBest = Math.max(...recent.map(r => r.value));
+        const olderBest = Math.max(...older.map(r => r.value));
+
+        changeRate = ((recentBest - olderBest) / olderBest) * 100;
+
+        if (changeRate > 5) {
+          trend = 'improving';
+          confidence = Math.min(0.9, 0.5 + (changeRate / 100));
+        } else if (changeRate < -5) {
+          trend = 'declining';
+          confidence = Math.min(0.9, 0.5 + (Math.abs(changeRate) / 100));
         }
       }
+
+      // Check for plateau (no improvement in last 4 weeks)
+      const fourWeeksAgo = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000);
+      const recentRecords = sortedRecords.filter(r => new Date(r.achievedAt) > fourWeeksAgo);
+      
+      if (recentRecords.length === 0 || Math.max(...recentRecords.map(r => r.value)) <= Math.max(...older.map(r => r.value))) {
+        plateauExercises.push(exercise);
+      }
+
+      if (trend === 'improving') {
+        improvingExercises.push(exercise);
+      }
+
+      let recommendation = '';
+      switch (trend) {
+        case 'improving':
+          recommendation = 'Great progress! Continue with your current approach.';
+          break;
+        case 'plateauing':
+          recommendation = 'Try varying rep ranges, adding volume, or changing exercise variations.';
+          break;
+        case 'declining':
+          recommendation = 'Consider reducing intensity and focusing on form and recovery.';
+          break;
+      }
+
+      trends.push({
+        exercise,
+        trend,
+        changeRate,
+        confidence,
+        recommendation,
+      });
     });
 
-    const progressRate = personalRecords.length > 0 ? (recentPRs.length / 30) * 100 : 0;
+    // Determine overall progress
+    let overallProgress: 'excellent' | 'good' | 'moderate' | 'needs_attention' = 'moderate';
+    const improvingRatio = improvingExercises.length / trends.length;
+    const plateauRatio = plateauExercises.length / trends.length;
+
+    if (improvingRatio > 0.7) overallProgress = 'excellent';
+    else if (improvingRatio > 0.4) overallProgress = 'good';
+    else if (plateauRatio > 0.6) overallProgress = 'needs_attention';
 
     return {
-      recentPRs,
+      trends,
       plateauExercises,
       improvingExercises,
-      progressRate
+      overallProgress,
     };
-  }
-
-  // Generate AI insights based on patterns
-  static generateInsights(
-    workouts: WorkoutSession[],
-    personalRecords: PersonalRecord[]
-  ): AIInsight[] {
-    const insights: AIInsight[] = [];
-
-    const frequencyAnalysis = this.analyzeWorkoutFrequency(workouts);
-    const muscleAnalysis = this.analyzeMuscleGroupPatterns(workouts);
-    const intensityAnalysis = this.analyzeIntensityPatterns(workouts);
-    const progressAnalysis = this.analyzeProgressTrends(personalRecords);
-
-    // Frequency insights
-    if (frequencyAnalysis.weeklyAverage < 2) {
-      insights.push({
-        type: 'warning',
-        title: 'Low Workout Frequency',
-        description: `You're averaging ${frequencyAnalysis.weeklyAverage.toFixed(1)} workouts per week. Consider increasing to 3-4 for optimal progress.`,
-        actionable: true,
-        recommendation: 'Schedule 2-3 additional workout sessions this week'
-      });
-    } else if (frequencyAnalysis.weeklyAverage > 6) {
-      insights.push({
-        type: 'warning',
-        title: 'High Workout Frequency',
-        description: `You're averaging ${frequencyAnalysis.weeklyAverage.toFixed(1)} workouts per week. Consider adding rest days for recovery.`,
-        actionable: true,
-        recommendation: 'Include 1-2 complete rest days per week'
-      });
-    }
-
-    // Muscle group balance insights
-    if (!muscleAnalysis.balanced) {
-      insights.push({
-        type: 'suggestion',
-        title: 'Muscle Group Imbalance',
-        description: 'Your training isn\'t evenly distributed across muscle groups.',
-        data: muscleAnalysis.frequency,
-        actionable: true,
-        recommendation: `Focus more on: ${muscleAnalysis.needsAttention.join(', ')}`
-      });
-    }
-
-    // Recovery insights
-    if (intensityAnalysis.recoveryNeeded) {
-      insights.push({
-        type: 'warning',
-        title: 'Recovery Needed',
-        description: 'Your recent workouts have been high intensity. Consider a deload or rest day.',
-        actionable: true,
-        recommendation: 'Take 1-2 rest days or do light cardio/stretching'
-      });
-    }
-
-    // Progress insights
-    if (progressAnalysis.plateauExercises.length > 0) {
-      insights.push({
-        type: 'suggestion',
-        title: 'Plateau Detected',
-        description: `No recent progress in: ${progressAnalysis.plateauExercises.slice(0, 3).join(', ')}`,
-        data: progressAnalysis.plateauExercises,
-        actionable: true,
-        recommendation: 'Try changing rep ranges, adding volume, or switching exercise variations'
-      });
-    }
-
-    if (progressAnalysis.improvingExercises.length > 0) {
-      insights.push({
-        type: 'improvement',
-        title: 'Great Progress!',
-        description: `You're improving in: ${progressAnalysis.improvingExercises.slice(0, 3).join(', ')}`,
-        data: progressAnalysis.improvingExercises,
-        actionable: false
-      });
-    }
-
-    return insights;
   }
 
   // Create user profile from workout history
@@ -338,49 +371,116 @@ export class PatternAnalysis {
       return {
         fitnessLevel: 'beginner',
         primaryGoals: ['general_fitness'],
-        availableTime: 60,
+        availableTime: 45,
         preferredWorkoutTypes: ['strength'],
-        equipment: ['bodyweight'],
-        limitations: [],
-        weeklyFrequency: 3
+        equipmentAccess: ['bodyweight'],
+        injuryHistory: [],
+        workoutFrequency: 3,
       };
     }
 
-    const frequencyAnalysis = this.analyzeWorkoutFrequency(workouts);
-    const intensityAnalysis = this.analyzeIntensityPatterns(workouts);
-
     // Determine fitness level based on workout complexity and consistency
+    const totalWorkouts = workouts.length;
+    const averageExercises = workouts.reduce((sum, w) => sum + w.exercises.length, 0) / totalWorkouts;
+    const averageDuration = workouts.reduce((sum, w) => sum + (w.totalDurationSeconds / 60), 0) / totalWorkouts;
+
     let fitnessLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
-    if (workouts.length > 20 && frequencyAnalysis.weeklyAverage >= 3) {
+    if (totalWorkouts > 50 && averageExercises > 6 && averageDuration > 60) {
+      fitnessLevel = 'advanced';
+    } else if (totalWorkouts > 20 && averageExercises > 4 && averageDuration > 45) {
       fitnessLevel = 'intermediate';
     }
-    if (workouts.length > 50 && frequencyAnalysis.weeklyAverage >= 4 && intensityAnalysis.averageIntensity > 100) {
-      fitnessLevel = 'advanced';
-    }
 
-    // Calculate average workout duration
-    const avgDuration = workouts.reduce((sum, w) => sum + (w.duration || 60), 0) / workouts.length;
-
-    // Determine preferred workout types
-    const workoutTypes = workouts.map(w => w.workoutType || 'strength');
-    const typeFreq: Record<string, number> = {};
-    workoutTypes.forEach(type => {
-      typeFreq[type] = (typeFreq[type] || 0) + 1;
+    // Analyze workout types
+    const workoutTypes: Record<string, number> = {};
+    workouts.forEach(workout => {
+      const type = workout.workoutType || 'strength';
+      workoutTypes[type] = (workoutTypes[type] || 0) + 1;
     });
-    const preferredWorkoutTypes = Object.entries(typeFreq)
-      .sort(([,a], [,b]) => b - a)
+
+    const preferredWorkoutTypes = Object.entries(workoutTypes)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 2)
       .map(([type]) => type);
 
+    // Estimate available time
+    const availableTime = Math.round(averageDuration);
+
+    // Analyze equipment usage
+    const equipmentUsed = new Set<string>();
+    workouts.forEach(workout => {
+      workout.exercises.forEach(exercise => {
+        if (exercise.equipment) {
+          equipmentUsed.add(exercise.equipment);
+        }
+      });
+    });
+
+    const equipmentAccess = Array.from(equipmentUsed);
+
+    // Calculate workout frequency
+    const timeSpan = workouts.length > 1 ? 
+      (new Date(workouts[0].startedAt).getTime() - new Date(workouts[workouts.length - 1].startedAt).getTime()) / (1000 * 60 * 60 * 24 * 7) : 1;
+    const workoutFrequency = Math.round(totalWorkouts / timeSpan);
+
     return {
       fitnessLevel,
-      primaryGoals: ['strength', 'muscle_building'], // Could be inferred from workout patterns
-      availableTime: Math.round(avgDuration),
+      primaryGoals: ['strength', 'muscle_gain'], // Default goals
+      availableTime,
       preferredWorkoutTypes,
-      equipment: ['gym'], // Could be inferred from exercises
-      limitations: [],
-      lastWorkoutDate: workouts[0]?.date,
-      weeklyFrequency: Math.round(frequencyAnalysis.weeklyAverage)
+      equipmentAccess,
+      injuryHistory: [], // Would need to be collected separately
+      workoutFrequency: Math.max(1, Math.min(7, workoutFrequency)),
     };
+  }
+
+  // Generate workout recommendations based on patterns
+  static generateWorkoutRecommendations(
+    muscleAnalysis: ReturnType<typeof PatternAnalysis.analyzeMuscleGroupPatterns>,
+    frequencyAnalysis: ReturnType<typeof PatternAnalysis.analyzeWorkoutFrequency>,
+    intensityAnalysis: ReturnType<typeof PatternAnalysis.analyzeIntensityPatterns>,
+    progressAnalysis: ReturnType<typeof PatternAnalysis.analyzeProgressTrends>
+  ): string[] {
+    const recommendations: string[] = [];
+
+    // Muscle group recommendations
+    if (muscleAnalysis.needsAttention.length > 0) {
+      recommendations.push(
+        `Focus on ${muscleAnalysis.needsAttention.join(' and ')} - these muscle groups need more attention.`
+      );
+    }
+
+    // Frequency recommendations
+    if (frequencyAnalysis.averageFrequency < 2) {
+      recommendations.push('Increase workout frequency to 2-3 times per week for better results.');
+    } else if (frequencyAnalysis.consistency < 0.7) {
+      recommendations.push('Try to maintain a more consistent workout schedule.');
+    }
+
+    // Intensity recommendations
+    if (intensityAnalysis.recoveryNeeded) {
+      recommendations.push('Consider adding rest days or reducing intensity to improve recovery.');
+    } else if (intensityAnalysis.averageIntensity < 4) {
+      recommendations.push('You can safely increase workout intensity for better results.');
+    }
+
+    // Progress recommendations
+    if (progressAnalysis.plateauExercises.length > 0) {
+      recommendations.push(
+        `Break through plateaus in ${progressAnalysis.plateauExercises.slice(0, 2).join(' and ')} by varying your approach.`
+      );
+    }
+
+    // Overall progress recommendations
+    switch (progressAnalysis.overallProgress) {
+      case 'excellent':
+        recommendations.push('Excellent progress! Keep up the great work and consider setting new challenges.');
+        break;
+      case 'needs_attention':
+        recommendations.push('Consider reviewing your program and focusing on progressive overload.');
+        break;
+    }
+
+    return recommendations.slice(0, 5); // Limit to top 5 recommendations
   }
 }

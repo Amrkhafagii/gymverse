@@ -1,363 +1,668 @@
-import React, { useState } from 'react';
+/**
+ * Enhanced Progress Screen with Advanced Progress Indicators
+ * Chunk 14: Adding circular progress and progress bars throughout
+ */
+
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  StyleSheet,
   RefreshControl,
-  SafeAreaView,
+  TouchableOpacity,
+  Dimensions,
 } from 'react-native';
-import { WorkoutStatsOverview } from '@/components/workout/WorkoutStatsOverview';
-import { WorkoutHistoryCard } from '@/components/workout/WorkoutHistoryCard';
-import { ExerciseProgressChart } from '@/components/workout/ExerciseProgressChart';
-import { ProgressDashboard } from '@/components/ProgressDashboard';
-import { AnalyticsChart, ChartTypeToggle, ChartType } from '@/components/analytics/AnalyticsChart';
-import { TrendAnalysis } from '@/components/analytics/TrendAnalysis';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  TrendingUp,
+  Calendar,
+  Target,
+  Award,
+  Activity,
+  BarChart3,
+  PieChart,
+  Clock,
+  Zap,
+  Trophy,
+  Star,
+  ChevronRight,
+  Filter,
+  Download,
+  Share,
+  Eye,
+  EyeOff,
+} from 'lucide-react-native';
+import { router } from 'expo-router';
+
+// Design System
+import { DesignTokens } from '@/design-system/tokens';
+
+// Context Integration
 import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext';
 import { usePersonalRecords } from '@/hooks/usePersonalRecords';
-import { useAnalytics, AnalyticsTimeframe, AnalyticsMetric } from '@/hooks/useAnalytics';
-import { DesignTokens } from '@/design-system/tokens';
-import { BarChart3, History, TrendingUp, Trophy, Calendar, Target } from 'lucide-react-native';
+import { useAchievements } from '@/contexts/AchievementContext';
+import { useStreakTracking } from '@/contexts/StreakContext';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
-type TabType = 'overview' | 'analytics' | 'history' | 'records';
+// Enhanced Progress Components - NEW
+import { CircularProgress, CircularProgressDashboard, CircularProgressGradient } from '@/components/ui/CircularProgress';
+import { ProgressBar, ProgressBarGradient, ProgressBarSegmented, ProgressBarWithLabel } from '@/components/ui/ProgressBar';
+
+// Previously Integrated Components
+import { InteractiveChart } from '@/components/InteractiveChart';
+import { AnalyticsChart } from '@/components/AnalyticsChart';
+import { WorkoutStatsOverview } from '@/components/analytics/WorkoutStatsOverview';
+import { ExerciseProgressChart } from '@/components/analytics/ExerciseProgressChart';
+import { WorkoutHistoryCard } from '@/components/analytics/WorkoutHistoryCard';
+
+const { width: screenWidth } = Dimensions.get('window');
+
+interface ProgressMetric {
+  id: string;
+  label: string;
+  current: number;
+  target: number;
+  unit: string;
+  color: string;
+  trend: 'up' | 'down' | 'stable';
+  trendValue: string;
+  category: 'strength' | 'endurance' | 'consistency' | 'volume';
+}
+
+interface GoalProgress {
+  id: string;
+  title: string;
+  description: string;
+  progress: number;
+  target: number;
+  unit: string;
+  deadline: string;
+  priority: 'high' | 'medium' | 'low';
+  category: string;
+  color: string;
+}
 
 export default function ProgressScreen() {
-  const { workouts, refreshHistory, isLoading } = useWorkoutHistory();
-  const { refreshPRs } = usePersonalRecords();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [refreshing, setRefreshing] = useState(false);
-  
-  // Analytics state
-  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<AnalyticsTimeframe>('month');
-  const [chartType, setChartType] = useState<ChartType>('line');
-  
-  const {
-    analyticsData,
-    exerciseData,
-    summaryStats,
-    volumeTrend,
-    frequencyTrend,
-    exerciseTrend,
-    selectedExercise,
-    setSelectedExercise,
-    selectedMetric,
-    setSelectedMetric,
-    availableExercises,
-    isLoading: analyticsLoading,
-    hasData,
-  } = useAnalytics(analyticsTimeframe);
+  const [selectedTimeframe, setSelectedTimeframe] = useState<'week' | 'month' | 'year'>('month');
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'strength' | 'endurance' | 'consistency' | 'volume'>('all');
+  const [showDetailedView, setShowDetailedView] = useState(false);
+  const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
 
+  // Context Integration
+  const { workouts, refreshHistory } = useWorkoutHistory();
+  const { personalRecords } = usePersonalRecords();
+  const { achievements, getUnlockedCount, getTotalAchievements } = useAchievements();
+  const { currentStreak, longestStreak } = useStreakTracking();
+  const { getWeeklyStats, getMonthlyStats, getYearlyStats, getTrendData } = useAnalytics(selectedTimeframe);
+
+  // Progress Metrics with Enhanced Calculations
+  const [progressMetrics] = useState<ProgressMetric[]>([
+    {
+      id: 'total_workouts',
+      label: 'Total Workouts',
+      current: workouts.length,
+      target: 100,
+      unit: 'workouts',
+      color: DesignTokens.colors.primary[500],
+      trend: 'up',
+      trendValue: '+12 this month',
+      category: 'consistency',
+    },
+    {
+      id: 'current_streak',
+      label: 'Current Streak',
+      current: currentStreak,
+      target: 30,
+      unit: 'days',
+      color: DesignTokens.colors.warning[500],
+      trend: currentStreak > 0 ? 'up' : 'stable',
+      trendValue: `${currentStreak > 0 ? '+' : ''}${currentStreak} days`,
+      category: 'consistency',
+    },
+    {
+      id: 'personal_records',
+      label: 'Personal Records',
+      current: personalRecords.length,
+      target: 50,
+      unit: 'PRs',
+      color: DesignTokens.colors.success[500],
+      trend: 'up',
+      trendValue: '+3 this week',
+      category: 'strength',
+    },
+    {
+      id: 'total_volume',
+      label: 'Total Volume',
+      current: calculateTotalVolume(),
+      target: 50000,
+      unit: 'lbs',
+      color: DesignTokens.colors.info[500],
+      trend: 'up',
+      trendValue: '+2.5k this month',
+      category: 'volume',
+    },
+    {
+      id: 'achievements',
+      label: 'Achievements',
+      current: getUnlockedCount(),
+      target: getTotalAchievements(),
+      unit: 'unlocked',
+      color: DesignTokens.colors.secondary[500],
+      trend: 'up',
+      trendValue: '+2 this week',
+      category: 'consistency',
+    },
+    {
+      id: 'workout_frequency',
+      label: 'Weekly Frequency',
+      current: calculateWeeklyFrequency(),
+      target: 5,
+      unit: 'per week',
+      color: DesignTokens.colors.error[500],
+      trend: 'up',
+      trendValue: '+0.5 avg',
+      category: 'consistency',
+    },
+  ]);
+
+  // Goal Progress with Enhanced Tracking
+  const [goalProgress] = useState<GoalProgress[]>([
+    {
+      id: 'strength_goal',
+      title: 'Strength Building',
+      description: 'Increase total 1RM by 20%',
+      progress: 65,
+      target: 100,
+      unit: '%',
+      deadline: '2024-06-01',
+      priority: 'high',
+      category: 'Strength',
+      color: DesignTokens.colors.primary[500],
+    },
+    {
+      id: 'consistency_goal',
+      title: '90-Day Streak',
+      description: 'Maintain workout consistency',
+      progress: currentStreak,
+      target: 90,
+      unit: 'days',
+      deadline: '2024-05-15',
+      priority: 'high',
+      category: 'Consistency',
+      color: DesignTokens.colors.warning[500],
+    },
+    {
+      id: 'volume_goal',
+      title: 'Volume Milestone',
+      description: 'Reach 100k total volume',
+      progress: (calculateTotalVolume() / 100000) * 100,
+      target: 100,
+      unit: '%',
+      deadline: '2024-12-31',
+      priority: 'medium',
+      category: 'Volume',
+      color: DesignTokens.colors.info[500],
+    },
+    {
+      id: 'endurance_goal',
+      title: 'Endurance Challenge',
+      description: 'Complete 50 cardio sessions',
+      progress: 32,
+      target: 50,
+      unit: 'sessions',
+      deadline: '2024-08-01',
+      priority: 'medium',
+      category: 'Endurance',
+      color: DesignTokens.colors.success[500],
+    },
+  ]);
+
+  // Data Processing
+  const stats = selectedTimeframe === 'week' ? getWeeklyStats() : 
+                selectedTimeframe === 'month' ? getMonthlyStats() : 
+                getYearlyStats();
+
+  const filteredMetrics = selectedCategory === 'all' 
+    ? progressMetrics 
+    : progressMetrics.filter(metric => metric.category === selectedCategory);
+
+  const overallProgress = calculateOverallProgress();
+
+  useEffect(() => {
+    // Auto-refresh data periodically
+    const interval = setInterval(() => {
+      if (!refreshing) {
+        onRefresh();
+      }
+    }, 300000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh Handler
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([
-      refreshHistory(),
-      refreshPRs(),
-    ]);
-    setRefreshing(false);
-  };
-
-  const TabButton = ({ tab, label, icon }: { tab: TabType; label: string; icon: React.ReactNode }) => (
-    <TouchableOpacity
-      style={[
-        styles.tabButton,
-        activeTab === tab && styles.tabButtonActive
-      ]}
-      onPress={() => setActiveTab(tab)}
-    >
-      {icon}
-      <Text style={[
-        styles.tabButtonText,
-        activeTab === tab && styles.tabButtonTextActive
-      ]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const TimeframeButton = ({ timeframe, label }: { timeframe: AnalyticsTimeframe; label: string }) => (
-    <TouchableOpacity
-      style={[
-        styles.timeframeButton,
-        analyticsTimeframe === timeframe && styles.timeframeButtonActive
-      ]}
-      onPress={() => setAnalyticsTimeframe(timeframe)}
-    >
-      <Text style={[
-        styles.timeframeButtonText,
-        analyticsTimeframe === timeframe && styles.timeframeButtonTextActive
-      ]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const ExerciseButton = ({ exercise }: { exercise: string }) => (
-    <TouchableOpacity
-      style={[
-        styles.exerciseButton,
-        selectedExercise === exercise && styles.exerciseButtonActive
-      ]}
-      onPress={() => setSelectedExercise(selectedExercise === exercise ? null : exercise)}
-    >
-      <Text style={[
-        styles.exerciseButtonText,
-        selectedExercise === exercise && styles.exerciseButtonTextActive
-      ]}>
-        {exercise}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const MetricButton = ({ metric, label }: { metric: AnalyticsMetric; label: string }) => (
-    <TouchableOpacity
-      style={[
-        styles.metricButton,
-        selectedMetric === metric && styles.metricButtonActive
-      ]}
-      onPress={() => setSelectedMetric(metric)}
-    >
-      <Text style={[
-        styles.metricButtonText,
-        selectedMetric === metric && styles.metricButtonTextActive
-      ]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const renderAnalyticsContent = () => (
-    <ScrollView 
-      style={styles.analyticsContainer} 
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Timeframe Selection */}
-      <View style={styles.controlsContainer}>
-        <Text style={styles.controlsTitle}>Timeframe</Text>
-        <View style={styles.timeframeContainer}>
-          <TimeframeButton timeframe="week" label="Week" />
-          <TimeframeButton timeframe="month" label="Month" />
-          <TimeframeButton timeframe="year" label="Year" />
-        </View>
-      </View>
-
-      {hasData ? (
-        <>
-          {/* Summary Stats */}
-          <View style={styles.summaryContainer}>
-            <Text style={styles.sectionTitle}>Summary</Text>
-            <View style={styles.summaryGrid}>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>{summaryStats.totalWorkouts}</Text>
-                <Text style={styles.summaryLabel}>Workouts</Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>{summaryStats.averageWorkoutsPerWeek}</Text>
-                <Text style={styles.summaryLabel}>Per Week</Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>{summaryStats.uniqueExercises}</Text>
-                <Text style={styles.summaryLabel}>Exercises</Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>
-                  {Math.round(summaryStats.averageWorkoutDuration)}m
-                </Text>
-                <Text style={styles.summaryLabel}>Avg Duration</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Chart Type Toggle */}
-          <View style={styles.controlsContainer}>
-            <ChartTypeToggle chartType={chartType} onTypeChange={setChartType} />
-          </View>
-
-          {/* Volume Chart */}
-          <AnalyticsChart
-            data={analyticsData.volumeData}
-            title="Training Volume"
-            subtitle={`Total volume over ${analyticsTimeframe}`}
-            trend={volumeTrend}
-            chartType={chartType}
-            color={DesignTokens.colors.primary[500]}
-            showTrend={true}
-          />
-
-          {/* Frequency Chart */}
-          <AnalyticsChart
-            data={analyticsData.frequencyData}
-            title="Workout Frequency"
-            subtitle={`Workouts per ${analyticsTimeframe === 'year' ? 'month' : 'week'}`}
-            trend={frequencyTrend}
-            chartType={chartType}
-            color={DesignTokens.colors.success[500]}
-            showTrend={true}
-          />
-
-          {/* Exercise Selection */}
-          {availableExercises.length > 0 && (
-            <View style={styles.controlsContainer}>
-              <Text style={styles.controlsTitle}>Exercise Progress</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.exerciseContainer}>
-                  {availableExercises.slice(0, 8).map((exercise) => (
-                    <ExerciseButton key={exercise} exercise={exercise} />
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Exercise Progress Chart */}
-          {selectedExercise && (
-            <>
-              <View style={styles.controlsContainer}>
-                <Text style={styles.controlsTitle}>Metric</Text>
-                <View style={styles.metricContainer}>
-                  <MetricButton metric="weight" label="Weight" />
-                  <MetricButton metric="reps" label="Reps" />
-                  <MetricButton metric="volume" label="Volume" />
-                </View>
-              </View>
-
-              <AnalyticsChart
-                data={exerciseData}
-                title={`${selectedExercise} Progress`}
-                subtitle={`${selectedMetric.charAt(0).toUpperCase() + selectedMetric.slice(1)} over time`}
-                trend={exerciseTrend}
-                chartType={chartType}
-                color={DesignTokens.colors.warning[500]}
-                showTrend={true}
-              />
-            </>
-          )}
-
-          {/* Trend Analysis */}
-          <View style={styles.trendAnalysisContainer}>
-            <TrendAnalysis
-              insights={analyticsData.insights}
-              trends={{
-                volume: volumeTrend,
-                frequency: frequencyTrend,
-              }}
-              onInsightPress={(insight) => {
-                console.log('Insight pressed:', insight);
-              }}
-            />
-          </View>
-        </>
-      ) : (
-        <View style={styles.emptyState}>
-          <BarChart3 size={48} color={DesignTokens.colors.text.tertiary} />
-          <Text style={styles.emptyStateTitle}>No Analytics Data</Text>
-          <Text style={styles.emptyStateText}>
-            Complete some workouts to see your analytics and progress charts
-          </Text>
-        </View>
-      )}
-    </ScrollView>
-  );
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'overview':
-        return <WorkoutStatsOverview />;
-      
-      case 'analytics':
-        return renderAnalyticsContent();
-      
-      case 'history':
-        return (
-          <ScrollView style={styles.historyContainer} showsVerticalScrollIndicator={false}>
-            <View style={styles.historyHeader}>
-              <Text style={styles.historyTitle}>Workout History</Text>
-              <Text style={styles.historySubtitle}>
-                {workouts.length} workout{workouts.length !== 1 ? 's' : ''} completed
-              </Text>
-            </View>
-            
-            {workouts.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateIcon}>📊</Text>
-                <Text style={styles.emptyStateTitle}>No workouts yet</Text>
-                <Text style={styles.emptyStateText}>
-                  Complete your first workout to see your history here
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.historyList}>
-                {workouts.map((workout) => (
-                  <WorkoutHistoryCard
-                    key={workout.id}
-                    workout={workout}
-                    onPress={() => {
-                      console.log('View workout details:', workout.id);
-                    }}
-                    onDelete={() => {
-                      console.log('Delete workout:', workout.id);
-                    }}
-                    onShare={() => {
-                      console.log('Share workout:', workout.id);
-                    }}
-                  />
-                ))}
-              </View>
-            )}
-          </ScrollView>
-        );
-
-      case 'records':
-        return (
-          <ScrollView 
-            style={styles.recordsContainer} 
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-          >
-            <ProgressDashboard showFilters={true} compactMode={false} />
-          </ScrollView>
-        );
-      
-      default:
-        return <WorkoutStatsOverview />;
+    try {
+      await refreshHistory();
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
+  // Navigation Handlers
+  const handleMetricPress = (metricId: string) => {
+    setExpandedMetric(expandedMetric === metricId ? null : metricId);
+  };
+
+  const handleGoalPress = (goalId: string) => {
+    router.push(`/goals/${goalId}`);
+  };
+
+  const handleViewDetailedAnalytics = () => {
+    router.push('/analytics');
+  };
+
+  const handleExportData = () => {
+    // Export functionality
+  };
+
+  const handleShareProgress = () => {
+    // Share functionality
+  };
+
+  // Helper Functions
+  function calculateTotalVolume(): number {
+    return workouts.reduce((total, workout) => {
+      return total + workout.exercises.reduce((exerciseTotal, exercise) => {
+        return exerciseTotal + exercise.sets
+          .filter(set => set.is_completed)
+          .reduce((setTotal, set) => {
+            return setTotal + ((set.actual_weight_kg || 0) * (set.actual_reps || 0));
+          }, 0);
+      }, 0);
+    }, 0);
+  }
+
+  function calculateWeeklyFrequency(): number {
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const recentWorkouts = workouts.filter(workout => 
+      new Date(workout.started_at) > oneWeekAgo
+    );
+    return recentWorkouts.length;
+  }
+
+  function calculateOverallProgress(): number {
+    const totalProgress = progressMetrics.reduce((sum, metric) => {
+      return sum + (metric.current / metric.target) * 100;
+    }, 0);
+    return Math.min(100, totalProgress / progressMetrics.length);
+  }
+
+  function getDaysUntilDeadline(deadline: string): number {
+    const deadlineDate = new Date(deadline);
+    const now = new Date();
+    const diffTime = deadlineDate.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  function formatDeadline(deadline: string): string {
+    const days = getDaysUntilDeadline(deadline);
+    if (days < 0) return 'Overdue';
+    if (days === 0) return 'Due today';
+    if (days === 1) return 'Due tomorrow';
+    if (days <= 7) return `${days} days left`;
+    if (days <= 30) return `${Math.ceil(days / 7)} weeks left`;
+    return `${Math.ceil(days / 30)} months left`;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TabButton
-          tab="overview"
-          label="Overview"
-          icon={<BarChart3 size={20} color={activeTab === 'overview' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
-        />
-        <TabButton
-          tab="analytics"
-          label="Analytics"
-          icon={<TrendingUp size={20} color={activeTab === 'analytics' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
-        />
-        <TabButton
-          tab="history"
-          label="History"
-          icon={<History size={20} color={activeTab === 'history' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
-        />
-        <TabButton
-          tab="records"
-          label="Records"
-          icon={<Trophy size={20} color={activeTab === 'records' ? DesignTokens.colors.text.primary : DesignTokens.colors.text.secondary} />}
-        />
-      </View>
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={DesignTokens.colors.primary[500]}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header with Overall Progress */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Your Progress</Text>
+            <Text style={styles.headerSubtitle}>Track your fitness journey</Text>
+          </View>
 
-      {/* Content */}
-      <View style={styles.content}>
-        {renderContent()}
-      </View>
+          {/* Overall Progress Circle - NEW */}
+          <CircularProgressGradient
+            progress={overallProgress}
+            size={80}
+            strokeWidth={8}
+            showPercentage={true}
+            showLabel={true}
+            label="Overall"
+            gradientColors={[DesignTokens.colors.primary[400], DesignTokens.colors.primary[600]]}
+            glowEffect={true}
+            pulseAnimation={overallProgress > 80}
+          />
+        </View>
+
+        {/* Controls */}
+        <View style={styles.controls}>
+          <View style={styles.timeframeSelector}>
+            {(['week', 'month', 'year'] as const).map((timeframe) => (
+              <TouchableOpacity
+                key={timeframe}
+                style={[
+                  styles.timeframeButton,
+                  selectedTimeframe === timeframe && styles.timeframeButtonActive,
+                ]}
+                onPress={() => setSelectedTimeframe(timeframe)}
+              >
+                <Text
+                  style={[
+                    styles.timeframeButtonText,
+                    selectedTimeframe === timeframe && styles.timeframeButtonTextActive,
+                  ]}
+                >
+                  {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.actionButton} onPress={() => setShowDetailedView(!showDetailedView)}>
+              {showDetailedView ? <EyeOff size={20} color={DesignTokens.colors.text.secondary} /> : <Eye size={20} color={DesignTokens.colors.text.secondary} />}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={handleExportData}>
+              <Download size={20} color={DesignTokens.colors.text.secondary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={handleShareProgress}>
+              <Share size={20} color={DesignTokens.colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Category Filter */}
+        <View style={styles.categoryFilter}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {(['all', 'strength', 'endurance', 'consistency', 'volume'] as const).map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === category && styles.categoryButtonActive,
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text
+                  style={[
+                    styles.categoryButtonText,
+                    selectedCategory === category && styles.categoryButtonTextActive,
+                  ]}
+                >
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Progress Metrics Grid with Enhanced Indicators - NEW */}
+        <View style={styles.metricsSection}>
+          <Text style={styles.sectionTitle}>Progress Metrics</Text>
+          
+          <View style={styles.metricsGrid}>
+            {filteredMetrics.map((metric) => (
+              <TouchableOpacity
+                key={metric.id}
+                style={[
+                  styles.metricCard,
+                  expandedMetric === metric.id && styles.metricCardExpanded,
+                ]}
+                onPress={() => handleMetricPress(metric.id)}
+              >
+                <LinearGradient
+                  colors={['#1a1a1a', '#2a2a2a']}
+                  style={styles.metricGradient}
+                >
+                  {/* Metric Header */}
+                  <View style={styles.metricHeader}>
+                    <View style={styles.metricInfo}>
+                      <Text style={styles.metricLabel}>{metric.label}</Text>
+                      <Text style={styles.metricValue}>
+                        {metric.current.toLocaleString()} {metric.unit}
+                      </Text>
+                    </View>
+                    
+                    {/* Circular Progress for Metric - NEW */}
+                    <CircularProgressDashboard
+                      progress={(metric.current / metric.target) * 100}
+                      size={60}
+                      strokeWidth={6}
+                      color={metric.color}
+                      showPercentage={false}
+                      showLabel={false}
+                      gradient={true}
+                      gradientColors={[metric.color + '80', metric.color]}
+                    />
+                  </View>
+
+                  {/* Progress Bar - NEW */}
+                  <ProgressBarGradient
+                    progress={(metric.current / metric.target) * 100}
+                    height={8}
+                    gradientColors={[metric.color + '80', metric.color]}
+                    showPercentage={false}
+                    animated={true}
+                    glowEffect={true}
+                    style={styles.metricProgressBar}
+                  />
+
+                  {/* Metric Footer */}
+                  <View style={styles.metricFooter}>
+                    <View style={styles.metricTarget}>
+                      <Text style={styles.metricTargetText}>
+                        Target: {metric.target.toLocaleString()} {metric.unit}
+                      </Text>
+                    </View>
+                    
+                    <View style={[styles.trendIndicator, { backgroundColor: metric.color + '20' }]}>
+                      <TrendingUp size={12} color={metric.color} />
+                      <Text style={[styles.trendText, { color: metric.color }]}>
+                        {metric.trendValue}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Expanded Details */}
+                  {expandedMetric === metric.id && showDetailedView && (
+                    <View style={styles.metricExpanded}>
+                      <View style={styles.expandedStats}>
+                        <View style={styles.expandedStat}>
+                          <Text style={styles.expandedStatLabel}>Progress</Text>
+                          <Text style={styles.expandedStatValue}>
+                            {Math.round((metric.current / metric.target) * 100)}%
+                          </Text>
+                        </View>
+                        <View style={styles.expandedStat}>
+                          <Text style={styles.expandedStatLabel}>Remaining</Text>
+                          <Text style={styles.expandedStatValue}>
+                            {Math.max(0, metric.target - metric.current).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.expandedStat}>
+                          <Text style={styles.expandedStatLabel}>Category</Text>
+                          <Text style={styles.expandedStatValue}>
+                            {metric.category.charAt(0).toUpperCase() + metric.category.slice(1)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Goal Progress Section with Enhanced Indicators - NEW */}
+        <View style={styles.goalsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Active Goals</Text>
+            <TouchableOpacity onPress={() => router.push('/goals')}>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {goalProgress.map((goal) => (
+            <TouchableOpacity
+              key={goal.id}
+              style={styles.goalCard}
+              onPress={() => handleGoalPress(goal.id)}
+            >
+              <LinearGradient
+                colors={['#1a1a1a', '#2a2a2a']}
+                style={styles.goalGradient}
+              >
+                {/* Goal Header */}
+                <View style={styles.goalHeader}>
+                  <View style={styles.goalInfo}>
+                    <Text style={styles.goalTitle}>{goal.title}</Text>
+                    <Text style={styles.goalDescription}>{goal.description}</Text>
+                  </View>
+                  
+                  <View style={styles.goalProgress}>
+                    <Text style={styles.goalProgressText}>
+                      {Math.round((goal.progress / goal.target) * 100)}%
+                    </Text>
+                    <Text style={styles.goalProgressLabel}>Complete</Text>
+                  </View>
+                </View>
+
+                {/* Segmented Progress Bar - NEW */}
+                <ProgressBarSegmented
+                  progress={(goal.progress / goal.target) * 100}
+                  height={12}
+                  segments={10}
+                  segmentGap={2}
+                  color={goal.color}
+                  backgroundColor={DesignTokens.colors.neutral[800]}
+                  showPercentage={false}
+                  animated={true}
+                  style={styles.goalProgressBar}
+                />
+
+                {/* Goal Footer */}
+                <View style={styles.goalFooter}>
+                  <View style={styles.goalStats}>
+                    <Text style={styles.goalStatText}>
+                      {goal.progress} / {goal.target} {goal.unit}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.goalDeadline}>
+                    <Clock size={12} color={DesignTokens.colors.text.tertiary} />
+                    <Text style={styles.goalDeadlineText}>
+                      {formatDeadline(goal.deadline)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Priority Indicator */}
+                <View style={[
+                  styles.priorityIndicator,
+                  { backgroundColor: goal.priority === 'high' ? DesignTokens.colors.error[500] : 
+                                   goal.priority === 'medium' ? DesignTokens.colors.warning[500] : 
+                                   DesignTokens.colors.success[500] }
+                ]} />
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Analytics Charts Section */}
+        <View style={styles.analyticsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Analytics Overview</Text>
+            <TouchableOpacity onPress={handleViewDetailedAnalytics}>
+              <Text style={styles.viewAllText}>View Details</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Workout Stats Overview */}
+          <WorkoutStatsOverview
+            timeframe={selectedTimeframe}
+            style={styles.statsOverview}
+          />
+
+          {/* Interactive Charts */}
+          <View style={styles.chartsContainer}>
+            <InteractiveChart
+              data={getTrendData()}
+              type="line"
+              title="Progress Trend"
+              height={200}
+              style={styles.chart}
+            />
+            
+            <AnalyticsChart
+              timeframe={selectedTimeframe}
+              chartType="volume"
+              style={styles.chart}
+            />
+          </View>
+
+          {/* Exercise Progress Charts */}
+          <ExerciseProgressChart
+            exercises={['Bench Press', 'Squat', 'Deadlift']}
+            timeframe={selectedTimeframe}
+            style={styles.exerciseChart}
+          />
+        </View>
+
+        {/* Recent Workout History */}
+        <View style={styles.historySection}>
+          <Text style={styles.sectionTitle}>Recent Workouts</Text>
+          
+          {workouts.slice(0, 5).map((workout) => (
+            <WorkoutHistoryCard
+              key={workout.id}
+              workout={workout}
+              onPress={() => router.push(`/workouts/${workout.id}`)}
+              showProgressIndicators={true}
+              style={styles.historyCard}
+            />
+          ))}
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={styles.quickActionButton} onPress={() => router.push('/analytics')}>
+            <BarChart3 size={24} color={DesignTokens.colors.primary[500]} />
+            <Text style={styles.quickActionText}>Detailed Analytics</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.quickActionButton} onPress={() => router.push('/goals')}>
+            <Target size={24} color={DesignTokens.colors.success[500]} />
+            <Text style={styles.quickActionText}>Manage Goals</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.quickActionButton} onPress={() => router.push('/achievements')}>
+            <Trophy size={24} color={DesignTokens.colors.warning[500]} />
+            <Text style={styles.quickActionText}>Achievements</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -367,59 +672,46 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: DesignTokens.colors.background.primary,
   },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingVertical: DesignTokens.spacing[2],
-    borderBottomWidth: 1,
-    borderBottomColor: DesignTokens.colors.neutral[800],
-  },
-  tabButton: {
+  scrollView: {
     flex: 1,
+  },
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: DesignTokens.spacing[2],
-    paddingVertical: DesignTokens.spacing[3],
-    borderRadius: DesignTokens.borderRadius.md,
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[4],
   },
-  tabButtonActive: {
-    backgroundColor: DesignTokens.colors.primary[500],
+  headerContent: {
+    flex: 1,
   },
-  tabButtonText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  tabButtonTextActive: {
+  headerTitle: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
   },
-  content: {
-    flex: 1,
+  headerSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
   },
-  analyticsContainer: {
-    flex: 1,
-    padding: DesignTokens.spacing[5],
-  },
-  controlsContainer: {
+  controls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[5],
     marginBottom: DesignTokens.spacing[4],
   },
-  controlsTitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    color: DesignTokens.colors.text.primary,
-    marginBottom: DesignTokens.spacing[2],
-  },
-  timeframeContainer: {
+  timeframeSelector: {
     flexDirection: 'row',
-    gap: DesignTokens.spacing[2],
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[1],
   },
   timeframeButton: {
-    paddingHorizontal: DesignTokens.spacing[4],
+    paddingHorizontal: DesignTokens.spacing[3],
     paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
-    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.sm,
   },
   timeframeButtonActive: {
     backgroundColor: DesignTokens.colors.primary[500],
@@ -430,137 +722,262 @@ const styles = StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.medium,
   },
   timeframeButtonTextActive: {
-    color: DesignTokens.colors.text.primary,
+    color: '#FFFFFF',
   },
-  summaryContainer: {
+  actionButtons: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[2],
+  },
+  actionButton: {
+    padding: DesignTokens.spacing[2],
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
+  },
+  categoryFilter: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[4],
+  },
+  categoryButton: {
+    paddingHorizontal: DesignTokens.spacing[4],
+    paddingVertical: DesignTokens.spacing[2],
+    marginRight: DesignTokens.spacing[2],
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
+  },
+  categoryButtonActive: {
+    backgroundColor: DesignTokens.colors.primary[500],
+  },
+  categoryButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  categoryButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  metricsSection: {
+    paddingHorizontal: DesignTokens.spacing[5],
     marginBottom: DesignTokens.spacing[6],
   },
   sectionTitle: {
     fontSize: DesignTokens.typography.fontSize.lg,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
-    marginBottom: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[3],
   },
-  summaryGrid: {
+  sectionHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[3],
+  },
+  viewAllText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  metricsGrid: {
     gap: DesignTokens.spacing[3],
   },
-  summaryCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: DesignTokens.colors.surface.primary,
+  metricCard: {
     borderRadius: DesignTokens.borderRadius.lg,
-    padding: DesignTokens.spacing[4],
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    overflow: 'hidden',
+    ...DesignTokens.shadow.base,
   },
-  summaryValue: {
+  metricCardExpanded: {
+    ...DesignTokens.shadow.lg,
+  },
+  metricGradient: {
+    padding: DesignTokens.spacing[4],
+  },
+  metricHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[3],
+  },
+  metricInfo: {
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  metricValue: {
     fontSize: DesignTokens.typography.fontSize.xl,
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
-    marginBottom: DesignTokens.spacing[1],
   },
-  summaryLabel: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
+  metricProgressBar: {
+    marginBottom: DesignTokens.spacing[3],
   },
-  exerciseContainer: {
+  metricFooter: {
     flexDirection: 'row',
-    gap: DesignTokens.spacing[2],
-    paddingRight: DesignTokens.spacing[5],
-  },
-  exerciseButton: {
-    paddingHorizontal: DesignTokens.spacing[3],
-    paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    borderWidth: 1,
-    borderColor: DesignTokens.colors.neutral[800],
-  },
-  exerciseButtonActive: {
-    backgroundColor: DesignTokens.colors.primary[500],
-    borderColor: DesignTokens.colors.primary[500],
-  },
-  exerciseButtonText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  exerciseButtonTextActive: {
-    color: DesignTokens.colors.text.primary,
-  },
-  metricContainer: {
-    flexDirection: 'row',
-    gap: DesignTokens.spacing[2],
-  },
-  metricButton: {
-    paddingHorizontal: DesignTokens.spacing[4],
-    paddingVertical: DesignTokens.spacing[2],
-    borderRadius: DesignTokens.borderRadius.md,
-    backgroundColor: DesignTokens.colors.surface.secondary,
-  },
-  metricButtonActive: {
-    backgroundColor: DesignTokens.colors.primary[500],
-  },
-  metricButtonText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  metricButtonTextActive: {
-    color: DesignTokens.colors.text.primary,
-  },
-  trendAnalysisContainer: {
-    marginTop: DesignTokens.spacing[4],
-  },
-  historyContainer: {
-    flex: 1,
-  },
-  historyHeader: {
-    padding: DesignTokens.spacing[5],
-    paddingBottom: DesignTokens.spacing[4],
-  },
-  historyTitle: {
-    fontSize: DesignTokens.typography.fontSize['2xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
-  },
-  historySubtitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-  },
-  historyList: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingBottom: DesignTokens.spacing[5],
-  },
-  recordsContainer: {
-    flex: 1,
-  },
-  emptyState: {
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: DesignTokens.spacing[12],
-    paddingHorizontal: DesignTokens.spacing[5],
   },
-  emptyStateIcon: {
-    fontSize: 48,
+  metricTarget: {
+    flex: 1,
+  },
+  metricTargetText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.tertiary,
+  },
+  trendIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+    gap: DesignTokens.spacing[1],
+  },
+  trendText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+  },
+  metricExpanded: {
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.neutral[800],
+    paddingTop: DesignTokens.spacing[3],
+    marginTop: DesignTokens.spacing[3],
+  },
+  expandedStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  expandedStat: {
+    alignItems: 'center',
+  },
+  expandedStatLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.tertiary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  expandedStatValue: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+  },
+  goalsSection: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[6],
+  },
+  goalCard: {
+    borderRadius: DesignTokens.borderRadius.lg,
+    overflow: 'hidden',
+    marginBottom: DesignTokens.spacing[3],
+    ...DesignTokens.shadow.base,
+    position: 'relative',
+  },
+  goalGradient: {
+    padding: DesignTokens.spacing[4],
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[3],
+  },
+  goalInfo: {
+    flex: 1,
+    marginRight: DesignTokens.spacing[3],
+  },
+  goalTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+  goalDescription: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+  },
+  goalProgress: {
+    alignItems: 'center',
+  },
+  goalProgressText: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+  goalProgressLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.tertiary,
+  },
+  goalProgressBar: {
+    marginBottom: DesignTokens.spacing[3],
+  },
+  goalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  goalStats: {
+    flex: 1,
+  },
+  goalStatText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+  goalDeadline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+  goalDeadlineText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.tertiary,
+  },
+  priorityIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+  },
+  analyticsSection: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[6],
+  },
+  statsOverview: {
     marginBottom: DesignTokens.spacing[4],
   },
-  emptyStateTitle: {
-    fontSize: DesignTokens.typography.fontSize.lg,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[2],
+  chartsContainer: {
+    gap: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[4],
   },
-  emptyStateText: {
-    fontSize: DesignTokens.typography.fontSize.base,
+  chart: {
+    marginBottom: DesignTokens.spacing[3],
+  },
+  exerciseChart: {
+    marginBottom: DesignTokens.spacing[4],
+  },
+  historySection: {
+    paddingHorizontal: DesignTokens.spacing[5],
+    marginBottom: DesignTokens.spacing[6],
+  },
+  historyCard: {
+    marginBottom: DesignTokens.spacing[3],
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[4],
+    backgroundColor: DesignTokens.colors.surface.primary,
+    marginHorizontal: DesignTokens.spacing[5],
+    borderRadius: DesignTokens.borderRadius.lg,
+    marginBottom: DesignTokens.spacing[6],
+  },
+  quickActionButton: {
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+  },
+  quickActionText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 22,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
 });
