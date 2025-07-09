@@ -1,683 +1,238 @@
-import React, { useState } from 'react';
+/**
+ * Challenge List Component
+ * Displays a list of challenges in various layouts
+ */
+
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  RefreshControl,
-  TextInput,
-  Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Search,
-  Filter,
-  SortAsc,
-  SortDesc,
-  Trophy,
-  Users,
-  Target,
-  Calendar,
-  TrendingUp,
-  Clock,
-  Award,
-  X,
-} from 'lucide-react-native';
-import { ChallengeCard } from './ChallengeCard';
-import { Challenge } from '@/contexts/ChallengeContext';
-import { useChallenges } from '@/hooks/useChallenges';
+import { Target, Filter, SortAsc } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-import * as Haptics from 'expo-haptics';
+import { ChallengeCard } from './ChallengeCard';
 
-interface ChallengeListProps {
-  challenges?: Challenge[];
-  variant?: 'default' | 'compact' | 'detailed';
-  showSearch?: boolean;
-  showFilters?: boolean;
-  showSort?: boolean;
-  onChallengePress?: (challenge: Challenge) => void;
-  onChallengeJoin?: (challengeId: string) => void;
-  onChallengeLeave?: (challengeId: string) => void;
-  refreshing?: boolean;
-  onRefresh?: () => void;
+interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  type: 'consistency' | 'volume' | 'frequency' | 'duration' | 'strength';
+  duration: number;
+  participants: number;
+  progress?: number;
+  target?: number;
+  reward: number;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  isParticipating?: boolean;
+  createdBy: string;
+  rules: string[];
 }
 
-type SortOption = 'title' | 'participants' | 'duration' | 'difficulty' | 'reward';
-type SortDirection = 'asc' | 'desc';
-type FilterCategory = 'all' | 'strength' | 'cardio' | 'consistency' | 'distance' | 'time' | 'social';
-type FilterDifficulty = 'all' | 'beginner' | 'intermediate' | 'advanced';
-type FilterStatus = 'all' | 'joined' | 'available' | 'completed';
+interface ChallengeListProps {
+  challenges: Challenge[];
+  onChallengePress: (challengeId: string) => void;
+  onJoinChallenge: (challengeId: string) => void;
+  variant?: 'list' | 'grid' | 'compact';
+  showFilters?: boolean;
+  onFilterPress?: () => void;
+  onSortPress?: () => void;
+}
 
-export function ChallengeList({
-  challenges: propChallenges,
-  variant = 'default',
-  showSearch = true,
-  showFilters = true,
-  showSort = true,
+export const ChallengeList: React.FC<ChallengeListProps> = ({
+  challenges,
   onChallengePress,
-  onChallengeJoin,
-  onChallengeLeave,
-  refreshing = false,
-  onRefresh,
-}: ChallengeListProps) {
-  const { 
-    challenges: contextChallenges, 
-    joinChallenge, 
-    leaveChallenge,
-    refreshChallenges,
-  } = useChallenges();
-
-  const challenges = propChallenges || contextChallenges;
-
-  // State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showFiltersPanel, setShowFiltersPanel] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('participants');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [filterCategory, setFilterCategory] = useState<FilterCategory>('all');
-  const [filterDifficulty, setFilterDifficulty] = useState<FilterDifficulty>('all');
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
-
-  // Filter and sort challenges
-  const getFilteredAndSortedChallenges = (): Challenge[] => {
-    let filtered = challenges;
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(challenge =>
-        challenge.title.toLowerCase().includes(query) ||
-        challenge.description.toLowerCase().includes(query) ||
-        challenge.category.toLowerCase().includes(query)
-      );
-    }
-
-    // Category filter
-    if (filterCategory !== 'all') {
-      filtered = filtered.filter(challenge => challenge.category === filterCategory);
-    }
-
-    // Difficulty filter
-    if (filterDifficulty !== 'all') {
-      filtered = filtered.filter(challenge => challenge.difficulty === filterDifficulty);
-    }
-
-    // Status filter
-    if (filterStatus !== 'all') {
-      switch (filterStatus) {
-        case 'joined':
-          filtered = filtered.filter(challenge => challenge.isJoined);
-          break;
-        case 'available':
-          filtered = filtered.filter(challenge => !challenge.isJoined && !challenge.isCompleted);
-          break;
-        case 'completed':
-          filtered = filtered.filter(challenge => challenge.isCompleted);
-          break;
-      }
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortBy) {
-        case 'title':
-          aValue = a.title.toLowerCase();
-          bValue = b.title.toLowerCase();
-          break;
-        case 'participants':
-          aValue = a.participants;
-          bValue = b.participants;
-          break;
-        case 'duration':
-          aValue = new Date(a.duration.end).getTime() - new Date(a.duration.start).getTime();
-          bValue = new Date(b.duration.end).getTime() - new Date(b.duration.start).getTime();
-          break;
-        case 'difficulty':
-          const difficultyOrder = { beginner: 1, intermediate: 2, advanced: 3 };
-          aValue = difficultyOrder[a.difficulty as keyof typeof difficultyOrder];
-          bValue = difficultyOrder[b.difficulty as keyof typeof difficultyOrder];
-          break;
-        case 'reward':
-          aValue = a.reward.points;
-          bValue = b.reward.points;
-          break;
-        default:
-          return 0;
-      }
-
-      if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    return filtered;
+  onJoinChallenge,
+  variant = 'list',
+  showFilters = false,
+  onFilterPress,
+  onSortPress,
+}) => {
+  const renderChallenge = ({ item }: { item: Challenge }) => {
+    const cardVariant = variant === 'compact' ? 'compact' : 'default';
+    
+    return (
+      <ChallengeCard
+        challenge={item}
+        onPress={() => onChallengePress(item.id)}
+        variant={cardVariant}
+        showJoinButton={!item.isParticipating}
+        onJoinPress={() => onJoinChallenge(item.id)}
+        style={variant === 'grid' ? styles.gridItem : styles.listItem}
+      />
+    );
   };
 
-  const filteredChallenges = getFilteredAndSortedChallenges();
-
-  const handleChallengePress = async (challenge: Challenge) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onChallengePress?.(challenge);
-  };
-
-  const handleChallengeJoin = async (challengeId: string) => {
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await joinChallenge(challengeId);
-      onChallengeJoin?.(challengeId);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to join challenge. Please try again.');
-    }
-  };
-
-  const handleChallengeLeave = async (challengeId: string) => {
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      Alert.alert(
-        'Leave Challenge',
-        'Are you sure you want to leave this challenge? Your progress will be saved.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Leave',
-            style: 'destructive',
-            onPress: async () => {
-              await leaveChallenge(challengeId);
-              onChallengeLeave?.(challengeId);
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to leave challenge. Please try again.');
-    }
-  };
-
-  const handleRefresh = async () => {
-    await refreshChallenges();
-    onRefresh?.();
-  };
-
-  const toggleSort = (option: SortOption) => {
-    if (sortBy === option) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(option);
-      setSortDirection('desc');
-    }
-  };
-
-  const clearFilters = () => {
-    setSearchQuery('');
-    setFilterCategory('all');
-    setFilterDifficulty('all');
-    setFilterStatus('all');
-    setSortBy('participants');
-    setSortDirection('desc');
-  };
-
-  const getActiveFiltersCount = () => {
-    let count = 0;
-    if (searchQuery.trim()) count++;
-    if (filterCategory !== 'all') count++;
-    if (filterDifficulty !== 'all') count++;
-    if (filterStatus !== 'all') count++;
-    return count;
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'strength':
-        return <Trophy size={16} color="#666" />;
-      case 'cardio':
-        return <TrendingUp size={16} color="#666" />;
-      case 'consistency':
-        return <Target size={16} color="#666" />;
-      case 'distance':
-        return <Calendar size={16} color="#666" />;
-      case 'time':
-        return <Clock size={16} color="#666" />;
-      case 'social':
-        return <Users size={16} color="#666" />;
-      default:
-        return <Award size={16} color="#666" />;
-    }
-  };
-
-  const renderChallenge = ({ item }: { item: Challenge }) => (
-    <ChallengeCard
-      challenge={item}
-      variant={variant}
-      onPress={() => handleChallengePress(item)}
-      onJoin={() => handleChallengeJoin(item.id)}
-      onLeave={() => handleChallengeLeave(item.id)}
-      showProgress={true}
-      showParticipants={true}
-    />
-  );
-
-  const renderFiltersPanel = () => (
-    <View style={styles.filtersPanel}>
-      <LinearGradient
-        colors={['#1a1a1a', '#2a2a2a']}
-        style={styles.filtersPanelGradient}
-      >
-        <View style={styles.filtersPanelHeader}>
-          <Text style={styles.filtersPanelTitle}>Filters & Sort</Text>
-          <TouchableOpacity
-            style={styles.filtersPanelClose}
-            onPress={() => setShowFiltersPanel(false)}
-          >
-            <X size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Sort Options */}
-        <View style={styles.filterSection}>
-          <Text style={styles.filterSectionTitle}>Sort By</Text>
-          <View style={styles.filterOptions}>
-            {[
-              { key: 'participants', label: 'Participants', icon: Users },
-              { key: 'title', label: 'Title', icon: Award },
-              { key: 'duration', label: 'Duration', icon: Calendar },
-              { key: 'difficulty', label: 'Difficulty', icon: Target },
-              { key: 'reward', label: 'Reward', icon: Trophy },
-            ].map(({ key, label, icon: Icon }) => (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.filterOption,
-                  sortBy === key && styles.filterOptionActive
-                ]}
-                onPress={() => toggleSort(key as SortOption)}
-              >
-                <Icon size={16} color={sortBy === key ? '#FFFFFF' : '#666'} />
-                <Text style={[
-                  styles.filterOptionText,
-                  sortBy === key && styles.filterOptionTextActive
-                ]}>
-                  {label}
-                </Text>
-                {sortBy === key && (
-                  sortDirection === 'asc' ? 
-                    <SortAsc size={16} color="#FFFFFF" /> : 
-                    <SortDesc size={16} color="#FFFFFF" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Category Filter */}
-        <View style={styles.filterSection}>
-          <Text style={styles.filterSectionTitle}>Category</Text>
-          <View style={styles.filterOptions}>
-            {[
-              { key: 'all', label: 'All Categories' },
-              { key: 'strength', label: 'Strength' },
-              { key: 'cardio', label: 'Cardio' },
-              { key: 'consistency', label: 'Consistency' },
-              { key: 'distance', label: 'Distance' },
-              { key: 'time', label: 'Time' },
-              { key: 'social', label: 'Social' },
-            ].map(({ key, label }) => (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.filterOption,
-                  filterCategory === key && styles.filterOptionActive
-                ]}
-                onPress={() => setFilterCategory(key as FilterCategory)}
-              >
-                {key !== 'all' && getCategoryIcon(key)}
-                <Text style={[
-                  styles.filterOptionText,
-                  filterCategory === key && styles.filterOptionTextActive
-                ]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Difficulty Filter */}
-        <View style={styles.filterSection}>
-          <Text style={styles.filterSectionTitle}>Difficulty</Text>
-          <View style={styles.filterOptions}>
-            {[
-              { key: 'all', label: 'All Levels' },
-              { key: 'beginner', label: 'Beginner' },
-              { key: 'intermediate', label: 'Intermediate' },
-              { key: 'advanced', label: 'Advanced' },
-            ].map(({ key, label }) => (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.filterOption,
-                  filterDifficulty === key && styles.filterOptionActive
-                ]}
-                onPress={() => setFilterDifficulty(key as FilterDifficulty)}
-              >
-                <Text style={[
-                  styles.filterOptionText,
-                  filterDifficulty === key && styles.filterOptionTextActive
-                ]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Status Filter */}
-        <View style={styles.filterSection}>
-          <Text style={styles.filterSectionTitle}>Status</Text>
-          <View style={styles.filterOptions}>
-            {[
-              { key: 'all', label: 'All Challenges' },
-              { key: 'joined', label: 'Joined' },
-              { key: 'available', label: 'Available' },
-              { key: 'completed', label: 'Completed' },
-            ].map(({ key, label }) => (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.filterOption,
-                  filterStatus === key && styles.filterOptionActive
-                ]}
-                onPress={() => setFilterStatus(key as FilterStatus)}
-              >
-                <Text style={[
-                  styles.filterOptionText,
-                  filterStatus === key && styles.filterOptionTextActive
-                ]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Clear Filters */}
-        <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
-          <Text style={styles.clearFiltersText}>Clear All Filters</Text>
-        </TouchableOpacity>
-      </LinearGradient>
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Target size={48} color={DesignTokens.colors.text.secondary} />
+      <Text style={styles.emptyTitle}>No Challenges Available</Text>
+      <Text style={styles.emptyDescription}>
+        Check back later for new challenges or create your own!
+      </Text>
     </View>
   );
+
+  const getNumColumns = () => {
+    return variant === 'grid' ? 2 : 1;
+  };
+
+  const getItemLayout = (data: any, index: number) => {
+    const itemHeight = variant === 'compact' ? 80 : variant === 'grid' ? 200 : 180;
+    const itemSpacing = DesignTokens.spacing[3];
+    
+    return {
+      length: itemHeight,
+      offset: (itemHeight + itemSpacing) * index,
+      index,
+    };
+  };
 
   return (
     <View style={styles.container}>
-      {/* Search and Controls */}
-      {(showSearch || showFilters || showSort) && (
-        <View style={styles.controls}>
-          {showSearch && (
-            <View style={styles.searchContainer}>
-              <Search size={20} color="#666" style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search challenges..."
-                placeholderTextColor="#999"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity
-                  style={styles.searchClear}
-                  onPress={() => setSearchQuery('')}
-                >
-                  <X size={16} color="#666" />
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-
-          {(showFilters || showSort) && (
-            <View style={styles.controlButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.controlButton,
-                  getActiveFiltersCount() > 0 && styles.controlButtonActive
-                ]}
-                onPress={() => setShowFiltersPanel(true)}
-              >
-                <Filter size={16} color={getActiveFiltersCount() > 0 ? '#FFFFFF' : '#666'} />
-                {getActiveFiltersCount() > 0 && (
-                  <View style={styles.filterBadge}>
-                    <Text style={styles.filterBadgeText}>{getActiveFiltersCount()}</Text>
-                  </View>
-                )}
+      {/* Header with Filters */}
+      {showFilters && (
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>
+            {challenges.length} Challenge{challenges.length !== 1 ? 's' : ''}
+          </Text>
+          
+          <View style={styles.headerActions}>
+            {onFilterPress && (
+              <TouchableOpacity style={styles.headerButton} onPress={onFilterPress}>
+                <Filter size={16} color={DesignTokens.colors.text.secondary} />
+                <Text style={styles.headerButtonText}>Filter</Text>
               </TouchableOpacity>
-            </View>
-          )}
+            )}
+            
+            {onSortPress && (
+              <TouchableOpacity style={styles.headerButton} onPress={onSortPress}>
+                <SortAsc size={16} color={DesignTokens.colors.text.secondary} />
+                <Text style={styles.headerButtonText}>Sort</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 
-      {/* Results Summary */}
-      <View style={styles.summary}>
-        <Text style={styles.summaryText}>
-          {filteredChallenges.length} challenge{filteredChallenges.length !== 1 ? 's' : ''}
-          {searchQuery && ` for "${searchQuery}"`}
-        </Text>
-        {getActiveFiltersCount() > 0 && (
-          <TouchableOpacity onPress={clearFilters}>
-            <Text style={styles.clearFiltersLink}>Clear filters</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
       {/* Challenge List */}
       <FlatList
-        data={filteredChallenges}
+        data={challenges}
         renderItem={renderChallenge}
         keyExtractor={(item) => item.id}
+        numColumns={getNumColumns()}
+        key={variant} // Force re-render when variant changes
+        contentContainerStyle={[
+          styles.listContainer,
+          challenges.length === 0 && styles.emptyListContainer,
+        ]}
+        columnWrapperStyle={variant === 'grid' ? styles.gridRow : undefined}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={renderEmpty}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Trophy size={48} color="#999" />
-            <Text style={styles.emptyStateTitle}>No challenges found</Text>
-            <Text style={styles.emptyStateText}>
-              {searchQuery || getActiveFiltersCount() > 0
-                ? 'Try adjusting your search or filters'
-                : 'Check back later for new challenges'}
-            </Text>
-          </View>
-        }
+        getItemLayout={variant === 'compact' ? getItemLayout : undefined}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={8}
       />
-
-      {/* Filters Panel */}
-      {showFiltersPanel && renderFiltersPanel()}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  controls: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 12,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
-  },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  searchClear: {
-    padding: 4,
-  },
-  controlButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  controlButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    position: 'relative',
-  },
-  controlButtonActive: {
-    backgroundColor: '#3B82F6',
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  summary: {
+
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  summaryText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  clearFiltersLink: {
-    fontSize: 14,
-    color: '#3B82F6',
-    fontWeight: '500',
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
+    paddingHorizontal: DesignTokens.spacing[5],
+    paddingVertical: DesignTokens.spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: DesignTokens.colors.border.primary,
   },
 
-  // Filters Panel Styles
-  filtersPanel: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 1000,
+  headerTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
   },
-  filtersPanelGradient: {
-    flex: 1,
-    paddingTop: 60,
-  },
-  filtersPanelHeader: {
+
+  headerActions: {
     flexDirection: 'row',
+    gap: DesignTokens.spacing[2],
+  },
+
+  headerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    gap: DesignTokens.spacing[1],
+  },
+
+  headerButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+
+  listContainer: {
+    padding: DesignTokens.spacing[3],
+  },
+
+  emptyListContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+
+  listItem: {
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  gridRow: {
     justifyContent: 'space-between',
+    paddingHorizontal: DesignTokens.spacing[2],
+  },
+
+  gridItem: {
+    width: '48%',
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  separator: {
+    height: DesignTokens.spacing[2],
+  },
+
+  emptyContainer: {
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    padding: DesignTokens.spacing[8],
   },
-  filtersPanelTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+
+  emptyTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[4],
+    marginBottom: DesignTokens.spacing[2],
   },
-  filtersPanelClose: {
-    padding: 8,
-  },
-  filterSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 12,
-  },
-  filterOptions: {
-    gap: 8,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#333',
-    gap: 12,
-  },
-  filterOptionActive: {
-    backgroundColor: '#3B82F6',
-  },
-  filterOptionText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#CCCCCC',
-  },
-  filterOptionTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
-  clearFiltersButton: {
-    margin: 20,
-    paddingVertical: 16,
-    backgroundColor: '#EF4444',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  clearFiltersText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+
+  emptyDescription: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: 280,
   },
 });

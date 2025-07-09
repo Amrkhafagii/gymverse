@@ -1,672 +1,469 @@
+/**
+ * Challenge Progress Component
+ * Shows overall progress across all active challenges
+ */
+
 import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  Dimensions,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Trophy,
-  Target,
-  TrendingUp,
-  Calendar,
-  Award,
-  CheckCircle,
-  Clock,
-  Flame,
-  Star,
-  Users,
-} from 'lucide-react-native';
-import { Challenge } from '@/contexts/ChallengeContext';
+import { Target, TrendingUp, Calendar, Award, ChevronRight } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
-
-interface ChallengeProgressProps {
-  challenge: Challenge;
-  onMilestonePress?: (milestone: any) => void;
-  onShareProgress?: () => void;
-  showMilestones?: boolean;
-  showStats?: boolean;
-  showActions?: boolean;
-}
-
-interface Milestone {
+interface Challenge {
   id: string;
   title: string;
-  description: string;
+  progress: number;
   target: number;
-  unit: string;
-  reward: {
-    points: number;
-    badge?: string;
-  };
-  isCompleted: boolean;
-  completedAt?: string;
-  icon: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: string;
+  endDate: string;
+  reward: number;
 }
 
-export function ChallengeProgress({
-  challenge,
-  onMilestonePress,
-  onShareProgress,
-  showMilestones = true,
-  showStats = true,
-  showActions = true,
-}: ChallengeProgressProps) {
-  
-  // Mock milestones data - in real app, this would come from the challenge
-  const milestones: Milestone[] = [
-    {
-      id: '1',
-      title: 'First Steps',
-      description: 'Complete your first workout',
-      target: 1,
-      unit: 'workout',
-      reward: { points: 50 },
-      isCompleted: true,
-      completedAt: '2024-01-15T10:00:00Z',
-      icon: '🎯',
-    },
-    {
-      id: '2',
-      title: 'Building Momentum',
-      description: 'Complete 5 workouts',
-      target: 5,
-      unit: 'workouts',
-      reward: { points: 100, badge: 'Momentum Builder' },
-      isCompleted: true,
-      completedAt: '2024-01-20T15:30:00Z',
-      icon: '🔥',
-    },
-    {
-      id: '3',
-      title: 'Consistency Champion',
-      description: 'Complete 10 workouts',
-      target: 10,
-      unit: 'workouts',
-      reward: { points: 200, badge: 'Consistent Performer' },
-      isCompleted: false,
-      icon: '⭐',
-    },
-    {
-      id: '4',
-      title: 'Challenge Master',
-      description: 'Complete the full challenge',
-      target: challenge.progress?.target || 20,
-      unit: challenge.progress?.unit || 'workouts',
-      reward: { points: challenge.reward.points, badge: challenge.reward.badge },
-      isCompleted: challenge.isCompleted || false,
-      icon: '🏆',
-    },
-  ];
+interface ChallengeProgressProps {
+  activeChallenges: Challenge[];
+  onViewDetails: (challengeId: string) => void;
+}
 
-  const getProgressPercentage = () => {
-    if (!challenge.progress || challenge.progress.target === 0) return 0;
-    return Math.min((challenge.progress.current / challenge.progress.target) * 100, 100);
+export const ChallengeProgress: React.FC<ChallengeProgressProps> = ({
+  activeChallenges,
+  onViewDetails,
+}) => {
+  const getTotalProgress = () => {
+    if (activeChallenges.length === 0) return 0;
+    const totalProgress = activeChallenges.reduce((sum, challenge) => 
+      sum + (challenge.progress / challenge.target), 0
+    );
+    return (totalProgress / activeChallenges.length) * 100;
   };
 
-  const getDaysRemaining = () => {
-    const endDate = new Date(challenge.duration.end);
+  const getTotalRewards = () => {
+    return activeChallenges.reduce((sum, challenge) => sum + challenge.reward, 0);
+  };
+
+  const getDaysRemaining = (endDate: string) => {
+    const end = new Date(endDate);
     const now = new Date();
-    const diffTime = endDate.getTime() - now.getTime();
+    const diffTime = end.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(0, diffDays);
   };
 
-  const getDaysElapsed = () => {
-    const startDate = new Date(challenge.duration.start);
-    const now = new Date();
-    const diffTime = now.getTime() - startDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(0, diffDays);
-  };
-
-  const getTotalDays = () => {
-    const startDate = new Date(challenge.duration.start);
-    const endDate = new Date(challenge.duration.end);
-    const diffTime = endDate.getTime() - startDate.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
-  const getTimeProgressPercentage = () => {
-    const totalDays = getTotalDays();
-    const elapsedDays = getDaysElapsed();
-    return Math.min((elapsedDays / totalDays) * 100, 100);
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'strength':
-        return ['#FF6B35', '#FF8C42'];
-      case 'cardio':
-        return ['#4A90E2', '#5BA0F2'];
-      case 'consistency':
-        return ['#27AE60', '#2ECC71'];
-      case 'distance':
-        return ['#9B59B6', '#A569BD'];
-      case 'time':
-        return ['#F39C12', '#F4A623'];
-      case 'social':
-        return ['#E74C3C', '#EC7063'];
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'beginner':
+        return DesignTokens.colors.success[500];
+      case 'intermediate':
+        return DesignTokens.colors.warning[500];
+      case 'advanced':
+        return DesignTokens.colors.error[500];
       default:
-        return ['#34495E', '#5D6D7E'];
+        return DesignTokens.colors.text.secondary;
     }
   };
 
-  const handleMilestonePress = async (milestone: Milestone) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onMilestonePress?.(milestone);
+  const getProgressColor = (progress: number, target: number) => {
+    const percentage = (progress / target) * 100;
+    if (percentage >= 80) return ['#10B981', '#059669'];
+    if (percentage >= 60) return ['#F59E0B', '#D97706'];
+    if (percentage >= 40) return ['#3B82F6', '#1D4ED8'];
+    return ['#6B7280', '#4B5563'];
   };
 
-  const handleShareProgress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onShareProgress?.();
-  };
-
-  const renderProgressHeader = () => (
-    <LinearGradient
-      colors={getCategoryColor(challenge.category)}
-      style={styles.progressHeader}
-    >
-      <View style={styles.progressHeaderContent}>
-        <Text style={styles.challengeTitle}>{challenge.title}</Text>
-        <Text style={styles.challengeCategory}>
-          {challenge.category.toUpperCase()} • {challenge.difficulty.toUpperCase()}
+  if (activeChallenges.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Target size={48} color={DesignTokens.colors.text.secondary} />
+        <Text style={styles.emptyTitle}>No Active Challenges</Text>
+        <Text style={styles.emptyDescription}>
+          Join a challenge to start tracking your progress and earn rewards!
         </Text>
-        
-        <View style={styles.progressStats}>
-          <View style={styles.progressStat}>
-            <Text style={styles.progressStatValue}>
-              {challenge.progress?.current || 0}
-            </Text>
-            <Text style={styles.progressStatLabel}>Current</Text>
-          </View>
-          <View style={styles.progressStat}>
-            <Text style={styles.progressStatValue}>
-              {challenge.progress?.target || 0}
-            </Text>
-            <Text style={styles.progressStatLabel}>Target</Text>
-          </View>
-          <View style={styles.progressStat}>
-            <Text style={styles.progressStatValue}>
-              {Math.round(getProgressPercentage())}%
-            </Text>
-            <Text style={styles.progressStatLabel}>Complete</Text>
-          </View>
-        </View>
-
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressBarFill,
-                { width: `${getProgressPercentage()}%` }
-              ]}
-            />
-          </View>
-          <Text style={styles.progressText}>
-            {challenge.progress?.current || 0} / {challenge.progress?.target || 0} {challenge.progress?.unit || 'units'}
-          </Text>
-        </View>
       </View>
-    </LinearGradient>
-  );
-
-  const renderTimeProgress = () => (
-    <View style={styles.timeProgressContainer}>
-      <View style={styles.timeProgressHeader}>
-        <Text style={styles.timeProgressTitle}>Time Progress</Text>
-        <View style={styles.timeProgressStats}>
-          <View style={styles.timeProgressStat}>
-            <Clock size={16} color="#666" />
-            <Text style={styles.timeProgressStatText}>
-              {getDaysRemaining()} days left
-            </Text>
-          </View>
-          <View style={styles.timeProgressStat}>
-            <Calendar size={16} color="#666" />
-            <Text style={styles.timeProgressStatText}>
-              {getDaysElapsed()} / {getTotalDays()} days
-            </Text>
-          </View>
-        </View>
-      </View>
-      
-      <View style={styles.timeProgressBar}>
-        <LinearGradient
-          colors={getCategoryColor(challenge.category)}
-          style={[
-            styles.timeProgressBarFill,
-            { width: `${getTimeProgressPercentage()}%` }
-          ]}
-        />
-      </View>
-      
-      <Text style={styles.timeProgressText}>
-        {Math.round(getTimeProgressPercentage())}% of challenge duration completed
-      </Text>
-    </View>
-  );
-
-  const renderMilestone = (milestone: Milestone, index: number) => (
-    <TouchableOpacity
-      key={milestone.id}
-      style={[
-        styles.milestoneCard,
-        milestone.isCompleted && styles.milestoneCardCompleted
-      ]}
-      onPress={() => handleMilestonePress(milestone)}
-      activeOpacity={0.8}
-    >
-      <View style={styles.milestoneContent}>
-        <View style={[
-          styles.milestoneIcon,
-          milestone.isCompleted && styles.milestoneIconCompleted
-        ]}>
-          {milestone.isCompleted ? (
-            <CheckCircle size={24} color="#27AE60" />
-          ) : (
-            <Text style={styles.milestoneEmoji}>{milestone.icon}</Text>
-          )}
-        </View>
-        
-        <View style={styles.milestoneInfo}>
-          <Text style={[
-            styles.milestoneTitle,
-            milestone.isCompleted && styles.milestoneTitleCompleted
-          ]}>
-            {milestone.title}
-          </Text>
-          <Text style={styles.milestoneDescription}>
-            {milestone.description}
-          </Text>
-          <View style={styles.milestoneReward}>
-            <Trophy size={14} color="#F59E0B" />
-            <Text style={styles.milestoneRewardText}>
-              {milestone.reward.points} points
-              {milestone.reward.badge && ` • ${milestone.reward.badge}`}
-            </Text>
-          </View>
-          {milestone.completedAt && (
-            <Text style={styles.milestoneCompletedAt}>
-              Completed {new Date(milestone.completedAt).toLocaleDateString()}
-            </Text>
-          )}
-        </View>
-
-        <View style={styles.milestoneStatus}>
-          {milestone.isCompleted ? (
-            <View style={styles.milestoneCompleted}>
-              <CheckCircle size={20} color="#27AE60" />
-            </View>
-          ) : (
-            <View style={styles.milestoneProgress}>
-              <Text style={styles.milestoneProgressText}>
-                {milestone.target} {milestone.unit}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderStats = () => (
-    <View style={styles.statsContainer}>
-      <Text style={styles.statsTitle}>Challenge Statistics</Text>
-      
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Users size={24} color="#4A90E2" />
-          <Text style={styles.statValue}>{challenge.participants.toLocaleString()}</Text>
-          <Text style={styles.statLabel}>Participants</Text>
-        </View>
-        
-        <View style={styles.statCard}>
-          <Target size={24} color="#27AE60" />
-          <Text style={styles.statValue}>
-            {Math.round(getProgressPercentage())}%
-          </Text>
-          <Text style={styles.statLabel}>Progress</Text>
-        </View>
-        
-        <View style={styles.statCard}>
-          <Flame size={24} color="#FF6B35" />
-          <Text style={styles.statValue}>{getDaysElapsed()}</Text>
-          <Text style={styles.statLabel}>Days Active</Text>
-        </View>
-        
-        <View style={styles.statCard}>
-          <Award size={24} color="#F59E0B" />
-          <Text style={styles.statValue}>{challenge.reward.points}</Text>
-          <Text style={styles.statLabel}>Total Reward</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderActions = () => (
-    <View style={styles.actionsContainer}>
-      <TouchableOpacity
-        style={styles.actionButton}
-        onPress={handleShareProgress}
-      >
-        <LinearGradient
-          colors={getCategoryColor(challenge.category)}
-          style={styles.actionButtonGradient}
-        >
-          <TrendingUp size={20} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Share Progress</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {renderProgressHeader()}
-      
-      {renderTimeProgress()}
-      
-      {showStats && renderStats()}
-      
-      {showMilestones && (
-        <View style={styles.milestonesContainer}>
-          <Text style={styles.milestonesTitle}>Milestones</Text>
-          {milestones.map((milestone, index) => renderMilestone(milestone, index))}
+    <View style={styles.container}>
+      {/* Overall Progress Header */}
+      <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.headerGradient}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <View style={styles.iconContainer}>
+              <Target size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerTitle}>Challenge Progress</Text>
+              <Text style={styles.headerSubtitle}>
+                {activeChallenges.length} active challenge{activeChallenges.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.headerRight}>
+            <Text style={styles.progressPercentage}>
+              {Math.round(getTotalProgress())}%
+            </Text>
+            <Text style={styles.progressLabel}>Complete</Text>
+          </View>
         </View>
-      )}
-      
-      {showActions && renderActions()}
-      
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+
+        {/* Overall Progress Bar */}
+        <View style={styles.overallProgressBar}>
+          <View 
+            style={[
+              styles.overallProgressFill,
+              { width: `${getTotalProgress()}%` }
+            ]} 
+          />
+        </View>
+
+        {/* Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Award size={16} color="rgba(255, 255, 255, 0.8)" />
+            <Text style={styles.statText}>{getTotalRewards()} pts</Text>
+            <Text style={styles.statLabel}>Total Rewards</Text>
+          </View>
+          
+          <View style={styles.stat}>
+            <TrendingUp size={16} color="rgba(255, 255, 255, 0.8)" />
+            <Text style={styles.statText}>
+              {activeChallenges.filter(c => (c.progress / c.target) > 0.5).length}
+            </Text>
+            <Text style={styles.statLabel}>On Track</Text>
+          </View>
+          
+          <View style={styles.stat}>
+            <Calendar size={16} color="rgba(255, 255, 255, 0.8)" />
+            <Text style={styles.statText}>
+              {Math.min(...activeChallenges.map(c => getDaysRemaining(c.endDate)))}
+            </Text>
+            <Text style={styles.statLabel}>Days Left</Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* Individual Challenge Progress */}
+      <View style={styles.challengesList}>
+        <Text style={styles.listTitle}>Individual Progress</Text>
+        
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {activeChallenges.map((challenge) => {
+            const progressPercentage = (challenge.progress / challenge.target) * 100;
+            const daysRemaining = getDaysRemaining(challenge.endDate);
+            
+            return (
+              <TouchableOpacity
+                key={challenge.id}
+                style={styles.challengeItem}
+                onPress={() => onViewDetails(challenge.id)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.challengeHeader}>
+                  <View style={styles.challengeInfo}>
+                    <Text style={styles.challengeTitle} numberOfLines={1}>
+                      {challenge.title}
+                    </Text>
+                    <View style={styles.challengeMeta}>
+                      <View style={[
+                        styles.difficultyBadge,
+                        { backgroundColor: getDifficultyColor(challenge.difficulty) }
+                      ]}>
+                        <Text style={styles.difficultyText}>
+                          {challenge.difficulty.toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={styles.categoryText}>{challenge.category}</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.challengeStats}>
+                    <Text style={styles.progressText}>
+                      {challenge.progress}/{challenge.target}
+                    </Text>
+                    <Text style={styles.daysText}>
+                      {daysRemaining} days left
+                    </Text>
+                  </View>
+                  
+                  <ChevronRight size={20} color={DesignTokens.colors.text.secondary} />
+                </View>
+
+                {/* Progress Bar */}
+                <View style={styles.challengeProgressContainer}>
+                  <LinearGradient
+                    colors={getProgressColor(challenge.progress, challenge.target)}
+                    style={styles.challengeProgressBar}
+                  >
+                    <View 
+                      style={[
+                        styles.challengeProgressFill,
+                        { width: `${Math.min(progressPercentage, 100)}%` }
+                      ]} 
+                    />
+                  </LinearGradient>
+                  
+                  <Text style={styles.challengeProgressPercentage}>
+                    {Math.round(progressPercentage)}%
+                  </Text>
+                </View>
+
+                {/* Reward Info */}
+                <View style={styles.rewardInfo}>
+                  <Award size={14} color={DesignTokens.colors.warning[500]} />
+                  <Text style={styles.rewardText}>
+                    {challenge.reward} points reward
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    overflow: 'hidden',
+    ...DesignTokens.shadow.md,
   },
-  progressHeader: {
-    padding: 24,
-    paddingTop: 40,
+
+  headerGradient: {
+    padding: DesignTokens.spacing[4],
   },
-  progressHeaderContent: {
-    alignItems: 'center',
-  },
-  challengeTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  challengeCategory: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 24,
-  },
-  progressStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 24,
-  },
-  progressStat: {
-    alignItems: 'center',
-  },
-  progressStatValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  progressStatLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-  },
-  progressBarContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  progressBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
-  },
-  timeProgressContainer: {
-    backgroundColor: '#FFFFFF',
-    margin: 20,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  timeProgressHeader: {
+
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: DesignTokens.spacing[3],
   },
-  timeProgressTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  timeProgressStats: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  timeProgressStat: {
+
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  timeProgressStatText: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  timeProgressBar: {
-    height: 6,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 3,
-    marginBottom: 8,
-  },
-  timeProgressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  timeProgressText: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  statsContainer: {
-    backgroundColor: '#FFFFFF',
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: (width - 80) / 2 - 6,
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    gap: 8,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  milestonesContainer: {
-    backgroundColor: '#FFFFFF',
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  milestonesTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  milestoneCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  milestoneCardCompleted: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-  },
-  milestoneContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  milestoneIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  milestoneIconCompleted: {
-    backgroundColor: '#D1FAE5',
-  },
-  milestoneEmoji: {
-    fontSize: 20,
-  },
-  milestoneInfo: {
     flex: 1,
   },
-  milestoneTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
+
+  iconContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    marginRight: DesignTokens.spacing[3],
   },
-  milestoneTitleCompleted: {
-    color: '#059669',
+
+  headerInfo: {
+    flex: 1,
   },
-  milestoneDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 8,
+
+  headerTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+    marginBottom: DesignTokens.spacing[1],
   },
-  milestoneReward: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
+
+  headerSubtitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  milestoneRewardText: {
-    fontSize: 12,
-    color: '#F59E0B',
-    fontWeight: '500',
-  },
-  milestoneCompletedAt: {
-    fontSize: 11,
-    color: '#059669',
-    fontWeight: '500',
-  },
-  milestoneStatus: {
+
+  headerRight: {
     alignItems: 'center',
   },
-  milestoneCompleted: {
-    // Styling handled by CheckCircle icon
-  },
-  milestoneProgress: {
-    backgroundColor: '#E5E7EB',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  milestoneProgressText: {
-    fontSize: 11,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  actionsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  actionButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  actionButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+
+  progressPercentage: {
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     color: '#FFFFFF',
   },
-  bottomSpacer: {
-    height: 100,
+
+  progressLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+
+  overallProgressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 4,
+    marginBottom: DesignTokens.spacing[4],
+    overflow: 'hidden',
+  },
+
+  overallProgressFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+
+  stat: {
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+
+  statText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+  },
+
+  statLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+
+  challengesList: {
+    padding: DesignTokens.spacing[4],
+  },
+
+  listTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  challengeItem: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  challengeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  challengeInfo: {
+    flex: 1,
+    marginRight: DesignTokens.spacing[3],
+  },
+
+  challengeTitle: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  challengeMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+  },
+
+  difficultyBadge: {
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+
+  difficultyText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+  },
+
+  categoryText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    textTransform: 'capitalize',
+  },
+
+  challengeStats: {
+    alignItems: 'flex-end',
+    marginRight: DesignTokens.spacing[2],
+  },
+
+  progressText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+
+  daysText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+  },
+
+  challengeProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[2],
+  },
+
+  challengeProgressBar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+
+  challengeProgressFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 3,
+  },
+
+  challengeProgressPercentage: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    minWidth: 35,
+    textAlign: 'right',
+  },
+
+  rewardInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+
+  rewardText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+
+  emptyContainer: {
+    alignItems: 'center',
+    padding: DesignTokens.spacing[6],
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.lg,
+  },
+
+  emptyTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[2],
+  },
+
+  emptyDescription: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });

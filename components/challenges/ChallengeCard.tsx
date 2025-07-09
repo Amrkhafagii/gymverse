@@ -1,860 +1,661 @@
+/**
+ * Challenge Card Component
+ * Displays challenge information in various formats
+ */
+
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
   TouchableOpacity,
-  Image,
-  Dimensions,
+  Text,
+  View,
+  StyleSheet,
+  ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Trophy,
-  Users,
-  Calendar,
-  Target,
+import { 
+  Target, 
+  Users, 
+  Calendar, 
+  Award, 
   TrendingUp,
   Clock,
-  Award,
   CheckCircle,
   Play,
-  Star,
 } from 'lucide-react-native';
-import { Challenge } from '@/contexts/ChallengeContext';
 import { DesignTokens } from '@/design-system/tokens';
-import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
+interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  type: 'consistency' | 'volume' | 'frequency' | 'duration' | 'strength';
+  duration: number; // in days
+  participants: number;
+  progress?: number;
+  target?: number;
+  reward: number;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  isParticipating?: boolean;
+  createdBy: string;
+  rules: string[];
+}
 
 interface ChallengeCardProps {
   challenge: Challenge;
-  variant?: 'default' | 'featured' | 'compact' | 'detailed';
-  onPress?: () => void;
-  onJoin?: () => void;
-  onLeave?: () => void;
-  showProgress?: boolean;
-  showParticipants?: boolean;
+  onPress: () => void;
+  variant?: 'default' | 'compact' | 'active' | 'featured';
+  style?: ViewStyle;
+  showJoinButton?: boolean;
+  onJoinPress?: () => void;
 }
 
-export function ChallengeCard({
+export const ChallengeCard: React.FC<ChallengeCardProps> = ({
   challenge,
-  variant = 'default',
   onPress,
-  onJoin,
-  onLeave,
-  showProgress = true,
-  showParticipants = true,
-}: ChallengeCardProps) {
-  const handlePress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPress?.();
-  };
-
-  const handleJoin = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onJoin?.();
-  };
-
-  const handleLeave = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    onLeave?.();
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'strength':
-        return <Trophy size={20} color="#FFFFFF" />;
-      case 'cardio':
-        return <TrendingUp size={20} color="#FFFFFF" />;
-      case 'consistency':
-        return <Target size={20} color="#FFFFFF" />;
-      case 'distance':
-        return <Play size={20} color="#FFFFFF" />;
-      case 'time':
-        return <Clock size={20} color="#FFFFFF" />;
-      case 'social':
-        return <Users size={20} color="#FFFFFF" />;
-      default:
-        return <Award size={20} color="#FFFFFF" />;
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'strength':
-        return ['#FF6B35', '#FF8C42'];
-      case 'cardio':
-        return ['#4A90E2', '#5BA0F2'];
-      case 'consistency':
-        return ['#27AE60', '#2ECC71'];
-      case 'distance':
-        return ['#9B59B6', '#A569BD'];
-      case 'time':
-        return ['#F39C12', '#F4A623'];
-      case 'social':
-        return ['#E74C3C', '#EC7063'];
-      default:
-        return ['#34495E', '#5D6D7E'];
-    }
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
+  variant = 'default',
+  style,
+  showJoinButton = false,
+  onJoinPress,
+}) => {
+  const getDifficultyColor = () => {
+    switch (challenge.difficulty) {
       case 'beginner':
-        return '#27AE60';
+        return ['#10B981', '#059669'];
       case 'intermediate':
-        return '#F39C12';
+        return ['#F59E0B', '#D97706'];
       case 'advanced':
-        return '#E74C3C';
+        return ['#EF4444', '#DC2626'];
       default:
-        return '#95A5A6';
+        return ['#6B7280', '#4B5563'];
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'individual':
-        return <Target size={16} color="#666" />;
-      case 'team':
-        return <Users size={16} color="#666" />;
-      case 'community':
-        return <Trophy size={16} color="#666" />;
+  const getTypeIcon = () => {
+    switch (challenge.type) {
+      case 'consistency':
+        return <Calendar size={20} color="#FFFFFF" />;
+      case 'volume':
+        return <TrendingUp size={20} color="#FFFFFF" />;
+      case 'frequency':
+        return <Target size={20} color="#FFFFFF" />;
+      case 'duration':
+        return <Clock size={20} color="#FFFFFF" />;
+      case 'strength':
+        return <Award size={20} color="#FFFFFF" />;
       default:
-        return <Award size={16} color="#666" />;
+        return <Target size={20} color="#FFFFFF" />;
     }
   };
 
-  const formatDuration = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+  const getDaysRemaining = () => {
+    const end = new Date(challenge.endDate);
+    const now = new Date();
+    const diffTime = end.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 1) return '1 day';
-    if (diffDays < 7) return `${diffDays} days`;
-    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks`;
-    return `${Math.ceil(diffDays / 30)} months`;
+    return Math.max(0, diffDays);
   };
 
   const getProgressPercentage = () => {
-    if (!challenge.progress || challenge.progress.target === 0) return 0;
-    return Math.min((challenge.progress.current / challenge.progress.target) * 100, 100);
+    if (!challenge.progress || !challenge.target) return 0;
+    return (challenge.progress / challenge.target) * 100;
   };
 
-  const renderCompactCard = () => (
-    <TouchableOpacity style={styles.compactCard} onPress={handlePress} activeOpacity={0.8}>
-      <LinearGradient
-        colors={getCategoryColor(challenge.category)}
-        style={styles.compactGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+  const formatParticipants = (count: number) => {
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+    return count.toString();
+  };
+
+  if (variant === 'compact') {
+    return (
+      <TouchableOpacity
+        style={[styles.compactContainer, style]}
+        onPress={onPress}
+        activeOpacity={0.8}
       >
         <View style={styles.compactHeader}>
           <View style={styles.compactIcon}>
-            {getCategoryIcon(challenge.category)}
+            {getTypeIcon()}
           </View>
           <View style={styles.compactInfo}>
             <Text style={styles.compactTitle} numberOfLines={1}>
               {challenge.title}
             </Text>
-            <Text style={styles.compactSubtitle}>
-              {challenge.participants} participants
+            <Text style={styles.compactParticipants}>
+              {formatParticipants(challenge.participants)} participants
             </Text>
           </View>
-          <View style={styles.compactStatus}>
-            {challenge.isJoined ? (
-              <CheckCircle size={20} color="#FFFFFF" />
-            ) : (
-              <Play size={20} color="#FFFFFF" />
-            )}
+          <View style={[styles.compactDifficulty, { backgroundColor: getDifficultyColor()[0] }]}>
+            <Text style={styles.compactDifficultyText}>
+              {challenge.difficulty[0].toUpperCase()}
+            </Text>
           </View>
         </View>
         
-        {showProgress && challenge.progress && (
+        {challenge.progress !== undefined && challenge.target !== undefined && (
           <View style={styles.compactProgress}>
             <View style={styles.compactProgressBar}>
               <View 
                 style={[
                   styles.compactProgressFill,
-                  { width: `${getProgressPercentage()}%` }
-                ]}
+                  { 
+                    width: `${getProgressPercentage()}%`,
+                    backgroundColor: getDifficultyColor()[0]
+                  }
+                ]} 
               />
             </View>
             <Text style={styles.compactProgressText}>
-              {challenge.progress.current}/{challenge.progress.target} {challenge.progress.unit}
+              {Math.round(getProgressPercentage())}%
             </Text>
           </View>
         )}
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-
-  const renderFeaturedCard = () => (
-    <TouchableOpacity style={styles.featuredCard} onPress={handlePress} activeOpacity={0.8}>
-      <LinearGradient
-        colors={getCategoryColor(challenge.category)}
-        style={styles.featuredGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        {challenge.image && (
-          <Image source={{ uri: challenge.image }} style={styles.featuredImage} />
-        )}
-        
-        <View style={styles.featuredOverlay}>
-          <View style={styles.featuredHeader}>
-            <View style={styles.featuredBadge}>
-              <Star size={16} color="#FFD700" />
-              <Text style={styles.featuredBadgeText}>FEATURED</Text>
-            </View>
-            <View style={styles.featuredCategory}>
-              {getCategoryIcon(challenge.category)}
-              <Text style={styles.featuredCategoryText}>
-                {challenge.category.toUpperCase()}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.featuredContent}>
-            <Text style={styles.featuredTitle}>{challenge.title}</Text>
-            <Text style={styles.featuredDescription} numberOfLines={2}>
-              {challenge.description}
-            </Text>
-
-            <View style={styles.featuredStats}>
-              <View style={styles.featuredStat}>
-                <Users size={16} color="#FFFFFF" />
-                <Text style={styles.featuredStatText}>
-                  {challenge.participants.toLocaleString()}
-                </Text>
-              </View>
-              <View style={styles.featuredStat}>
-                <Calendar size={16} color="#FFFFFF" />
-                <Text style={styles.featuredStatText}>
-                  {formatDuration(challenge.duration.start, challenge.duration.end)}
-                </Text>
-              </View>
-              <View style={styles.featuredStat}>
-                <Trophy size={16} color="#FFFFFF" />
-                <Text style={styles.featuredStatText}>
-                  {challenge.reward.points} pts
-                </Text>
-              </View>
-            </View>
-
-            {showProgress && challenge.progress && (
-              <View style={styles.featuredProgress}>
-                <View style={styles.featuredProgressHeader}>
-                  <Text style={styles.featuredProgressLabel}>Progress</Text>
-                  <Text style={styles.featuredProgressValue}>
-                    {Math.round(getProgressPercentage())}%
-                  </Text>
-                </View>
-                <View style={styles.featuredProgressBar}>
-                  <View 
-                    style={[
-                      styles.featuredProgressFill,
-                      { width: `${getProgressPercentage()}%` }
-                    ]}
-                  />
-                </View>
-                <Text style={styles.featuredProgressText}>
-                  {challenge.progress.current}/{challenge.progress.target} {challenge.progress.unit}
-                </Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={[
-                styles.featuredButton,
-                challenge.isJoined && styles.featuredButtonJoined
-              ]}
-              onPress={challenge.isJoined ? handleLeave : handleJoin}
-            >
-              <Text style={[
-                styles.featuredButtonText,
-                challenge.isJoined && styles.featuredButtonTextJoined
-              ]}>
-                {challenge.isJoined ? 'Leave Challenge' : 'Join Challenge'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-
-  const renderDetailedCard = () => (
-    <TouchableOpacity style={styles.detailedCard} onPress={handlePress} activeOpacity={0.8}>
-      <View style={styles.detailedContent}>
-        <View style={styles.detailedHeader}>
-          <LinearGradient
-            colors={getCategoryColor(challenge.category)}
-            style={styles.detailedIcon}
-          >
-            {getCategoryIcon(challenge.category)}
-          </LinearGradient>
-          
-          <View style={styles.detailedInfo}>
-            <Text style={styles.detailedTitle}>{challenge.title}</Text>
-            <Text style={styles.detailedDescription} numberOfLines={2}>
-              {challenge.description}
-            </Text>
-          </View>
-
-          <View style={styles.detailedMeta}>
-            <View style={[
-              styles.detailedDifficulty,
-              { backgroundColor: getDifficultyColor(challenge.difficulty) }
-            ]}>
-              <Text style={styles.detailedDifficultyText}>
-                {challenge.difficulty.toUpperCase()}
-              </Text>
-            </View>
-            {challenge.isJoined && (
-              <View style={styles.detailedJoinedBadge}>
-                <CheckCircle size={16} color="#27AE60" />
-              </View>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.detailedStats}>
-          <View style={styles.detailedStat}>
-            {getTypeIcon(challenge.type)}
-            <Text style={styles.detailedStatLabel}>Type</Text>
-            <Text style={styles.detailedStatValue}>
-              {challenge.type.charAt(0).toUpperCase() + challenge.type.slice(1)}
-            </Text>
-          </View>
-
-          {showParticipants && (
-            <View style={styles.detailedStat}>
-              <Users size={16} color="#666" />
-              <Text style={styles.detailedStatLabel}>Participants</Text>
-              <Text style={styles.detailedStatValue}>
-                {challenge.participants.toLocaleString()}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.detailedStat}>
-            <Calendar size={16} color="#666" />
-            <Text style={styles.detailedStatLabel}>Duration</Text>
-            <Text style={styles.detailedStatValue}>
-              {formatDuration(challenge.duration.start, challenge.duration.end)}
-            </Text>
-          </View>
-
-          <View style={styles.detailedStat}>
-            <Trophy size={16} color="#666" />
-            <Text style={styles.detailedStatLabel}>Reward</Text>
-            <Text style={styles.detailedStatValue}>
-              {challenge.reward.points} pts
-            </Text>
-          </View>
-        </View>
-
-        {showProgress && challenge.progress && (
-          <View style={styles.detailedProgress}>
-            <View style={styles.detailedProgressHeader}>
-              <Text style={styles.detailedProgressLabel}>Your Progress</Text>
-              <Text style={styles.detailedProgressValue}>
-                {challenge.progress.current}/{challenge.progress.target} {challenge.progress.unit}
-              </Text>
-            </View>
-            <View style={styles.detailedProgressBar}>
-              <LinearGradient
-                colors={getCategoryColor(challenge.category)}
-                style={[
-                  styles.detailedProgressFill,
-                  { width: `${getProgressPercentage()}%` }
-                ]}
-              />
-            </View>
-            <Text style={styles.detailedProgressPercentage}>
-              {Math.round(getProgressPercentage())}% complete
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.detailedActions}>
-          <TouchableOpacity
-            style={[
-              styles.detailedButton,
-              challenge.isJoined && styles.detailedButtonSecondary
-            ]}
-            onPress={challenge.isJoined ? handleLeave : handleJoin}
-          >
-            <Text style={[
-              styles.detailedButtonText,
-              challenge.isJoined && styles.detailedButtonTextSecondary
-            ]}>
-              {challenge.isJoined ? 'Leave' : 'Join Challenge'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderDefaultCard = () => (
-    <TouchableOpacity style={styles.defaultCard} onPress={handlePress} activeOpacity={0.8}>
-      <View style={styles.defaultContent}>
-        <View style={styles.defaultHeader}>
-          <LinearGradient
-            colors={getCategoryColor(challenge.category)}
-            style={styles.defaultIcon}
-          >
-            {getCategoryIcon(challenge.category)}
-          </LinearGradient>
-          
-          <View style={styles.defaultInfo}>
-            <Text style={styles.defaultTitle}>{challenge.title}</Text>
-            <Text style={styles.defaultSubtitle}>
-              {challenge.participants} participants • {formatDuration(challenge.duration.start, challenge.duration.end)}
-            </Text>
-          </View>
-
-          {challenge.isJoined && (
-            <CheckCircle size={20} color="#27AE60" />
-          )}
-        </View>
-
-        {showProgress && challenge.progress && (
-          <View style={styles.defaultProgress}>
-            <View style={styles.defaultProgressBar}>
-              <LinearGradient
-                colors={getCategoryColor(challenge.category)}
-                style={[
-                  styles.defaultProgressFill,
-                  { width: `${getProgressPercentage()}%` }
-                ]}
-              />
-            </View>
-            <Text style={styles.defaultProgressText}>
-              {challenge.progress.current}/{challenge.progress.target} {challenge.progress.unit} • {Math.round(getProgressPercentage())}%
-            </Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-
-  switch (variant) {
-    case 'compact':
-      return renderCompactCard();
-    case 'featured':
-      return renderFeaturedCard();
-    case 'detailed':
-      return renderDetailedCard();
-    default:
-      return renderDefaultCard();
+      </TouchableOpacity>
+    );
   }
-}
+
+  if (variant === 'active') {
+    return (
+      <TouchableOpacity
+        style={[styles.activeContainer, style]}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        <LinearGradient colors={getDifficultyColor()} style={styles.activeGradient}>
+          {/* Header */}
+          <View style={styles.activeHeader}>
+            <View style={styles.activeIconContainer}>
+              {getTypeIcon()}
+            </View>
+            <View style={styles.activeHeaderInfo}>
+              <Text style={styles.activeTitle} numberOfLines={1}>
+                {challenge.title}
+              </Text>
+              <Text style={styles.activeCategory}>
+                {challenge.category} • {getDaysRemaining()} days left
+              </Text>
+            </View>
+            {challenge.isParticipating && (
+              <View style={styles.participatingBadge}>
+                <CheckCircle size={16} color="#FFFFFF" />
+              </View>
+            )}
+          </View>
+
+          {/* Progress */}
+          {challenge.progress !== undefined && challenge.target !== undefined && (
+            <View style={styles.activeProgressSection}>
+              <View style={styles.activeProgressHeader}>
+                <Text style={styles.activeProgressLabel}>Progress</Text>
+                <Text style={styles.activeProgressValue}>
+                  {challenge.progress}/{challenge.target}
+                </Text>
+              </View>
+              
+              <View style={styles.activeProgressBar}>
+                <View 
+                  style={[
+                    styles.activeProgressFill,
+                    { width: `${Math.min(getProgressPercentage(), 100)}%` }
+                  ]} 
+                />
+              </View>
+              
+              <Text style={styles.activeProgressPercentage}>
+                {Math.round(getProgressPercentage())}% complete
+              </Text>
+            </View>
+          )}
+
+          {/* Stats */}
+          <View style={styles.activeStats}>
+            <View style={styles.activeStat}>
+              <Users size={14} color="rgba(255, 255, 255, 0.8)" />
+              <Text style={styles.activeStatText}>
+                {formatParticipants(challenge.participants)}
+              </Text>
+            </View>
+            <View style={styles.activeStat}>
+              <Award size={14} color="rgba(255, 255, 255, 0.8)" />
+              <Text style={styles.activeStatText}>
+                {challenge.reward} pts
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
+  // Default variant
+  return (
+    <TouchableOpacity
+      style={[styles.container, style]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={[styles.iconContainer, { backgroundColor: getDifficultyColor()[0] }]}>
+            {getTypeIcon()}
+          </View>
+          <View style={styles.headerInfo}>
+            <Text style={styles.title} numberOfLines={1}>
+              {challenge.title}
+            </Text>
+            <View style={styles.metaRow}>
+              <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor()[0] }]}>
+                <Text style={styles.difficultyText}>
+                  {challenge.difficulty.toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.categoryText}>{challenge.category}</Text>
+            </View>
+          </View>
+        </View>
+        
+        {challenge.isParticipating && (
+          <View style={styles.participatingIndicator}>
+            <CheckCircle size={16} color={DesignTokens.colors.success[500]} />
+          </View>
+        )}
+      </View>
+
+      {/* Description */}
+      <Text style={styles.description} numberOfLines={2}>
+        {challenge.description}
+      </Text>
+
+      {/* Progress (if participating) */}
+      {challenge.isParticipating && challenge.progress !== undefined && challenge.target !== undefined && (
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>Your Progress</Text>
+            <Text style={styles.progressValue}>
+              {challenge.progress}/{challenge.target}
+            </Text>
+          </View>
+          
+          <View style={styles.progressBar}>
+            <LinearGradient
+              colors={getDifficultyColor()}
+              style={[styles.progressFill, { width: `${getProgressPercentage()}%` }]}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Stats */}
+      <View style={styles.stats}>
+        <View style={styles.stat}>
+          <Users size={16} color={DesignTokens.colors.text.secondary} />
+          <Text style={styles.statText}>
+            {formatParticipants(challenge.participants)} participants
+          </Text>
+        </View>
+        
+        <View style={styles.stat}>
+          <Calendar size={16} color={DesignTokens.colors.text.secondary} />
+          <Text style={styles.statText}>
+            {getDaysRemaining()} days left
+          </Text>
+        </View>
+        
+        <View style={styles.stat}>
+          <Award size={16} color={DesignTokens.colors.text.secondary} />
+          <Text style={styles.statText}>
+            {challenge.reward} points
+          </Text>
+        </View>
+      </View>
+
+      {/* Join Button */}
+      {showJoinButton && !challenge.isParticipating && onJoinPress && (
+        <TouchableOpacity
+          style={[styles.joinButton, { backgroundColor: getDifficultyColor()[0] }]}
+          onPress={onJoinPress}
+        >
+          <Play size={16} color="#FFFFFF" />
+          <Text style={styles.joinButtonText}>Join Challenge</Text>
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
-  // Compact Card Styles
-  compactCard: {
-    marginBottom: 12,
-    borderRadius: 12,
+  // Default variant styles
+  container: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing[4],
+    ...DesignTokens.shadow.sm,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.border.primary,
+  },
+
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  iconContainer: {
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    marginRight: DesignTokens.spacing[3],
+  },
+
+  headerInfo: {
+    flex: 1,
+  },
+
+  title: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+  },
+
+  difficultyBadge: {
+    paddingHorizontal: DesignTokens.spacing[2],
+    paddingVertical: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+
+  difficultyText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+  },
+
+  categoryText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    textTransform: 'capitalize',
+  },
+
+  participatingIndicator: {
+    backgroundColor: DesignTokens.colors.success[100],
+    padding: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+
+  description: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    lineHeight: 20,
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  progressSection: {
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[2],
+  },
+
+  progressLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+
+  progressValue: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.primary,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+  },
+
+  progressBar: {
+    height: 6,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: 3,
     overflow: 'hidden',
   },
-  compactGradient: {
-    padding: 16,
+
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
+
+  stats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: DesignTokens.spacing[2],
+  },
+
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+    flex: 1,
+  },
+
+  statText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+
+  joinButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: DesignTokens.spacing[3],
+    borderRadius: DesignTokens.borderRadius.md,
+    gap: DesignTokens.spacing[2],
+    marginTop: DesignTokens.spacing[2],
+  },
+
+  joinButtonText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+  },
+
+  // Compact variant styles
+  compactContainer: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[3],
+    ...DesignTokens.shadow.sm,
+  },
+
   compactHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: DesignTokens.spacing[2],
   },
+
   compactIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    backgroundColor: DesignTokens.colors.primary[500],
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.sm,
+    marginRight: DesignTokens.spacing[2],
   },
+
   compactInfo: {
     flex: 1,
   },
+
   compactTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  compactParticipants: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+  },
+
+  compactDifficulty: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  compactDifficultyText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     color: '#FFFFFF',
-    marginBottom: 2,
   },
-  compactSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  compactStatus: {
-    marginLeft: 12,
-  },
+
   compactProgress: {
-    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
   },
+
   compactProgressBar: {
+    flex: 1,
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: DesignTokens.colors.surface.secondary,
     borderRadius: 2,
-    marginBottom: 6,
+    overflow: 'hidden',
   },
+
   compactProgressFill: {
     height: '100%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 2,
   },
+
   compactProgressText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: DesignTokens.typography.fontSize.xs,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    minWidth: 30,
     textAlign: 'right',
   },
 
-  // Featured Card Styles
-  featuredCard: {
-    marginBottom: 20,
-    borderRadius: 16,
+  // Active variant styles
+  activeContainer: {
+    borderRadius: DesignTokens.borderRadius.lg,
     overflow: 'hidden',
-    height: 280,
+    ...DesignTokens.shadow.md,
   },
-  featuredGradient: {
-    flex: 1,
-    position: 'relative',
+
+  activeGradient: {
+    padding: DesignTokens.spacing[4],
   },
-  featuredImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.3,
-  },
-  featuredOverlay: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
-  },
-  featuredHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  featuredBadge: {
+
+  activeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
+    marginBottom: DesignTokens.spacing[3],
   },
-  featuredBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFD700',
-  },
-  featuredCategory: {
-    flexDirection: 'row',
-    alignItems: 'center',
+
+  activeIconContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+    marginRight: DesignTokens.spacing[3],
   },
-  featuredCategoryText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  featuredContent: {
+
+  activeHeaderInfo: {
     flex: 1,
-    justifyContent: 'flex-end',
   },
-  featuredTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+
+  activeTitle: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: DesignTokens.spacing[1],
   },
-  featuredDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 20,
-    marginBottom: 16,
+
+  activeCategory: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  featuredStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+
+  participatingBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
   },
-  featuredStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+
+  activeProgressSection: {
+    marginBottom: DesignTokens.spacing[3],
   },
-  featuredStatText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
-  featuredProgress: {
-    marginBottom: 16,
-  },
-  featuredProgressHeader: {
+
+  activeProgressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: DesignTokens.spacing[2],
   },
-  featuredProgressLabel: {
-    fontSize: 14,
+
+  activeProgressLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+
+  activeProgressValue: {
+    fontSize: DesignTokens.typography.fontSize.sm,
     color: '#FFFFFF',
-    fontWeight: '500',
+    fontWeight: DesignTokens.typography.fontWeight.bold,
   },
-  featuredProgressValue: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+
+  activeProgressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 4,
+    marginBottom: DesignTokens.spacing[1],
+    overflow: 'hidden',
   },
-  featuredProgressBar: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 3,
-    marginBottom: 6,
-  },
-  featuredProgressFill: {
+
+  activeProgressFill: {
     height: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 3,
+    borderRadius: 4,
   },
-  featuredProgressText: {
-    fontSize: 12,
+
+  activeProgressPercentage: {
+    fontSize: DesignTokens.typography.fontSize.xs,
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
   },
-  featuredButton: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  featuredButtonJoined: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-  },
-  featuredButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  featuredButtonTextJoined: {
-    color: '#FFFFFF',
+
+  activeStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
   },
 
-  // Detailed Card Styles
-  detailedCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  detailedContent: {
-    padding: 20,
-  },
-  detailedHeader: {
+  activeStat: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  detailedIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
-  },
-  detailedInfo: {
-    flex: 1,
-  },
-  detailedTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  detailedDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  detailedMeta: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  detailedDifficulty: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  detailedDifficultyText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  detailedJoinedBadge: {
-    // Styling handled by CheckCircle icon
-  },
-  detailedStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  detailedStat: {
-    alignItems: 'center',
-    flex: 1,
-    gap: 4,
-  },
-  detailedStatLabel: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-  },
-  detailedStatValue: {
-    fontSize: 12,
-    color: '#1F2937',
-    fontWeight: '600',
-  },
-  detailedProgress: {
-    marginBottom: 16,
-  },
-  detailedProgressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  detailedProgressLabel: {
-    fontSize: 14,
-    color: '#1F2937',
-    fontWeight: '500',
-  },
-  detailedProgressValue: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  detailedProgressBar: {
-    height: 8,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  detailedProgressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  detailedProgressPercentage: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  detailedActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  detailedButton: {
-    flex: 1,
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  detailedButtonSecondary: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-  },
-  detailedButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  detailedButtonTextSecondary: {
-    color: '#6B7280',
+    gap: DesignTokens.spacing[1],
   },
 
-  // Default Card Styles
-  defaultCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  defaultContent: {
-    padding: 16,
-  },
-  defaultHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  defaultIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  defaultInfo: {
-    flex: 1,
-  },
-  defaultTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  defaultSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  defaultProgress: {
-    // Progress container
-  },
-  defaultProgressBar: {
-    height: 4,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  defaultProgressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  defaultProgressText: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'right',
+  activeStatText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: DesignTokens.typography.fontWeight.medium,
   },
 });

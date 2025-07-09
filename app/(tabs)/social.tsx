@@ -1,890 +1,689 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  FlatList,
+  Dimensions,
   RefreshControl,
-  Alert,
-  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Users,
   Trophy,
+  Users,
   TrendingUp,
-  Plus,
-  Search,
-  Filter,
-  Heart,
-  MessageCircle,
-  Share2,
-  Flame,
+  Medal,
+  Crown,
   Target,
-  Award,
-  Camera,
+  Calendar,
+  Filter,
+  ChevronRight,
+  Activity,
   Bell,
-  Settings,
 } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
-import { DesignTokens } from '@/design-system/tokens';
-import { PostCard } from '@/components/ui/PostCard';
-import { ChallengeCard } from '@/components/ui/ChallengeCard';
-import { LeaderboardCard } from '@/components/ui/LeaderboardCard';
-import { Button } from '@/components/ui/Button';
-import { SocialFeedPost } from '@/components/social/SocialFeedPost';
-import { CreatePostModal } from '@/components/social/CreatePostModal';
-import { PostCommentsModal } from '@/components/social/PostCommentsModal';
-import { SocialFeedFilters } from '@/components/social/SocialFeedFilters';
-import { SocialSearchModal } from '@/components/social/SocialSearchModal';
-import { SocialStatsCard } from '@/components/social/SocialStatsCard';
-import { NotificationCenter } from '@/components/social/NotificationCenter';
-import { RealTimeUpdates } from '@/components/social/RealTimeUpdates';
-import { SocialNotificationBadge } from '@/components/social/SocialNotificationBadge';
-import { useSocial, SocialPost } from '@/contexts/SocialContext';
-import { useSocialFeed } from '@/hooks/useSocialFeed';
-import { useNotifications } from '@/hooks/useNotifications';
 import * as Haptics from 'expo-haptics';
 
-// Mock data interfaces
-interface User {
-  id: string;
-  name: string;
-  username: string;
-  avatar: string;
-  isVerified?: boolean;
-  level?: number;
-}
+// Existing imports
+import { useSocial } from '@/contexts/SocialContext';
+import { useChallenges } from '@/contexts/ChallengeContext';
+import { useLeaderboardContext } from '@/contexts/LeaderboardContext';
+import SocialHeader from '@/components/social/SocialHeader';
+import ActivityFeed from '@/components/social/ActivityFeed';
+import ChallengeCard from '@/components/challenges/ChallengeCard';
+import ChallengeProgress from '@/components/challenges/ChallengeProgress';
+import LeaderboardCard from '@/components/challenges/LeaderboardCard';
 
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  type: 'individual' | 'team' | 'community';
-  category: 'strength' | 'cardio' | 'consistency' | 'distance' | 'time';
-  participants: number;
-  maxParticipants?: number;
-  duration: {
-    start: string;
-    end: string;
-    daysLeft: number;
-  };
-  progress?: {
-    current: number;
-    target: number;
-    unit: string;
-  };
-  reward: {
-    points: number;
-    badge?: string;
-    title?: string;
-  };
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  isJoined?: boolean;
-  isCompleted?: boolean;
-  image?: string;
-  color: string;
-}
+// Enhanced social activity feed
+import { SocialActivityFeed } from '@/components/social/SocialActivityFeed';
 
-interface LeaderboardUser {
-  id: string;
-  name: string;
-  username: string;
-  avatar: string;
-  rank: number;
-  previousRank?: number;
-  points: number;
-  level: number;
-  streak: number;
-  workoutsThisWeek: number;
-  badge?: {
-    name: string;
-    color: string;
-  };
-}
+const { width } = Dimensions.get('window');
 
 export default function SocialScreen() {
-  const router = useRouter();
-  const { posts, currentUser } = useSocial();
+  const { 
+    activities, 
+    friends, 
+    isLoading: socialLoading, 
+    refreshActivities 
+  } = useSocial();
+  
+  const { 
+    challenges, 
+    userParticipations, 
+    isLoading: challengesLoading,
+    refreshChallenges 
+  } = useChallenges();
+
   const {
-    filteredPosts,
-    isRefreshing,
-    activeFilter,
-    activeSort,
-    refreshFeed,
-    setFilter,
-    setSort,
-    clearFilters,
-    likePost,
-    sharePost,
-    getFeedAnalytics,
-  } = useSocialFeed();
-  const { unreadCount } = useNotifications();
+    globalLeaderboard,
+    challengeLeaderboards,
+    userRankings,
+    filters,
+    setFilters,
+    isLoading: leaderboardLoading,
+    refreshLeaderboards,
+    getChallengeLeaderboard,
+    analytics,
+  } = useLeaderboardContext();
 
-  // State
-  const [activeTab, setActiveTab] = useState<'feed' | 'challenges' | 'leaderboard'>('feed');
-  const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
-  const [showCreatePost, setShowCreatePost] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'feed' | 'challenges' | 'leaderboards'>('feed');
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Mock data
-  const challenges: Challenge[] = [
-    {
-      id: '1',
-      title: '30-Day Push-Up Challenge',
-      description: 'Build upper body strength with daily push-ups. Start with your current max and increase by 2 each day!',
-      type: 'community',
-      category: 'strength',
-      participants: 1247,
-      duration: {
-        start: '2024-05-01',
-        end: '2024-05-31',
-        daysLeft: 12,
-      },
-      progress: {
-        current: 18,
-        target: 30,
-        unit: 'days',
-      },
-      reward: {
-        points: 500,
-        badge: 'Push-Up Master',
-      },
-      difficulty: 'intermediate',
-      isJoined: true,
-      color: '#9E7FFF',
-      image: 'https://images.pexels.com/photos/416809/pexels-photo-416809.jpeg?auto=compress&cs=tinysrgb&w=400',
-    },
-    {
-      id: '2',
-      title: 'January Miles',
-      description: 'Run or walk 100 miles this month. Track your progress and compete with friends!',
-      type: 'individual',
-      category: 'cardio',
-      participants: 892,
-      duration: {
-        start: '2024-05-01',
-        end: '2024-05-31',
-        daysLeft: 8,
-      },
-      progress: {
-        current: 75,
-        target: 100,
-        unit: 'miles',
-      },
-      reward: {
-        points: 750,
-        badge: 'Distance Destroyer',
-        title: 'Marathon Warrior',
-      },
-      difficulty: 'advanced',
-      isJoined: false,
-      color: '#00D4AA',
-    },
-    {
-      id: '3',
-      title: 'Strength Builder',
-      description: 'Complete 20 strength workouts this month. Focus on progressive overload!',
-      type: 'community',
-      category: 'strength',
-      participants: 634,
-      duration: {
-        start: '2024-05-01',
-        end: '2024-05-31',
-        daysLeft: 15,
-      },
-      progress: {
-        current: 8,
-        target: 20,
-        unit: 'workouts',
-      },
-      reward: {
-        points: 1000,
-        badge: 'Strength Master',
-      },
-      difficulty: 'beginner',
-      isJoined: true,
-      color: '#FF6B35',
-    },
-  ];
-
-  const leaderboard: LeaderboardUser[] = [
-    {
-      id: '1',
-      name: 'Alex Rodriguez',
-      username: '@alexfitness',
-      avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
-      rank: 1,
-      previousRank: 2,
-      points: 2847,
-      level: 25,
-      streak: 15,
-      workoutsThisWeek: 6,
-      badge: {
-        name: 'Elite',
-        color: '#FFD700',
-      },
-    },
-    {
-      id: '2',
-      name: 'Jessica Park',
-      username: '@jessicastrong',
-      avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
-      rank: 2,
-      previousRank: 1,
-      points: 2634,
-      level: 23,
-      streak: 12,
-      workoutsThisWeek: 5,
-    },
-    {
-      id: '3',
-      name: 'David Kim',
-      username: '@davidlifts',
-      avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
-      rank: 3,
-      previousRank: 3,
-      points: 2521,
-      level: 21,
-      streak: 18,
-      workoutsThisWeek: 4,
-    },
-    {
-      id: '4',
-      name: 'You',
-      username: '@yourhandle',
-      avatar: 'https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=400',
-      rank: 7,
-      previousRank: 9,
-      points: 1892,
-      level: 16,
-      streak: 8,
-      workoutsThisWeek: 3,
-    },
-    {
-      id: '5',
-      name: 'Maria Santos',
-      username: '@mariafits',
-      avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
-      rank: 8,
-      previousRank: 6,
-      points: 1756,
-      level: 14,
-      streak: 5,
-      workoutsThisWeek: 4,
-    },
-  ];
-
-  const onRefresh = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await refreshFeed();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      refreshActivities(),
+      refreshChallenges(),
+      refreshLeaderboards(),
+    ]);
+    setRefreshing(false);
   };
 
-  const handlePostLike = async (postId: string) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await likePost(postId);
+  const handleTabPress = (tab: 'feed' | 'challenges' | 'leaderboards') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveTab(tab);
   };
 
-  const handlePostComment = (postId: string) => {
-    const post = posts.find(p => p.id === postId);
-    if (post) {
-      setSelectedPost(post);
-      setShowComments(true);
-    }
+  const handleLeaderboardFilterChange = (newFilters: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setFilters(newFilters);
   };
 
-  const handlePostShare = async (postId: string) => {
-    await sharePost(postId);
+  const handleActivityPress = (activity: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Navigate to activity detail or related screen
   };
 
   const handleUserPress = (userId: string) => {
-    router.push({
-      pathname: '/user-profile',
-      params: { userId }
-    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Navigate to user profile
   };
 
-  const handlePostPress = (postId: string) => {
-    const post = posts.find(p => p.id === postId);
-    if (post) {
-      setSelectedPost(post);
-      setShowComments(true);
-    }
-  };
-
-  const handleChallengePress = (challengeId: string) => {
-    router.push({
-      pathname: '/challenge-detail',
-      params: { challengeId }
-    });
-  };
-
-  const handleChallengeJoin = async (challengeId: string) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Join Challenge', 'You have joined the challenge!');
-  };
-
-  const handleNotificationPress = () => {
-    setShowNotifications(true);
-  };
-
-  const handleActivityPress = (activityId: string) => {
-    // Handle activity press - navigate to relevant content
-    setShowNotifications(false);
-  };
-
-  const renderTabButton = (tab: typeof activeTab, title: string, icon: React.ComponentType<any>, count?: number) => {
-    const IconComponent = icon;
+  const renderEnhancedFeedSection = () => {
+    const unreadActivities = activities.filter(a => !a.isRead).length;
+    
     return (
-      <TouchableOpacity
-        style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
-        onPress={() => setActiveTab(tab)}
-      >
-        <View style={styles.tabIconContainer}>
-          <IconComponent size={20} color={activeTab === tab ? '#FFFFFF' : DesignTokens.colors.text.secondary} />
-          {count && count > 0 && (
-            <View style={styles.tabBadge}>
-              <Text style={styles.tabBadgeText}>{count > 99 ? '99+' : count}</Text>
-            </View>
-          )}
+      <View style={styles.feedSection}>
+        {/* Activity Summary Header */}
+        <View style={styles.activitySummary}>
+          <View style={styles.activitySummaryLeft}>
+            <Activity size={20} color="#4A90E2" />
+            <Text style={styles.activitySummaryTitle}>Recent Activity</Text>
+            {unreadActivities > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>{unreadActivities}</Text>
+              </View>
+            )}
+          </View>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              // Open notification settings
+            }}
+          >
+            <Bell size={16} color="#4A90E2" />
+          </TouchableOpacity>
         </View>
-        <Text style={[
-          styles.tabButtonText,
-          activeTab === tab && styles.tabButtonTextActive
-        ]}>
-          {title}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
 
-  const renderFeedPost = ({ item }: { item: SocialPost }) => (
-    <SocialFeedPost
-      post={item}
-      onLike={handlePostLike}
-      onComment={handlePostComment}
-      onShare={handlePostShare}
-      onUserPress={handleUserPress}
-      onPostPress={handlePostPress}
-    />
-  );
-
-  const renderChallenge = ({ item }: { item: Challenge }) => (
-    <ChallengeCard
-      challenge={item}
-      onPress={() => handleChallengePress(item.id)}
-      onJoin={() => handleChallengeJoin(item.id)}
-      variant="detailed"
-    />
-  );
-
-  const renderLeaderboardUser = ({ item, index }: { item: LeaderboardUser; index: number }) => (
-    <LeaderboardCard
-      user={item}
-      onPress={() => handleUserPress(item.id)}
-      variant={index < 3 ? 'podium' : 'list'}
-      isCurrentUser={item.name === 'You'}
-    />
-  );
-
-  // Get feed analytics
-  const feedAnalytics = getFeedAnalytics();
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient}>
-        {/* Real-time Updates */}
-        <RealTimeUpdates
-          onNotificationPress={handleNotificationPress}
-          position="top"
-          showBadge={false}
+        {/* Enhanced Activity Feed */}
+        <SocialActivityFeed
+          onActivityPress={handleActivityPress}
+          onUserPress={handleUserPress}
+          variant="full"
         />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.title}>Social</Text>
-            <Text style={styles.subtitle}>Connect with your fitness community</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={() => setShowSearch(true)}
-            >
-              <Search size={24} color={DesignTokens.colors.text.secondary} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={handleNotificationPress}
-            >
-              <Bell size={24} color={DesignTokens.colors.text.secondary} />
-              {unreadCount > 0 && (
-                <View style={styles.notificationBadgeContainer}>
-                  <SocialNotificationBadge count={unreadCount} variant="small" />
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.createButton}
-              onPress={() => setShowCreatePost(true)}
-            >
-              <Plus size={24} color="#FFFFFF" />
-            </TouchableOpacity>
+        {/* Activity Insights */}
+        <View style={styles.activityInsights}>
+          <Text style={styles.insightsTitle}>This Week's Highlights</Text>
+          <View style={styles.insightsGrid}>
+            <View style={styles.insightItem}>
+              <Trophy size={16} color="#FFD700" />
+              <Text style={styles.insightValue}>
+                {activities.filter(a => a.type === 'achievement').length}
+              </Text>
+              <Text style={styles.insightLabel}>New Achievements</Text>
+            </View>
+            <View style={styles.insightItem}>
+              <Users size={16} color="#27AE60" />
+              <Text style={styles.insightValue}>
+                {activities.filter(a => a.type === 'follow').length}
+              </Text>
+              <Text style={styles.insightLabel}>New Followers</Text>
+            </View>
+            <View style={styles.insightItem}>
+              <Target size={16} color="#9B59B6" />
+              <Text style={styles.insightValue}>
+                {activities.filter(a => a.type === 'workout').length}
+              </Text>
+              <Text style={styles.insightLabel}>Workouts Shared</Text>
+            </View>
+            <View style={styles.insightItem}>
+              <TrendingUp size={16} color="#E74C3C" />
+              <Text style={styles.insightValue}>
+                {activities.filter(a => a.type === 'like').length}
+              </Text>
+              <Text style={styles.insightLabel}>Likes Received</Text>
+            </View>
           </View>
         </View>
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <TouchableOpacity 
-            style={[styles.filterButton, (activeFilter.type !== 'all' || activeFilter.timeRange !== 'all') && styles.filterButtonActive]}
-            onPress={() => setShowFilters(true)}
-          >
-            <Filter size={20} color={(activeFilter.type !== 'all' || activeFilter.timeRange !== 'all') ? '#FFFFFF' : DesignTokens.colors.text.secondary} />
-            <Text style={[
-              styles.filterButtonText,
-              (activeFilter.type !== 'all' || activeFilter.timeRange !== 'all') && styles.filterButtonTextActive
-            ]}>
-              Filter
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.sortButton}
+            style={styles.quickAction}
             onPress={() => {
-              const sortOptions: Array<{ by: typeof activeSort.by; label: string }> = [
-                { by: 'timestamp', label: 'Recent' },
-                { by: 'likes', label: 'Popular' },
-                { by: 'engagement', label: 'Trending' },
-              ];
-              const currentIndex = sortOptions.findIndex(s => s.by === activeSort.by);
-              const nextIndex = (currentIndex + 1) % sortOptions.length;
-              setSort({ by: sortOptions[nextIndex].by, order: 'desc' });
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              // Navigate to create post
             }}
           >
-            <TrendingUp size={16} color={DesignTokens.colors.text.secondary} />
-            <Text style={styles.sortButtonText}>
-              {activeSort.by === 'timestamp' ? 'Recent' : 
-               activeSort.by === 'likes' ? 'Popular' : 'Trending'}
-            </Text>
+            <Text style={styles.quickActionText}>Share Workout</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.quickAction}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              // Navigate to find friends
+            }}
+          >
+            <Text style={styles.quickActionText}>Find Friends</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderLeaderboardOverview = () => {
+    const activeChallengeLeaderboards = Object.keys(challengeLeaderboards).slice(0, 3);
+    
+    return (
+      <View style={styles.leaderboardOverview}>
+        <View style={styles.leaderboardHeader}>
+          <View style={styles.leaderboardHeaderLeft}>
+            <Trophy size={24} color="#FFD700" />
+            <Text style={styles.leaderboardTitle}>Leaderboards</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => {
+              // Filter modal would open here
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Filter size={16} color="#4A90E2" />
+            <Text style={styles.filterText}>Filter</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Tab Navigation */}
-        <View style={styles.tabNavigation}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll}>
-            {renderTabButton('feed', 'Feed', Users, filteredPosts.length)}
-            {renderTabButton('challenges', 'Challenges', Trophy, 3)}
-            {renderTabButton('leaderboard', 'Leaderboard', TrendingUp)}
-          </ScrollView>
+        {/* Global Leaderboard Summary */}
+        <LeaderboardCard
+          type="global"
+          timeframe="all-time"
+          title="Global Rankings"
+          description="Top performers across all challenges"
+          topEntries={globalLeaderboard.slice(0, 5).map(entry => ({
+            userId: entry.userId,
+            displayName: entry.displayName,
+            score: entry.totalPoints,
+            scoreType: 'points' as const,
+            rank: entry.rank,
+            isCurrentUser: entry.isCurrentUser,
+            progress: {
+              percentage: Math.min((entry.totalPoints / 1000) * 100, 100),
+              current: entry.totalPoints,
+              target: 1000,
+            },
+            completedAt: entry.activeChallenges > 0 ? undefined : new Date().toISOString(),
+          }))}
+          totalParticipants={globalLeaderboard.length}
+          userRank={userRankings.global}
+          compact={true}
+        />
+
+        {/* Active Challenge Leaderboards */}
+        {activeChallengeLeaderboards.map(challengeId => {
+          const challenge = challenges.find(c => c.id === challengeId);
+          const leaderboard = getChallengeLeaderboard(challengeId);
+          
+          if (!challenge || leaderboard.length === 0) return null;
+
+          return (
+            <LeaderboardCard
+              key={challengeId}
+              type="challenge"
+              timeframe="all-time"
+              title={challenge.title}
+              description={`${challenge.category} challenge`}
+              topEntries={leaderboard.slice(0, 3)}
+              totalParticipants={leaderboard.length}
+              userRank={leaderboard.find(entry => entry.isCurrentUser)?.rank}
+              compact={true}
+            />
+          );
+        })}
+
+        {/* Leaderboard Analytics */}
+        <View style={styles.leaderboardStats}>
+          <Text style={styles.statsTitle}>Your Performance</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Crown size={20} color="#FFD700" />
+              <Text style={styles.statValue}>{analytics.topRanks}</Text>
+              <Text style={styles.statLabel}>Top 3 Finishes</Text>
+            </View>
+            <View style={styles.statItem}>
+              <TrendingUp size={20} color="#27AE60" />
+              <Text style={styles.statValue}>{analytics.averageRank}</Text>
+              <Text style={styles.statLabel}>Avg Rank</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Users size={20} color="#4A90E2" />
+              <Text style={styles.statValue}>{analytics.activeChallengeLeaderboards}</Text>
+              <Text style={styles.statLabel}>Active Boards</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Target size={20} color="#9B59B6" />
+              <Text style={styles.statValue}>{Math.round(analytics.completionRate)}%</Text>
+              <Text style={styles.statLabel}>Success Rate</Text>
+            </View>
+          </View>
         </View>
+      </View>
+    );
+  };
 
-        {/* Tab Content */}
-        <View style={styles.content}>
-          {activeTab === 'feed' && (
-            <>
-              {/* Feed Stats */}
-              <SocialStatsCard
-                title="Your Social Activity"
-                stats={{
-                  posts: feedAnalytics.totalPosts,
-                  likes: feedAnalytics.totalLikes,
-                  comments: feedAnalytics.totalComments,
-                  shares: feedAnalytics.totalShares,
-                  engagementRate: feedAnalytics.engagementRate,
-                }}
-                trend={{
-                  direction: 'up',
-                  percentage: 12.5,
-                  timeframe: 'last week',
-                }}
-                variant="compact"
-              />
+  const renderChallengeSection = () => {
+    const activeChallenges = userParticipations
+      .filter(p => !p.completedAt)
+      .map(p => challenges.find(c => c.id === p.challengeId))
+      .filter(Boolean)
+      .slice(0, 3);
 
-              <FlatList
-                data={filteredPosts}
-                renderItem={renderFeedPost}
-                keyExtractor={(item) => item.id}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                  <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-                }
-                contentContainerStyle={styles.feedContent}
-                ListHeaderComponent={
-                  <View style={styles.feedHeader}>
-                    <Text style={styles.feedHeaderText}>
-                      {filteredPosts.length} posts • Sorted by {activeSort.by === 'timestamp' ? 'recent' : activeSort.by}
-                    </Text>
-                  </View>
-                }
-                ListEmptyComponent={
-                  <View style={styles.emptyFeed}>
-                    <Users size={48} color={DesignTokens.colors.text.tertiary} />
-                    <Text style={styles.emptyFeedTitle}>No posts found</Text>
-                    <Text style={styles.emptyFeedText}>
-                      Try adjusting your filters or create your first post!
-                    </Text>
-                    <Button
-                      title="Create Post"
-                      onPress={() => setShowCreatePost(true)}
-                      variant="primary"
-                      size="medium"
-                      icon={<Plus size={16} color="#FFFFFF" />}
-                    />
-                  </View>
-                }
-              />
-            </>
-          )}
+    const featuredChallenges = challenges
+      .filter(c => !userParticipations.some(p => p.challengeId === c.id))
+      .slice(0, 2);
 
-          {activeTab === 'challenges' && (
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-              }
-            >
-              {/* Featured Challenge */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Featured Challenge</Text>
-                <ChallengeCard
-                  challenge={challenges[0]}
-                  onPress={() => handleChallengePress(challenges[0].id)}
-                  onJoin={() => handleChallengeJoin(challenges[0].id)}
-                  variant="featured"
-                />
-              </View>
-
-              {/* All Challenges */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>All Challenges</Text>
-                {challenges.slice(1).map((challenge) => (
+    return (
+      <View style={styles.challengeSection}>
+        {/* Active Challenges with Leaderboard Context */}
+        {activeChallenges.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your Active Challenges</Text>
+              <TouchableOpacity style={styles.sectionAction}>
+                <Text style={styles.sectionActionText}>View All</Text>
+                <ChevronRight size={16} color="#4A90E2" />
+              </TouchableOpacity>
+            </View>
+            {activeChallenges.map(challenge => {
+              if (!challenge) return null;
+              const participation = userParticipations.find(p => p.challengeId === challenge.id);
+              const leaderboard = getChallengeLeaderboard(challenge.id);
+              const userRank = leaderboard.find(entry => entry.isCurrentUser)?.rank;
+              
+              return (
+                <View key={challenge.id} style={styles.challengeWithLeaderboard}>
                   <ChallengeCard
-                    key={challenge.id}
                     challenge={challenge}
-                    onPress={() => handleChallengePress(challenge.id)}
-                    onJoin={() => handleChallengeJoin(challenge.id)}
-                    variant="detailed"
+                    participation={participation}
+                    compact={true}
                   />
-                ))}
-              </View>
-
-              {/* Create Challenge */}
-              <View style={styles.section}>
-                <Button
-                  title="Create Your Own Challenge"
-                  variant="secondary"
-                  size="large"
-                  onPress={() => router.push('/create-challenge')}
-                  icon={<Plus size={20} color={DesignTokens.colors.primary[500]} />}
-                />
-              </View>
-            </ScrollView>
-          )}
-
-          {activeTab === 'leaderboard' && (
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-              }
-            >
-              {/* Leaderboard Header */}
-              <View style={styles.leaderboardHeader}>
-                <Text style={styles.leaderboardTitle}>This Month's Champions</Text>
-                <Text style={styles.leaderboardSubtitle}>
-                  Based on workout consistency, achievements, and community engagement
-                </Text>
-              </View>
-
-              {/* Top 3 Podium */}
-              <View style={styles.podiumContainer}>
-                <View style={styles.podiumRow}>
-                  {leaderboard.slice(0, 3).map((user, index) => (
-                    <LeaderboardCard
-                      key={user.id}
-                      user={user}
-                      onPress={() => handleUserPress(user.id)}
-                      variant="podium"
-                    />
-                  ))}
+                  {userRank && (
+                    <View style={styles.challengeRankBadge}>
+                      <Medal size={14} color="#FFD700" />
+                      <Text style={styles.challengeRankText}>Rank #{userRank}</Text>
+                    </View>
+                  )}
                 </View>
-              </View>
+              );
+            })}
+          </View>
+        )}
 
-              {/* Rest of Leaderboard */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Full Rankings</Text>
-                {leaderboard.slice(3).map((user) => (
-                  <LeaderboardCard
-                    key={user.id}
-                    user={user}
-                    onPress={() => handleUserPress(user.id)}
-                    variant="list"
-                    isCurrentUser={user.name === 'You'}
-                  />
-                ))}
-              </View>
-            </ScrollView>
-          )}
-        </View>
+        {/* Featured Challenges */}
+        {featuredChallenges.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Featured Challenges</Text>
+              <TouchableOpacity style={styles.sectionAction}>
+                <Text style={styles.sectionActionText}>Explore</Text>
+                <ChevronRight size={16} color="#4A90E2" />
+              </TouchableOpacity>
+            </View>
+            {featuredChallenges.map(challenge => (
+              <ChallengeCard
+                key={challenge.id}
+                challenge={challenge}
+                compact={true}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
 
-        {/* Modals */}
-        <CreatePostModal
-          visible={showCreatePost}
-          onClose={() => setShowCreatePost(false)}
-        />
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'leaderboards':
+        return renderLeaderboardOverview();
+      case 'challenges':
+        return renderChallengeSection();
+      default:
+        return renderEnhancedFeedSection();
+    }
+  };
 
-        <PostCommentsModal
-          visible={showComments}
-          onClose={() => setShowComments(false)}
-          post={selectedPost}
-        />
+  return (
+    <View style={styles.container}>
+      <SocialHeader />
+      
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'feed' && styles.activeTab]}
+          onPress={() => handleTabPress('feed')}
+        >
+          <Text style={[styles.tabText, activeTab === 'feed' && styles.activeTabText]}>
+            Feed
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'challenges' && styles.activeTab]}
+          onPress={() => handleTabPress('challenges')}
+        >
+          <Text style={[styles.tabText, activeTab === 'challenges' && styles.activeTabText]}>
+            Challenges
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'leaderboards' && styles.activeTab]}
+          onPress={() => handleTabPress('leaderboards')}
+        >
+          <Text style={[styles.tabText, activeTab === 'leaderboards' && styles.activeTabText]}>
+            Leaderboards
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        <SocialFeedFilters
-          visible={showFilters}
-          onClose={() => setShowFilters(false)}
-          currentFilter={activeFilter}
-          currentSort={activeSort}
-          onApplyFilter={setFilter}
-          onApplySort={setSort}
-          onClearFilters={clearFilters}
-        />
-
-        <SocialSearchModal
-          visible={showSearch}
-          onClose={() => setShowSearch(false)}
-          onPostPress={handlePostPress}
-          onUserPress={handleUserPress}
-        />
-
-        <NotificationCenter
-          visible={showNotifications}
-          onClose={() => setShowNotifications(false)}
-          onActivityPress={handleActivityPress}
-          onUserPress={handleUserPress}
-        />
-      </LinearGradient>
-    </SafeAreaView>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#4A90E2"
+            colors={['#4A90E2']}
+          />
+        }
+      >
+        {renderTabContent()}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
   },
-  gradient: {
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1a1a1a',
+    marginHorizontal: 20,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 20,
+  },
+  tab: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingTop: DesignTokens.spacing[2],
-    paddingBottom: DesignTokens.spacing[4],
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  title: {
-    fontSize: DesignTokens.typography.fontSize['4xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[1],
-  },
-  subtitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-  },
-  headerActions: {
-    flexDirection: 'row',
+    paddingVertical: 12,
     alignItems: 'center',
-    gap: DesignTokens.spacing[3],
+    borderRadius: 8,
   },
-  headerButton: {
-    padding: DesignTokens.spacing[2],
-    position: 'relative',
+  activeTab: {
+    backgroundColor: '#4A90E2',
   },
-  notificationBadgeContainer: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
+  tabText: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
   },
-  createButton: {
-    backgroundColor: DesignTokens.colors.primary[500],
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...DesignTokens.shadow.base,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: DesignTokens.spacing[5],
-    marginBottom: DesignTokens.spacing[4],
-    gap: DesignTokens.spacing[3],
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    borderRadius: DesignTokens.borderRadius.md,
-    paddingHorizontal: DesignTokens.spacing[3],
-    paddingVertical: DesignTokens.spacing[2],
-    gap: DesignTokens.spacing[2],
-  },
-  filterButtonActive: {
-    backgroundColor: DesignTokens.colors.primary[500],
-  },
-  filterButtonText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  filterButtonTextActive: {
-    color: DesignTokens.colors.text.primary,
-  },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    borderRadius: DesignTokens.borderRadius.md,
-    paddingHorizontal: DesignTokens.spacing[3],
-    paddingVertical: DesignTokens.spacing[2],
-    gap: DesignTokens.spacing[2],
-  },
-  sortButtonText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  tabNavigation: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    marginBottom: DesignTokens.spacing[4],
-  },
-  tabScroll: {
-    flexGrow: 0,
-  },
-  tabButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: DesignTokens.spacing[4],
-    paddingVertical: DesignTokens.spacing[3],
-    marginRight: DesignTokens.spacing[3],
-    borderRadius: DesignTokens.borderRadius.md,
-    backgroundColor: DesignTokens.colors.surface.secondary,
-    gap: DesignTokens.spacing[2],
-  },
-  tabButtonActive: {
-    backgroundColor: DesignTokens.colors.primary[500],
-  },
-  tabIconContainer: {
-    position: 'relative',
-  },
-  tabBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: DesignTokens.colors.error[500],
-    borderRadius: 10,
-    minWidth: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: DesignTokens.spacing[1],
-  },
-  tabBadgeText: {
-    fontSize: 10,
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-  },
-  tabButtonText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  tabButtonTextActive: {
-    color: DesignTokens.colors.text.primary,
+  activeTabText: {
+    color: '#fff',
   },
   content: {
     flex: 1,
   },
-  feedContent: {
+  feedSection: {
     paddingBottom: 100,
   },
-  feedHeader: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingBottom: DesignTokens.spacing[3],
-  },
-  feedHeaderText: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-  emptyFeed: {
+  activitySummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  activitySummaryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  activitySummaryTitle: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+  },
+  unreadBadge: {
+    backgroundColor: '#E74C3C',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
     justifyContent: 'center',
-    paddingVertical: DesignTokens.spacing[8],
-    paddingHorizontal: DesignTokens.spacing[8],
-    gap: DesignTokens.spacing[4],
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
-  emptyFeedTitle: {
-    fontSize: DesignTokens.typography.fontSize.xl,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    color: DesignTokens.colors.text.primary,
+  unreadBadgeText: {
+    fontSize: 12,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+  },
+  notificationButton: {
+    padding: 8,
+    backgroundColor: '#4A90E220',
+    borderRadius: 8,
+  },
+  activityInsights: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  insightsTitle: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 16,
+  },
+  insightsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  insightItem: {
+    flex: 1,
+    minWidth: (width - 80) / 2 - 6,
+    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  insightValue: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+  },
+  insightLabel: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
     textAlign: 'center',
   },
-  emptyFeedText: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: DesignTokens.spacing[4],
+  quickActions: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginTop: 20,
+    gap: 12,
+  },
+  quickAction: {
+    flex: 1,
+    backgroundColor: '#4A90E2',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  quickActionText: {
+    fontSize: 14,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+  },
+  challengeSection: {
+    paddingBottom: 100,
   },
   section: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    marginBottom: DesignTokens.spacing[6],
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: DesignTokens.typography.fontSize['2xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    marginBottom: DesignTokens.spacing[4],
+    fontSize: 18,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+  },
+  sectionAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sectionActionText: {
+    fontSize: 14,
+    color: '#4A90E2',
+    fontFamily: 'Inter-Medium',
+  },
+  challengeWithLeaderboard: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  challengeRankBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFD70020',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+    gap: 4,
+  },
+  challengeRankText: {
+    fontSize: 12,
+    color: '#FFD700',
+    fontFamily: 'Inter-Bold',
+  },
+  leaderboardOverview: {
+    paddingBottom: 100,
   },
   leaderboardHeader: {
-    paddingHorizontal: DesignTokens.spacing[5],
-    paddingBottom: DesignTokens.spacing[4],
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  leaderboardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   leaderboardTitle: {
-    fontSize: DesignTokens.typography.fontSize['2xl'],
-    color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    textAlign: 'center',
-    marginBottom: DesignTokens.spacing[2],
+    fontSize: 24,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
   },
-  leaderboardSubtitle: {
-    fontSize: DesignTokens.typography.fontSize.base,
-    color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  podiumContainer: {
-    paddingHorizontal: DesignTokens.spacing[3],
-    marginBottom: DesignTokens.spacing[6],
-  },
-  podiumRow: {
+  filterButton: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    gap: DesignTokens.spacing[2],
+    alignItems: 'center',
+    backgroundColor: '#4A90E220',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  filterText: {
+    fontSize: 14,
+    color: '#4A90E2',
+    fontFamily: 'Inter-Medium',
+  },
+  leaderboardStats: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  statsTitle: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  statItem: {
+    flex: 1,
+    minWidth: (width - 80) / 2 - 8,
+    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  statValue: {
+    fontSize: 20,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Inter-Medium',
+    textAlign: 'center',
   },
 });

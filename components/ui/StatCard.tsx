@@ -1,6 +1,6 @@
 /**
- * Production-ready StatCard component with context integration
- * Integrates with analytics and offline systems for intelligent stat display
+ * Enhanced Stat Card Component with Challenge Integration
+ * Now supports both achievement and challenge progress indicators
  */
 
 import React from 'react';
@@ -11,23 +11,23 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { TrendingUp, TrendingDown, Minus, Target, Trophy } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
-import { useOfflineSync } from '@/hooks/useOfflineSync';
-import { useAnalytics } from '@/hooks/useAnalytics';
 
-export interface StatCardProps {
+interface StatCardProps {
   label: string;
   value: string;
   unit?: string;
   icon?: React.ReactNode;
-  color?: string;
   trend?: 'up' | 'down' | 'stable';
   trendValue?: string;
-  onPress?: () => void;
-  variant?: 'default' | 'compact' | 'detailed';
-  style?: ViewStyle;
   analyticsKey?: string;
+  achievementProgress?: number;
+  challengeProgress?: number;
+  onPress?: () => void;
+  style?: ViewStyle;
+  variant?: 'default' | 'compact' | 'featured';
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -35,35 +35,28 @@ export const StatCard: React.FC<StatCardProps> = ({
   value,
   unit,
   icon,
-  color = DesignTokens.colors.primary[500],
-  trend,
+  trend = 'stable',
   trendValue,
-  onPress,
-  variant = 'default',
-  style,
   analyticsKey,
+  achievementProgress,
+  challengeProgress,
+  onPress,
+  style,
+  variant = 'default',
 }) => {
-  const { isOnline, syncStatus } = useOfflineSync();
-  const { getMetricTrend } = useAnalytics('week');
-
-  // Get analytics trend if analyticsKey is provided
-  const analyticsTrend = analyticsKey ? getMetricTrend(analyticsKey) : null;
-  const displayTrend = analyticsTrend?.direction || trend;
-  const displayTrendValue = analyticsTrend?.change || trendValue;
-
   const getTrendIcon = () => {
-    switch (displayTrend) {
+    switch (trend) {
       case 'up':
-        return <TrendingUp size={12} color={DesignTokens.colors.success[500]} />;
+        return <TrendingUp size={14} color={DesignTokens.colors.success[500]} />;
       case 'down':
-        return <TrendingDown size={12} color={DesignTokens.colors.error[500]} />;
+        return <TrendingDown size={14} color={DesignTokens.colors.error[500]} />;
       default:
-        return <Minus size={12} color={DesignTokens.colors.text.secondary} />;
+        return <Minus size={14} color={DesignTokens.colors.text.secondary} />;
     }
   };
 
   const getTrendColor = () => {
-    switch (displayTrend) {
+    switch (trend) {
       case 'up':
         return DesignTokens.colors.success[500];
       case 'down':
@@ -73,139 +66,232 @@ export const StatCard: React.FC<StatCardProps> = ({
     }
   };
 
-  const containerStyles = [
-    styles.container,
-    styles[`container_${variant}`],
-    !isOnline && styles.offline,
-    syncStatus && styles[`sync_${syncStatus}`],
-    style,
-  ];
+  const hasProgress = achievementProgress !== undefined || challengeProgress !== undefined;
 
-  const CardComponent = onPress ? TouchableOpacity : View;
+  if (variant === 'compact') {
+    return (
+      <TouchableOpacity
+        style={[styles.compactContainer, style]}
+        onPress={onPress}
+        activeOpacity={onPress ? 0.8 : 1}
+      >
+        <View style={styles.compactHeader}>
+          {icon && <View style={styles.compactIcon}>{icon}</View>}
+          <View style={styles.compactInfo}>
+            <Text style={styles.compactLabel}>{label}</Text>
+            <View style={styles.compactValueContainer}>
+              <Text style={styles.compactValue}>{value}</Text>
+              {unit && <Text style={styles.compactUnit}>{unit}</Text>}
+            </View>
+          </View>
+          {trend !== 'stable' && (
+            <View style={styles.compactTrend}>
+              {getTrendIcon()}
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  }
 
+  if (variant === 'featured') {
+    return (
+      <TouchableOpacity
+        style={[styles.featuredContainer, style]}
+        onPress={onPress}
+        activeOpacity={onPress ? 0.8 : 1}
+      >
+        <LinearGradient
+          colors={['#667EEA', '#764BA2']}
+          style={styles.featuredGradient}
+        >
+          <View style={styles.featuredHeader}>
+            {icon && <View style={styles.featuredIcon}>{icon}</View>}
+            <Text style={styles.featuredLabel}>{label}</Text>
+          </View>
+
+          <View style={styles.featuredValueContainer}>
+            <Text style={styles.featuredValue}>{value}</Text>
+            {unit && <Text style={styles.featuredUnit}>{unit}</Text>}
+          </View>
+
+          {trendValue && (
+            <View style={styles.featuredTrend}>
+              {getTrendIcon()}
+              <Text style={styles.featuredTrendText}>{trendValue}</Text>
+            </View>
+          )}
+
+          {hasProgress && (
+            <View style={styles.featuredProgress}>
+              {achievementProgress !== undefined && (
+                <View style={styles.progressItem}>
+                  <Trophy size={12} color="rgba(255, 255, 255, 0.8)" />
+                  <Text style={styles.progressText}>
+                    {Math.round(achievementProgress)}% to achievement
+                  </Text>
+                </View>
+              )}
+              {challengeProgress !== undefined && (
+                <View style={styles.progressItem}>
+                  <Target size={12} color="rgba(255, 255, 255, 0.8)" />
+                  <Text style={styles.progressText}>
+                    {Math.round(challengeProgress)}% challenge progress
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
+  // Default variant
   return (
-    <CardComponent
-      style={containerStyles}
+    <TouchableOpacity
+      style={[styles.container, style]}
       onPress={onPress}
       activeOpacity={onPress ? 0.8 : 1}
     >
+      {/* Header */}
       <View style={styles.header}>
-        {icon && (
-          <View style={[styles.iconContainer, { backgroundColor: `${color}20` }]}>
-            {icon}
-          </View>
-        )}
-        
-        {syncStatus && (
-          <View style={[styles.syncIndicator, styles[`syncIndicator_${syncStatus}`]]} />
-        )}
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.valueContainer}>
-          <Text style={[styles.value, { color }]}>
-            {isOnline ? value : '--'}
-          </Text>
-          {unit && (
-            <Text style={styles.unit}>{unit}</Text>
-          )}
+        <View style={styles.headerLeft}>
+          {icon && <View style={styles.iconContainer}>{icon}</View>}
+          <Text style={styles.label}>{label}</Text>
         </View>
-
-        <Text style={styles.label}>{label}</Text>
-
-        {(displayTrend && displayTrendValue) && (
+        
+        {trend !== 'stable' && (
           <View style={styles.trendContainer}>
             {getTrendIcon()}
-            <Text style={[styles.trendValue, { color: getTrendColor() }]}>
-              {displayTrendValue}
-            </Text>
           </View>
         )}
       </View>
 
-      {!isOnline && (
-        <View style={styles.offlineBadge}>
-          <Text style={styles.offlineText}>Offline</Text>
+      {/* Value */}
+      <View style={styles.valueContainer}>
+        <Text style={styles.value}>{value}</Text>
+        {unit && <Text style={styles.unit}>{unit}</Text>}
+      </View>
+
+      {/* Trend Value */}
+      {trendValue && (
+        <View style={styles.trendValueContainer}>
+          <Text style={[styles.trendValue, { color: getTrendColor() }]}>
+            {trendValue}
+          </Text>
         </View>
       )}
-    </CardComponent>
+
+      {/* Progress Indicators */}
+      {hasProgress && (
+        <View style={styles.progressContainer}>
+          {achievementProgress !== undefined && (
+            <View style={styles.progressIndicator}>
+              <View style={styles.progressHeader}>
+                <Trophy size={12} color={DesignTokens.colors.warning[500]} />
+                <Text style={styles.progressLabel}>Achievement</Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill,
+                    { 
+                      width: `${achievementProgress}%`,
+                      backgroundColor: DesignTokens.colors.warning[500]
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.progressPercentage}>
+                {Math.round(achievementProgress)}%
+              </Text>
+            </View>
+          )}
+
+          {challengeProgress !== undefined && (
+            <View style={styles.progressIndicator}>
+              <View style={styles.progressHeader}>
+                <Target size={12} color={DesignTokens.colors.primary[500]} />
+                <Text style={styles.progressLabel}>Challenge</Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill,
+                    { 
+                      width: `${challengeProgress}%`,
+                      backgroundColor: DesignTokens.colors.primary[500]
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.progressPercentage}>
+                {Math.round(challengeProgress)}%
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
+  // Default variant styles
   container: {
     backgroundColor: DesignTokens.colors.surface.primary,
     borderRadius: DesignTokens.borderRadius.lg,
     padding: DesignTokens.spacing[4],
     ...DesignTokens.shadow.sm,
-    position: 'relative',
-  },
-
-  // Variants
-  container_default: {
-    minWidth: 120,
-    minHeight: 100,
-  },
-  container_compact: {
-    minWidth: 100,
-    minHeight: 80,
-    padding: DesignTokens.spacing[3],
-  },
-  container_detailed: {
-    minWidth: 140,
-    minHeight: 120,
-    padding: DesignTokens.spacing[5],
-  },
-
-  // States
-  offline: {
-    opacity: 0.7,
-    backgroundColor: DesignTokens.colors.surface.secondary,
-  },
-
-  // Sync status
-  sync_synced: {
-    borderTopWidth: 2,
-    borderTopColor: DesignTokens.colors.success[500],
-  },
-  sync_pending: {
-    borderTopWidth: 2,
-    borderTopColor: DesignTokens.colors.warning[500],
-  },
-  sync_failed: {
-    borderTopWidth: 2,
-    borderTopColor: DesignTokens.colors.error[500],
-  },
-  sync_offline: {
-    borderTopWidth: 2,
-    borderTopColor: DesignTokens.colors.text.secondary,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.border.primary,
+    minWidth: 160,
   },
 
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: DesignTokens.spacing[2],
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    flex: 1,
   },
 
   iconContainer: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
     padding: DesignTokens.spacing[2],
     borderRadius: DesignTokens.borderRadius.md,
   },
 
-  content: {
+  label: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.secondary,
     flex: 1,
+  },
+
+  trendContainer: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    padding: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
   },
 
   valueContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: DesignTokens.spacing[1],
+    marginBottom: DesignTokens.spacing[2],
   },
 
   value: {
     fontSize: DesignTokens.typography.fontSize.xl,
     fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
   },
 
   unit: {
@@ -214,17 +300,8 @@ const styles = StyleSheet.create({
     marginLeft: DesignTokens.spacing[1],
   },
 
-  label: {
-    fontSize: DesignTokens.typography.fontSize.sm,
-    color: DesignTokens.colors.text.secondary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+  trendValueContainer: {
     marginBottom: DesignTokens.spacing[2],
-  },
-
-  trendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing[1],
   },
 
   trendValue: {
@@ -232,38 +309,175 @@ const styles = StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.medium,
   },
 
-  syncIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  progressContainer: {
+    gap: DesignTokens.spacing[2],
   },
 
-  syncIndicator_synced: {
-    backgroundColor: DesignTokens.colors.success[500],
-  },
-  syncIndicator_pending: {
-    backgroundColor: DesignTokens.colors.warning[500],
-  },
-  syncIndicator_failed: {
-    backgroundColor: DesignTokens.colors.error[500],
-  },
-  syncIndicator_offline: {
-    backgroundColor: DesignTokens.colors.text.secondary,
+  progressIndicator: {
+    gap: DesignTokens.spacing[1],
   },
 
-  offlineBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: DesignTokens.colors.text.secondary,
-    paddingHorizontal: DesignTokens.spacing[2],
-    paddingVertical: DesignTokens.spacing[1],
+  progressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+
+  progressLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+
+  progressBar: {
+    height: 4,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+
+  progressPercentage: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'right',
+  },
+
+  // Compact variant styles
+  compactContainer: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[3],
+    ...DesignTokens.shadow.sm,
+    minWidth: 120,
+  },
+
+  compactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+  },
+
+  compactIcon: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    padding: DesignTokens.spacing[1],
     borderRadius: DesignTokens.borderRadius.sm,
   },
 
-  offlineText: {
+  compactInfo: {
+    flex: 1,
+  },
+
+  compactLabel: {
     fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  compactValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+
+  compactValue: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+
+  compactUnit: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: DesignTokens.colors.text.secondary,
+    marginLeft: DesignTokens.spacing[1],
+  },
+
+  compactTrend: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    padding: DesignTokens.spacing[1],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+
+  // Featured variant styles
+  featuredContainer: {
+    borderRadius: DesignTokens.borderRadius.lg,
+    overflow: 'hidden',
+    ...DesignTokens.shadow.md,
+    minWidth: 200,
+  },
+
+  featuredGradient: {
+    padding: DesignTokens.spacing[4],
+  },
+
+  featuredHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  featuredIcon: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+  },
+
+  featuredLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: 'rgba(255, 255, 255, 0.9)',
+    flex: 1,
+  },
+
+  featuredValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: DesignTokens.spacing[2],
+  },
+
+  featuredValue: {
+    fontSize: DesignTokens.typography.fontSize['2xl'],
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     color: '#FFFFFF',
+  },
+
+  featuredUnit: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginLeft: DesignTokens.spacing[1],
+  },
+
+  featuredTrend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  featuredTrendText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+
+  featuredProgress: {
+    gap: DesignTokens.spacing[2],
+  },
+
+  progressItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+
+  progressText: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.8)',
     fontWeight: DesignTokens.typography.fontWeight.medium,
   },
 });

@@ -1,6 +1,6 @@
 /**
- * QuickStatsCard - Previously unused, now integrated into home screen
- * Displays comprehensive workout statistics with trends
+ * Enhanced Quick Stats Card Component with Challenge Integration
+ * Now displays both achievement and challenge progress hints
  */
 
 import React from 'react';
@@ -15,35 +15,47 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { 
   TrendingUp, 
   TrendingDown, 
-  Minus,
-  Dumbbell,
-  Clock,
-  Calendar,
+  Calendar, 
+  Dumbbell, 
+  Clock, 
   Award,
   Target,
-  Zap,
+  Trophy,
+  Users,
+  ChevronRight,
 } from 'lucide-react-native';
 import { DesignTokens } from '@/design-system/tokens';
 
-export interface WorkoutStats {
-  totalWorkouts: number;
-  weeklyWorkouts: number;
-  currentStreak: number;
-  totalVolume: number;
-  averageDuration: number;
-  personalRecords: number;
-}
-
-export interface TrendData {
-  workouts: { direction: 'up' | 'down' | 'stable'; change: string };
-  volume: { direction: 'up' | 'down' | 'stable'; change: string };
-  duration: { direction: 'up' | 'down' | 'stable'; change: string };
-}
-
-export interface QuickStatsCardProps {
-  stats: WorkoutStats;
-  trends: TrendData;
+interface QuickStatsCardProps {
+  stats: {
+    totalWorkouts: number;
+    weeklyWorkouts: number;
+    currentStreak: number;
+    totalVolume: number;
+    averageDuration: number;
+    personalRecords: number;
+    achievementsUnlocked: number;
+    activeChallenges?: number;
+  };
+  trends: {
+    workouts: 'up' | 'down' | 'stable';
+    volume: 'up' | 'down' | 'stable';
+    duration: 'up' | 'down' | 'stable';
+  };
   onPress: () => void;
+  achievementHints?: Array<{
+    id: string;
+    title: string;
+    progress: number;
+    category: string;
+  }>;
+  challengeHints?: Array<{
+    id: string;
+    title: string;
+    progress: number;
+    target: number;
+    type: string;
+  }>;
   style?: ViewStyle;
 }
 
@@ -51,134 +63,185 @@ export const QuickStatsCard: React.FC<QuickStatsCardProps> = ({
   stats,
   trends,
   onPress,
+  achievementHints = [],
+  challengeHints = [],
   style,
 }) => {
-  const formatVolume = (volume: number): string => {
-    if (volume >= 1000000) return `${(volume / 1000000).toFixed(1)}M`;
-    if (volume >= 1000) return `${(volume / 1000).toFixed(1)}K`;
+  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
+    switch (trend) {
+      case 'up':
+        return <TrendingUp size={14} color={DesignTokens.colors.success[500]} />;
+      case 'down':
+        return <TrendingDown size={14} color={DesignTokens.colors.error[500]} />;
+      default:
+        return null;
+    }
+  };
+
+  const formatVolume = (volume: number) => {
+    if (volume >= 1000) return `${(volume / 1000).toFixed(1)}k`;
     return volume.toString();
   };
 
-  const formatDuration = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-  };
-
-  const getTrendIcon = (direction: 'up' | 'down' | 'stable') => {
-    switch (direction) {
-      case 'up':
-        return <TrendingUp size={12} color={DesignTokens.colors.success[500]} />;
-      case 'down':
-        return <TrendingDown size={12} color={DesignTokens.colors.error[500]} />;
-      default:
-        return <Minus size={12} color={DesignTokens.colors.text.secondary} />;
+  const formatDuration = (minutes: number) => {
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hours}h ${mins}m`;
     }
-  };
-
-  const getTrendColor = (direction: 'up' | 'down' | 'stable') => {
-    switch (direction) {
-      case 'up':
-        return DesignTokens.colors.success[500];
-      case 'down':
-        return DesignTokens.colors.error[500];
-      default:
-        return DesignTokens.colors.text.secondary;
-    }
+    return `${minutes}m`;
   };
 
   return (
-    <TouchableOpacity style={[styles.container, style]} onPress={onPress} activeOpacity={0.8}>
-      <LinearGradient colors={['#1f2937', '#111827']} style={styles.gradient}>
+    <TouchableOpacity
+      style={[styles.container, style]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.gradient}>
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Your Progress</Text>
-          <Target size={20} color={DesignTokens.colors.primary[500]} />
+          <View style={styles.headerLeft}>
+            <View style={styles.iconContainer}>
+              <TrendingUp size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.headerInfo}>
+              <Text style={styles.title}>Your Progress</Text>
+              <Text style={styles.subtitle}>Weekly overview</Text>
+            </View>
+          </View>
+          
+          <ChevronRight size={20} color="rgba(255, 255, 255, 0.8)" />
         </View>
 
+        {/* Main Stats Grid */}
         <View style={styles.statsGrid}>
-          {/* Total Workouts */}
           <View style={styles.statItem}>
             <View style={styles.statHeader}>
-              <Calendar size={16} color={DesignTokens.colors.primary[500]} />
-              <Text style={styles.statValue}>{stats.totalWorkouts}</Text>
+              <Calendar size={16} color="rgba(255, 255, 255, 0.8)" />
+              <Text style={styles.statLabel}>This Week</Text>
+              {getTrendIcon(trends.workouts)}
             </View>
-            <Text style={styles.statLabel}>Total Workouts</Text>
-            <View style={styles.trendContainer}>
-              {getTrendIcon(trends.workouts.direction)}
-              <Text style={[styles.trendText, { color: getTrendColor(trends.workouts.direction) }]}>
-                {trends.workouts.change}
-              </Text>
-            </View>
+            <Text style={styles.statValue}>{stats.weeklyWorkouts}</Text>
+            <Text style={styles.statUnit}>workouts</Text>
           </View>
 
-          {/* Weekly Workouts */}
           <View style={styles.statItem}>
             <View style={styles.statHeader}>
-              <Zap size={16} color={DesignTokens.colors.warning[500]} />
-              <Text style={styles.statValue}>{stats.weeklyWorkouts}</Text>
+              <Dumbbell size={16} color="rgba(255, 255, 255, 0.8)" />
+              <Text style={styles.statLabel}>Volume</Text>
+              {getTrendIcon(trends.volume)}
             </View>
-            <Text style={styles.statLabel}>This Week</Text>
-            <View style={styles.trendContainer}>
-              {getTrendIcon(trends.workouts.direction)}
-              <Text style={[styles.trendText, { color: getTrendColor(trends.workouts.direction) }]}>
-                {trends.workouts.change}
-              </Text>
-            </View>
+            <Text style={styles.statValue}>{formatVolume(stats.totalVolume)}</Text>
+            <Text style={styles.statUnit}>lbs</Text>
           </View>
 
-          {/* Total Volume */}
           <View style={styles.statItem}>
             <View style={styles.statHeader}>
-              <Dumbbell size={16} color={DesignTokens.colors.success[500]} />
-              <Text style={styles.statValue}>{formatVolume(stats.totalVolume)}</Text>
+              <Clock size={16} color="rgba(255, 255, 255, 0.8)" />
+              <Text style={styles.statLabel}>Avg Time</Text>
+              {getTrendIcon(trends.duration)}
             </View>
-            <Text style={styles.statLabel}>Total Volume</Text>
-            <View style={styles.trendContainer}>
-              {getTrendIcon(trends.volume.direction)}
-              <Text style={[styles.trendText, { color: getTrendColor(trends.volume.direction) }]}>
-                {trends.volume.change}
-              </Text>
-            </View>
+            <Text style={styles.statValue}>{formatDuration(stats.averageDuration)}</Text>
+            <Text style={styles.statUnit}>per workout</Text>
           </View>
 
-          {/* Average Duration */}
           <View style={styles.statItem}>
             <View style={styles.statHeader}>
-              <Clock size={16} color={DesignTokens.colors.error[500]} />
-              <Text style={styles.statValue}>{formatDuration(stats.averageDuration)}</Text>
+              <Award size={16} color="rgba(255, 255, 255, 0.8)" />
+              <Text style={styles.statLabel}>Goals</Text>
             </View>
-            <Text style={styles.statLabel}>Avg Duration</Text>
-            <View style={styles.trendContainer}>
-              {getTrendIcon(trends.duration.direction)}
-              <Text style={[styles.trendText, { color: getTrendColor(trends.duration.direction) }]}>
-                {trends.duration.change}
-              </Text>
-            </View>
-          </View>
-
-          {/* Personal Records */}
-          <View style={styles.statItem}>
-            <View style={styles.statHeader}>
-              <Award size={16} color="#FFD700" />
-              <Text style={styles.statValue}>{stats.personalRecords}</Text>
-            </View>
-            <Text style={styles.statLabel}>Personal Records</Text>
-            <Text style={styles.prText}>This Month</Text>
-          </View>
-
-          {/* Current Streak */}
-          <View style={styles.statItem}>
-            <View style={styles.statHeader}>
-              <div style={styles.streakIcon}>🔥</div>
-              <Text style={styles.statValue}>{stats.currentStreak}</Text>
-            </View>
-            <Text style={styles.statLabel}>Day Streak</Text>
-            <Text style={styles.streakText}>Keep it up!</Text>
+            <Text style={styles.statValue}>
+              {stats.achievementsUnlocked + (stats.activeChallenges || 0)}
+            </Text>
+            <Text style={styles.statUnit}>active</Text>
           </View>
         </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Tap to view detailed analytics</Text>
+        {/* Progress Hints Section */}
+        {(achievementHints.length > 0 || challengeHints.length > 0) && (
+          <View style={styles.hintsSection}>
+            <Text style={styles.hintsTitle}>Progress Highlights</Text>
+            
+            <View style={styles.hintsContainer}>
+              {/* Achievement Hints */}
+              {achievementHints.slice(0, 2).map((hint) => (
+                <View key={hint.id} style={styles.hintItem}>
+                  <View style={styles.hintHeader}>
+                    <Trophy size={12} color={DesignTokens.colors.warning[300]} />
+                    <Text style={styles.hintLabel} numberOfLines={1}>
+                      {hint.title}
+                    </Text>
+                  </View>
+                  <View style={styles.hintProgressBar}>
+                    <View 
+                      style={[
+                        styles.hintProgressFill,
+                        { 
+                          width: `${hint.progress}%`,
+                          backgroundColor: DesignTokens.colors.warning[300]
+                        }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={styles.hintProgress}>
+                    {Math.round(hint.progress)}% complete
+                  </Text>
+                </View>
+              ))}
+
+              {/* Challenge Hints */}
+              {challengeHints.slice(0, 2).map((hint) => (
+                <View key={hint.id} style={styles.hintItem}>
+                  <View style={styles.hintHeader}>
+                    <Target size={12} color={DesignTokens.colors.primary[300]} />
+                    <Text style={styles.hintLabel} numberOfLines={1}>
+                      {hint.title}
+                    </Text>
+                  </View>
+                  <View style={styles.hintProgressBar}>
+                    <View 
+                      style={[
+                        styles.hintProgressFill,
+                        { 
+                          width: `${(hint.progress / hint.target) * 100}%`,
+                          backgroundColor: DesignTokens.colors.primary[300]
+                        }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={styles.hintProgress}>
+                    {hint.progress}/{hint.target} ({Math.round((hint.progress / hint.target) * 100)}%)
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Summary Stats */}
+        <View style={styles.summaryStats}>
+          <View style={styles.summaryStat}>
+            <Text style={styles.summaryValue}>{stats.totalWorkouts}</Text>
+            <Text style={styles.summaryLabel}>Total Workouts</Text>
+          </View>
+          
+          <View style={styles.summaryStat}>
+            <Text style={styles.summaryValue}>{stats.currentStreak}</Text>
+            <Text style={styles.summaryLabel}>Day Streak</Text>
+          </View>
+          
+          <View style={styles.summaryStat}>
+            <Text style={styles.summaryValue}>{stats.personalRecords}</Text>
+            <Text style={styles.summaryLabel}>Personal Records</Text>
+          </View>
+
+          {stats.activeChallenges !== undefined && (
+            <View style={styles.summaryStat}>
+              <Text style={styles.summaryValue}>{stats.activeChallenges}</Text>
+              <Text style={styles.summaryLabel}>Active Challenges</Text>
+            </View>
+          )}
         </View>
       </LinearGradient>
     </TouchableOpacity>
@@ -187,13 +250,13 @@ export const QuickStatsCard: React.FC<QuickStatsCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: DesignTokens.borderRadius.xl,
+    borderRadius: DesignTokens.borderRadius.lg,
     overflow: 'hidden',
-    ...DesignTokens.shadow.lg,
+    ...DesignTokens.shadow.md,
   },
 
   gradient: {
-    padding: DesignTokens.spacing[5],
+    padding: DesignTokens.spacing[4],
   },
 
   header: {
@@ -203,10 +266,32 @@ const styles = StyleSheet.create({
     marginBottom: DesignTokens.spacing[4],
   },
 
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[3],
+  },
+
+  iconContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+  },
+
+  headerInfo: {
+    flex: 1,
+  },
+
   title: {
     fontSize: DesignTokens.typography.fontSize.lg,
     fontWeight: DesignTokens.typography.fontWeight.bold,
-    color: DesignTokens.colors.text.primary,
+    color: '#FFFFFF',
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  subtitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
 
   statsGrid: {
@@ -217,71 +302,118 @@ const styles = StyleSheet.create({
   },
 
   statItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[3],
     flex: 1,
     minWidth: '45%',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: DesignTokens.borderRadius.lg,
-    padding: DesignTokens.spacing[3],
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
 
   statHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: DesignTokens.spacing[1],
     marginBottom: DesignTokens.spacing[2],
+  },
+
+  statLabel: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    flex: 1,
   },
 
   statValue: {
     fontSize: DesignTokens.typography.fontSize.lg,
     fontWeight: DesignTokens.typography.fontWeight.bold,
-    color: DesignTokens.colors.text.primary,
-  },
-
-  statLabel: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
+    color: '#FFFFFF',
     marginBottom: DesignTokens.spacing[1],
   },
 
-  trendContainer: {
+  statUnit: {
+    fontSize: DesignTokens.typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+
+  hintsSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[3],
+    marginBottom: DesignTokens.spacing[4],
+  },
+
+  hintsTitle: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  hintsContainer: {
+    gap: DesignTokens.spacing[3],
+  },
+
+  hintItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: DesignTokens.borderRadius.sm,
+    padding: DesignTokens.spacing[2],
+  },
+
+  hintHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: DesignTokens.spacing[1],
+    marginBottom: DesignTokens.spacing[2],
   },
 
-  trendText: {
+  hintLabel: {
     fontSize: DesignTokens.typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: DesignTokens.typography.fontWeight.medium,
+    flex: 1,
   },
 
-  prText: {
+  hintProgressBar: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 2,
+    marginBottom: DesignTokens.spacing[1],
+    overflow: 'hidden',
+  },
+
+  hintProgressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+
+  hintProgress: {
     fontSize: DesignTokens.typography.fontSize.xs,
-    color: '#FFD700',
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'right',
   },
 
-  streakIcon: {
-    fontSize: 16,
-  },
-
-  streakText: {
-    fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.success[500],
-    fontWeight: DesignTokens.typography.fontWeight.medium,
-  },
-
-  footer: {
-    alignItems: 'center',
+  summaryStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     paddingTop: DesignTokens.spacing[3],
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
   },
 
-  footerText: {
+  summaryStat: {
+    alignItems: 'center',
+  },
+
+  summaryValue: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  summaryLabel: {
     fontSize: DesignTokens.typography.fontSize.xs,
-    color: DesignTokens.colors.text.secondary,
-    fontStyle: 'italic',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
   },
 });

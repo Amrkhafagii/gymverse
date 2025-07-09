@@ -1,0 +1,1175 @@
+{
+  "coreAppAnalysis": {
+    "app/(tabs)/_layout.tsx": {
+      "exists": true,
+      "imports": [
+        {
+          "statement": "import { Tabs } from 'expo-router'",
+          "path": "expo-router",
+          "line": 1
+        },
+        {
+          "statement": "import { \n  Home, \n  Dumbbell, \n  BarChart3, \n  Trophy,\n  Ruler,\n  Users,\n  User,\n} from 'lucide-react-native'",
+          "path": "lucide-react-native",
+          "line": 2
+        },
+        {
+          "statement": "import { DesignTokens } from '@/design-system/tokens'",
+          "path": "@/design-system/tokens",
+          "line": 11
+        },
+        {
+          "statement": "import { useSocial } from '@/contexts/SocialContext'",
+          "path": "@/contexts/SocialContext",
+          "line": 12
+        },
+        {
+          "statement": "import { useNotifications } from '@/hooks/useNotifications'",
+          "path": "@/hooks/useNotifications",
+          "line": 13
+        },
+        {
+          "statement": "import { View, Text, StyleSheet } from 'react-native'",
+          "path": "react-native",
+          "line": 14
+        }
+      ],
+      "content": "import { Tabs } from 'expo-router';\nimport { \n  Home, \n  Dumbbell, \n  BarChart3, \n  Trophy,\n  Ruler,\n  Users,\n  User,\n} from 'lucide-react-native';\nimport { DesignTokens } from '@/design-system/tokens';\nimport { useSocial } from '@/contexts/SocialContext';\nimport { useNotifications } from '@/hooks/useNotifications';\nimport { View, Text, StyleSheet } from 'react-native';\n\n// Badge component for tab notifications\nconst TabBadge = ({ count }: { count: number }) => {\n  if (count === 0) return null;\n...",
+      "missingFeatures": []
+    },
+    "app/(tabs)/index.tsx": {
+      "exists": true,
+      "imports": [
+        {
+          "statement": "import React, { useState, useEffect } from 'react'",
+          "path": "react",
+          "line": 6
+        },
+        {
+          "statement": "import {\n  View,\n  Text,\n  ScrollView,\n  StyleSheet,\n  RefreshControl,\n  TouchableOpacity,\n  Alert,\n} from 'react-native'",
+          "path": "react-native",
+          "line": 7
+        },
+        {
+          "statement": "import { SafeAreaView } from 'react-native-safe-area-context'",
+          "path": "react-native-safe-area-context",
+          "line": 16
+        },
+        {
+          "statement": "import { LinearGradient } from 'expo-linear-gradient'",
+          "path": "expo-linear-gradient",
+          "line": 17
+        },
+        {
+          "statement": "import { \n  Play, \n  TrendingUp, \n  Calendar, \n  Award,\n  Zap,\n  Target,\n  Clock,\n  Dumbbell,\n  Star,\n  ChevronRight,\n} from 'lucide-react-native'",
+          "path": "lucide-react-native",
+          "line": 18
+        },
+        {
+          "statement": "import { DesignTokens } from '@/design-system/tokens'",
+          "path": "@/design-system/tokens",
+          "line": 32
+        },
+        {
+          "statement": "import { useWorkoutSession } from '@/contexts/WorkoutSessionContext'",
+          "path": "@/contexts/WorkoutSessionContext",
+          "line": 35
+        },
+        {
+          "statement": "import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext'",
+          "path": "@/contexts/WorkoutHistoryContext",
+          "line": 36
+        },
+        {
+          "statement": "import { useAchievements } from '@/contexts/AchievementContext'",
+          "path": "@/contexts/AchievementContext",
+          "line": 37
+        },
+        {
+          "statement": "import { useStreakTracking } from '@/contexts/StreakContext'",
+          "path": "@/contexts/StreakContext",
+          "line": 38
+        },
+        {
+          "statement": "import { useOfflineSync } from '@/hooks/useOfflineSync'",
+          "path": "@/hooks/useOfflineSync",
+          "line": 39
+        },
+        {
+          "statement": "import { useAnalytics } from '@/hooks/useAnalytics'",
+          "path": "@/hooks/useAnalytics",
+          "line": 40
+        },
+        {
+          "statement": "import { StreakCard } from '@/components/StreakCard'",
+          "path": "@/components/StreakCard",
+          "line": 43
+        },
+        {
+          "statement": "import { QuickStatsCard } from '@/components/QuickStatsCard'",
+          "path": "@/components/QuickStatsCard",
+          "line": 44
+        },
+        {
+          "statement": "import { RecentWorkoutCard } from '@/components/RecentWorkoutCard'",
+          "path": "@/components/RecentWorkoutCard",
+          "line": 45
+        },
+        {
+          "statement": "import { AchievementBadge } from '@/components/AchievementBadge'",
+          "path": "@/components/AchievementBadge",
+          "line": 46
+        },
+        {
+          "statement": "import { MotivationalQuote } from '@/components/MotivationalQuote'",
+          "path": "@/components/MotivationalQuote",
+          "line": 47
+        },
+        {
+          "statement": "import { QuickStartCard } from '@/components/dashboard/QuickStartCard'",
+          "path": "@/components/dashboard/QuickStartCard",
+          "line": 50
+        },
+        {
+          "statement": "import { StatCard } from '@/components/ui/StatCard'",
+          "path": "@/components/ui/StatCard",
+          "line": 51
+        }
+      ],
+      "content": "/**\n * Enhanced Home Screen with integrated unused components\n * Phase 2 Chunk 2.1: Systematic component integration\n */\n\nimport React, { useState, useEffect } from 'react';\nimport {\n  View,\n  Text,\n  ScrollView,\n  StyleSheet,\n  RefreshControl,\n  TouchableOpacity,\n  Alert,\n} from 'react-native';\nimport { SafeAreaView } from 'react-native-safe-area-context';\nimport { LinearGradient } from 'expo-linear-gradient';\nimport { \n  Play, \n  TrendingUp, \n  Calendar, \n  Award,\n  Zap,\n  Target,\n  Clock,\n  D...",
+      "missingFeatures": []
+    },
+    "app/(tabs)/workout.tsx": {
+      "exists": true,
+      "imports": [
+        {
+          "statement": "import React, { useState } from 'react'",
+          "path": "react",
+          "line": 1
+        },
+        {
+          "statement": "import {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  TouchableOpacity,\n  RefreshControl,\n} from 'react-native'",
+          "path": "react-native",
+          "line": 2
+        },
+        {
+          "statement": "import { LinearGradient } from 'expo-linear-gradient'",
+          "path": "expo-linear-gradient",
+          "line": 10
+        },
+        {
+          "statement": "import {\n  Play,\n  Clock,\n  Target,\n  TrendingUp,\n  Calendar,\n  Brain,\n  Moon,\n  Plus,\n  Filter,\n  Search,\n} from 'lucide-react-native'",
+          "path": "lucide-react-native",
+          "line": 11
+        },
+        {
+          "statement": "import { DesignTokens } from '@/design-system/tokens'",
+          "path": "@/design-system/tokens",
+          "line": 23
+        },
+        {
+          "statement": "import { useWorkout } from '@/contexts/WorkoutContext'",
+          "path": "@/contexts/WorkoutContext",
+          "line": 24
+        },
+        {
+          "statement": "import { Button } from '@/components/ui/Button'",
+          "path": "@/components/ui/Button",
+          "line": 25
+        },
+        {
+          "statement": "import { AIWorkoutSuggestions } from '@/components/ai/AIWorkoutSuggestions'",
+          "path": "@/components/ai/AIWorkoutSuggestions",
+          "line": 26
+        },
+        {
+          "statement": "import { RestDayRecommendations } from '@/components/ai/RestDayRecommendations'",
+          "path": "@/components/ai/RestDayRecommendations",
+          "line": 27
+        },
+        {
+          "statement": "import { RestTimerModal } from '@/components/workout/RestTimerModal'",
+          "path": "@/components/workout/RestTimerModal",
+          "line": 28
+        },
+        {
+          "statement": "import { SetTimerCard } from '@/components/workout/SetTimerCard'",
+          "path": "@/components/workout/SetTimerCard",
+          "line": 29
+        },
+        {
+          "statement": "import { ExerciseProgressChart } from '@/components/workout/ExerciseProgressChart'",
+          "path": "@/components/workout/ExerciseProgressChart",
+          "line": 30
+        },
+        {
+          "statement": "import { WorkoutStatsOverview } from '@/components/workout/WorkoutStatsOverview'",
+          "path": "@/components/workout/WorkoutStatsOverview",
+          "line": 31
+        },
+        {
+          "statement": "import { PersonalRecordModal } from '@/components/PersonalRecordModal'",
+          "path": "@/components/PersonalRecordModal",
+          "line": 32
+        },
+        {
+          "statement": "import * as Haptics from 'expo-haptics'",
+          "path": "expo-haptics",
+          "line": 33
+        }
+      ],
+      "content": "import React, { useState } from 'react';\nimport {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  TouchableOpacity,\n  RefreshControl,\n} from 'react-native';\nimport { LinearGradient } from 'expo-linear-gradient';\nimport {\n  Play,\n  Clock,\n  Target,\n  TrendingUp,\n  Calendar,\n  Brain,\n  Moon,\n  Plus,\n  Filter,\n  Search,\n} from 'lucide-react-native';\nimport { DesignTokens } from '@/design-system/tokens';\nimport { useWorkout } from '@/contexts/WorkoutContext';\nimport { Button } from '@/components/ui/Bu...",
+      "missingFeatures": []
+    },
+    "app/(tabs)/progress.tsx": {
+      "exists": true,
+      "imports": [
+        {
+          "statement": "import React, { useState } from 'react'",
+          "path": "react",
+          "line": 1
+        },
+        {
+          "statement": "import {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  TouchableOpacity,\n  RefreshControl,\n  SafeAreaView,\n} from 'react-native'",
+          "path": "react-native",
+          "line": 2
+        },
+        {
+          "statement": "import { WorkoutStatsOverview } from '@/components/workout/WorkoutStatsOverview'",
+          "path": "@/components/workout/WorkoutStatsOverview",
+          "line": 11
+        },
+        {
+          "statement": "import { WorkoutHistoryCard } from '@/components/workout/WorkoutHistoryCard'",
+          "path": "@/components/workout/WorkoutHistoryCard",
+          "line": 12
+        },
+        {
+          "statement": "import { ExerciseProgressChart } from '@/components/workout/ExerciseProgressChart'",
+          "path": "@/components/workout/ExerciseProgressChart",
+          "line": 13
+        },
+        {
+          "statement": "import { ProgressDashboard } from '@/components/ProgressDashboard'",
+          "path": "@/components/ProgressDashboard",
+          "line": 14
+        },
+        {
+          "statement": "import { AnalyticsChart, ChartTypeToggle, ChartType } from '@/components/analytics/AnalyticsChart'",
+          "path": "@/components/analytics/AnalyticsChart",
+          "line": 15
+        },
+        {
+          "statement": "import { TrendAnalysis } from '@/components/analytics/TrendAnalysis'",
+          "path": "@/components/analytics/TrendAnalysis",
+          "line": 16
+        },
+        {
+          "statement": "import { useWorkoutHistory } from '@/contexts/WorkoutHistoryContext'",
+          "path": "@/contexts/WorkoutHistoryContext",
+          "line": 17
+        },
+        {
+          "statement": "import { usePersonalRecords } from '@/hooks/usePersonalRecords'",
+          "path": "@/hooks/usePersonalRecords",
+          "line": 18
+        },
+        {
+          "statement": "import { useAnalytics, AnalyticsTimeframe, AnalyticsMetric } from '@/hooks/useAnalytics'",
+          "path": "@/hooks/useAnalytics",
+          "line": 19
+        },
+        {
+          "statement": "import { DesignTokens } from '@/design-system/tokens'",
+          "path": "@/design-system/tokens",
+          "line": 20
+        },
+        {
+          "statement": "import { BarChart3, History, TrendingUp, Trophy, Calendar, Target } from 'lucide-react-native'",
+          "path": "lucide-react-native",
+          "line": 21
+        }
+      ],
+      "content": "import React, { useState } from 'react';\nimport {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  TouchableOpacity,\n  RefreshControl,\n  SafeAreaView,\n} from 'react-native';\nimport { WorkoutStatsOverview } from '@/components/workout/WorkoutStatsOverview';\nimport { WorkoutHistoryCard } from '@/components/workout/WorkoutHistoryCard';\nimport { ExerciseProgressChart } from '@/components/workout/ExerciseProgressChart';\nimport { ProgressDashboard } from '@/components/ProgressDashboard';\nimport { Analytic...",
+      "missingFeatures": []
+    },
+    "app/(tabs)/measurements.tsx": {
+      "exists": true,
+      "imports": [
+        {
+          "statement": "import React, { useState } from 'react'",
+          "path": "react",
+          "line": 1
+        },
+        {
+          "statement": "import {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  TouchableOpacity,\n  RefreshControl,\n  SafeAreaView,\n  Alert,\n} from 'react-native'",
+          "path": "react-native",
+          "line": 2
+        },
+        {
+          "statement": "import { MeasurementCard } from '@/components/measurements/MeasurementCard'",
+          "path": "@/components/measurements/MeasurementCard",
+          "line": 12
+        },
+        {
+          "statement": "import { MeasurementChart } from '@/components/measurements/MeasurementChart'",
+          "path": "@/components/measurements/MeasurementChart",
+          "line": 13
+        },
+        {
+          "statement": "import { AddMeasurementModal } from '@/components/measurements/AddMeasurementModal'",
+          "path": "@/components/measurements/AddMeasurementModal",
+          "line": 14
+        },
+        {
+          "statement": "import { useMeasurements } from '@/hooks/useMeasurements'",
+          "path": "@/hooks/useMeasurements",
+          "line": 15
+        },
+        {
+          "statement": "import { DesignTokens } from '@/design-system/tokens'",
+          "path": "@/design-system/tokens",
+          "line": 16
+        },
+        {
+          "statement": "import { \n  Ruler, \n  TrendingUp, \n  Calendar, \n  Target,\n  Plus,\n  BarChart3,\n  Activity,\n  Settings,\n  Filter,\n} from 'lucide-react-native'",
+          "path": "lucide-react-native",
+          "line": 17
+        },
+        {
+          "statement": "import { MEASUREMENT_TYPES, getMeasurementTypeById } from '@/lib/measurements/measurementTypes'",
+          "path": "@/lib/measurements/measurementTypes",
+          "line": 28
+        }
+      ],
+      "content": "import React, { useState } from 'react';\nimport {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  TouchableOpacity,\n  RefreshControl,\n  SafeAreaView,\n  Alert,\n} from 'react-native';\nimport { MeasurementCard } from '@/components/measurements/MeasurementCard';\nimport { MeasurementChart } from '@/components/measurements/MeasurementChart';\nimport { AddMeasurementModal } from '@/components/measurements/AddMeasurementModal';\nimport { useMeasurements } from '@/hooks/useMeasurements';\nimport { DesignToken...",
+      "missingFeatures": []
+    },
+    "app/(tabs)/achievements.tsx": {
+      "exists": true,
+      "imports": [
+        {
+          "statement": "import React, { useState } from 'react'",
+          "path": "react",
+          "line": 1
+        },
+        {
+          "statement": "import {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  RefreshControl,\n  SafeAreaView,\n} from 'react-native'",
+          "path": "react-native",
+          "line": 2
+        },
+        {
+          "statement": "import { AchievementGrid } from '@/components/AchievementGrid'",
+          "path": "@/components/AchievementGrid",
+          "line": 10
+        },
+        {
+          "statement": "import { AchievementBadge } from '@/components/AchievementBadge'",
+          "path": "@/components/AchievementBadge",
+          "line": 11
+        },
+        {
+          "statement": "import { useAchievements } from '@/hooks/useAchievements'",
+          "path": "@/hooks/useAchievements",
+          "line": 12
+        },
+        {
+          "statement": "import { Achievement } from '@/lib/achievementEngine'",
+          "path": "@/lib/achievementEngine",
+          "line": 13
+        }
+      ],
+      "content": "import React, { useState } from 'react';\nimport {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  RefreshControl,\n  SafeAreaView,\n} from 'react-native';\nimport { AchievementGrid } from '@/components/AchievementGrid';\nimport { AchievementBadge } from '@/components/AchievementBadge';\nimport { useAchievements } from '@/hooks/useAchievements';\nimport { Achievement } from '@/lib/achievementEngine';\n\nexport default function AchievementsScreen() {\n  const {\n    achievements,\n    unlockedAchievements,\n   ...",
+      "missingFeatures": []
+    },
+    "app/(tabs)/social.tsx": {
+      "exists": true,
+      "imports": [
+        {
+          "statement": "import React, { useState, useEffect } from 'react'",
+          "path": "react",
+          "line": 1
+        },
+        {
+          "statement": "import {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  TouchableOpacity,\n  FlatList,\n  RefreshControl,\n  Alert,\n  TextInput,\n} from 'react-native'",
+          "path": "react-native",
+          "line": 2
+        },
+        {
+          "statement": "import { LinearGradient } from 'expo-linear-gradient'",
+          "path": "expo-linear-gradient",
+          "line": 13
+        },
+        {
+          "statement": "import { SafeAreaView } from 'react-native-safe-area-context'",
+          "path": "react-native-safe-area-context",
+          "line": 14
+        },
+        {
+          "statement": "import {\n  Users,\n  Trophy,\n  TrendingUp,\n  Plus,\n  Search,\n  Filter,\n  Heart,\n  MessageCircle,\n  Share2,\n  Flame,\n  Target,\n  Award,\n  Camera,\n  Bell,\n  Settings,\n} from 'lucide-react-native'",
+          "path": "lucide-react-native",
+          "line": 15
+        },
+        {
+          "statement": "import { useRouter } from 'expo-router'",
+          "path": "expo-router",
+          "line": 32
+        },
+        {
+          "statement": "import { DesignTokens } from '@/design-system/tokens'",
+          "path": "@/design-system/tokens",
+          "line": 33
+        },
+        {
+          "statement": "import { PostCard } from '@/components/ui/PostCard'",
+          "path": "@/components/ui/PostCard",
+          "line": 34
+        },
+        {
+          "statement": "import { ChallengeCard } from '@/components/ui/ChallengeCard'",
+          "path": "@/components/ui/ChallengeCard",
+          "line": 35
+        },
+        {
+          "statement": "import { LeaderboardCard } from '@/components/ui/LeaderboardCard'",
+          "path": "@/components/ui/LeaderboardCard",
+          "line": 36
+        },
+        {
+          "statement": "import { Button } from '@/components/ui/Button'",
+          "path": "@/components/ui/Button",
+          "line": 37
+        },
+        {
+          "statement": "import { SocialFeedPost } from '@/components/social/SocialFeedPost'",
+          "path": "@/components/social/SocialFeedPost",
+          "line": 38
+        },
+        {
+          "statement": "import { CreatePostModal } from '@/components/social/CreatePostModal'",
+          "path": "@/components/social/CreatePostModal",
+          "line": 39
+        },
+        {
+          "statement": "import { PostCommentsModal } from '@/components/social/PostCommentsModal'",
+          "path": "@/components/social/PostCommentsModal",
+          "line": 40
+        },
+        {
+          "statement": "import { SocialFeedFilters } from '@/components/social/SocialFeedFilters'",
+          "path": "@/components/social/SocialFeedFilters",
+          "line": 41
+        },
+        {
+          "statement": "import { SocialSearchModal } from '@/components/social/SocialSearchModal'",
+          "path": "@/components/social/SocialSearchModal",
+          "line": 42
+        },
+        {
+          "statement": "import { SocialStatsCard } from '@/components/social/SocialStatsCard'",
+          "path": "@/components/social/SocialStatsCard",
+          "line": 43
+        },
+        {
+          "statement": "import { NotificationCenter } from '@/components/social/NotificationCenter'",
+          "path": "@/components/social/NotificationCenter",
+          "line": 44
+        },
+        {
+          "statement": "import { RealTimeUpdates } from '@/components/social/RealTimeUpdates'",
+          "path": "@/components/social/RealTimeUpdates",
+          "line": 45
+        },
+        {
+          "statement": "import { SocialNotificationBadge } from '@/components/social/SocialNotificationBadge'",
+          "path": "@/components/social/SocialNotificationBadge",
+          "line": 46
+        },
+        {
+          "statement": "import { useSocial, SocialPost } from '@/contexts/SocialContext'",
+          "path": "@/contexts/SocialContext",
+          "line": 47
+        },
+        {
+          "statement": "import { useSocialFeed } from '@/hooks/useSocialFeed'",
+          "path": "@/hooks/useSocialFeed",
+          "line": 48
+        },
+        {
+          "statement": "import { useNotifications } from '@/hooks/useNotifications'",
+          "path": "@/hooks/useNotifications",
+          "line": 49
+        },
+        {
+          "statement": "import * as Haptics from 'expo-haptics'",
+          "path": "expo-haptics",
+          "line": 50
+        }
+      ],
+      "content": "import React, { useState, useEffect } from 'react';\nimport {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  TouchableOpacity,\n  FlatList,\n  RefreshControl,\n  Alert,\n  TextInput,\n} from 'react-native';\nimport { LinearGradient } from 'expo-linear-gradient';\nimport { SafeAreaView } from 'react-native-safe-area-context';\nimport {\n  Users,\n  Trophy,\n  TrendingUp,\n  Plus,\n  Search,\n  Filter,\n  Heart,\n  MessageCircle,\n  Share2,\n  Flame,\n  Target,\n  Award,\n  Camera,\n  Bell,\n  Settings,\n} from 'lucide-rea...",
+      "missingFeatures": []
+    },
+    "app/(tabs)/profile.tsx": {
+      "exists": true,
+      "imports": [
+        {
+          "statement": "import React, { useState } from 'react'",
+          "path": "react",
+          "line": 1
+        },
+        {
+          "statement": "import {\n  View,\n  Text,\n  ScrollView,\n  StyleSheet,\n  TouchableOpacity,\n  Image,\n  Alert,\n  RefreshControl,\n} from 'react-native'",
+          "path": "react-native",
+          "line": 2
+        },
+        {
+          "statement": "import { LinearGradient } from 'expo-linear-gradient'",
+          "path": "expo-linear-gradient",
+          "line": 12
+        },
+        {
+          "statement": "import { SafeAreaView } from 'react-native-safe-area-context'",
+          "path": "react-native-safe-area-context",
+          "line": 13
+        },
+        {
+          "statement": "import {\n  User,\n  Settings,\n  Trophy,\n  Target,\n  Calendar,\n  Bell,\n  Shield,\n  HelpCircle,\n  Star,\n  Edit3,\n  Camera,\n  Share2,\n  Award,\n  Flame,\n  TrendingUp,\n  Zap,\n  Heart,\n  Users,\n  BookOpen,\n  Moon,\n  Volume2,\n  Smartphone,\n  Lock,\n  CreditCard,\n  LogOut,\n  Download,\n  Globe,\n  MessageCircle,\n  ThumbsUp,\n  Eye,\n  BarChart3,\n} from 'lucide-react-native'",
+          "path": "lucide-react-native",
+          "line": 14
+        },
+        {
+          "statement": "import { useRouter } from 'expo-router'",
+          "path": "expo-router",
+          "line": 47
+        },
+        {
+          "statement": "import { DesignTokens } from '@/design-system/tokens'",
+          "path": "@/design-system/tokens",
+          "line": 48
+        },
+        {
+          "statement": "import { ProfileStatCard } from '@/components/ui/ProfileStatCard'",
+          "path": "@/components/ui/ProfileStatCard",
+          "line": 49
+        },
+        {
+          "statement": "import { AchievementBadge } from '@/components/ui/AchievementBadge'",
+          "path": "@/components/ui/AchievementBadge",
+          "line": 50
+        },
+        {
+          "statement": "import { SettingsGroup } from '@/components/ui/SettingsGroup'",
+          "path": "@/components/ui/SettingsGroup",
+          "line": 51
+        },
+        {
+          "statement": "import { Button } from '@/components/ui/Button'",
+          "path": "@/components/ui/Button",
+          "line": 52
+        },
+        {
+          "statement": "import { SocialStatsCard } from '@/components/social/SocialStatsCard'",
+          "path": "@/components/social/SocialStatsCard",
+          "line": 53
+        },
+        {
+          "statement": "import { useSocial } from '@/contexts/SocialContext'",
+          "path": "@/contexts/SocialContext",
+          "line": 54
+        },
+        {
+          "statement": "import { usePostComments } from '@/hooks/usePostComments'",
+          "path": "@/hooks/usePostComments",
+          "line": 55
+        },
+        {
+          "statement": "import * as Haptics from 'expo-haptics'",
+          "path": "expo-haptics",
+          "line": 56
+        }
+      ],
+      "content": "import React, { useState } from 'react';\nimport {\n  View,\n  Text,\n  ScrollView,\n  StyleSheet,\n  TouchableOpacity,\n  Image,\n  Alert,\n  RefreshControl,\n} from 'react-native';\nimport { LinearGradient } from 'expo-linear-gradient';\nimport { SafeAreaView } from 'react-native-safe-area-context';\nimport {\n  User,\n  Settings,\n  Trophy,\n  Target,\n  Calendar,\n  Bell,\n  Shield,\n  HelpCircle,\n  Star,\n  Edit3,\n  Camera,\n  Share2,\n  Award,\n  Flame,\n  TrendingUp,\n  Zap,\n  Heart,\n  Users,\n  BookOpen,\n  Moon,\n  ...",
+      "missingFeatures": []
+    },
+    "app/_layout.tsx": {
+      "exists": true,
+      "imports": [
+        {
+          "statement": "import { Stack } from 'expo-router'",
+          "path": "expo-router",
+          "line": 1
+        },
+        {
+          "statement": "import { WorkoutSessionProvider } from '@/contexts/WorkoutSessionContext'",
+          "path": "@/contexts/WorkoutSessionContext",
+          "line": 2
+        },
+        {
+          "statement": "import { WorkoutHistoryProvider } from '@/contexts/WorkoutHistoryContext'",
+          "path": "@/contexts/WorkoutHistoryContext",
+          "line": 3
+        },
+        {
+          "statement": "import { AchievementProvider } from '@/contexts/AchievementContext'",
+          "path": "@/contexts/AchievementContext",
+          "line": 4
+        },
+        {
+          "statement": "import { MeasurementProvider } from '@/contexts/MeasurementContext'",
+          "path": "@/contexts/MeasurementContext",
+          "line": 5
+        },
+        {
+          "statement": "import { PersonalRecordProvider } from '@/contexts/PersonalRecordContext'",
+          "path": "@/contexts/PersonalRecordContext",
+          "line": 6
+        },
+        {
+          "statement": "import { ProgressPhotoProvider } from '@/contexts/ProgressPhotoContext'",
+          "path": "@/contexts/ProgressPhotoContext",
+          "line": 7
+        },
+        {
+          "statement": "import { SocialProvider } from '@/contexts/SocialContext'",
+          "path": "@/contexts/SocialContext",
+          "line": 8
+        },
+        {
+          "statement": "import { StreakProvider } from '@/contexts/StreakContext'",
+          "path": "@/contexts/StreakContext",
+          "line": 9
+        },
+        {
+          "statement": "import { ChallengeProvider } from '@/contexts/ChallengeContext'",
+          "path": "@/contexts/ChallengeContext",
+          "line": 10
+        },
+        {
+          "statement": "import { NotificationProvider } from '@/contexts/NotificationContext'",
+          "path": "@/contexts/NotificationContext",
+          "line": 11
+        },
+        {
+          "statement": "import { OfflineSyncProvider } from '@/contexts/OfflineSyncContext'",
+          "path": "@/contexts/OfflineSyncContext",
+          "line": 12
+        },
+        {
+          "statement": "import { AchievementNotificationProvider } from '@/components/achievements/AchievementNotificationProvider'",
+          "path": "@/components/achievements/AchievementNotificationProvider",
+          "line": 13
+        }
+      ],
+      "content": "import { Stack } from 'expo-router';\nimport { WorkoutSessionProvider } from '@/contexts/WorkoutSessionContext';\nimport { WorkoutHistoryProvider } from '@/contexts/WorkoutHistoryContext';\nimport { AchievementProvider } from '@/contexts/AchievementContext';\nimport { MeasurementProvider } from '@/contexts/MeasurementContext';\nimport { PersonalRecordProvider } from '@/contexts/PersonalRecordContext';\nimport { ProgressPhotoProvider } from '@/contexts/ProgressPhotoContext';\nimport { SocialProvider } f...",
+      "missingFeatures": []
+    }
+  },
+  "featureIntegrationGaps": {
+    "achievements": {
+      "totalFiles": 10,
+      "existingFiles": 10,
+      "missingFiles": [],
+      "integratedFiles": [
+        {
+          "file": "lib/achievements.ts",
+          "integratedIn": [
+            "app/_layout.tsx"
+          ]
+        },
+        {
+          "file": "lib/supabase/achievements.ts",
+          "integratedIn": [
+            "app/_layout.tsx"
+          ]
+        }
+      ],
+      "unintegratedFiles": [
+        "components/AchievementModal.tsx",
+        "components/achievements/AchievementCard.tsx",
+        "components/achievements/AchievementCelebration.tsx",
+        "components/achievements/AchievementNotificationManager.tsx",
+        "components/achievements/AchievementToast.tsx",
+        "components/achievements/AchievementUnlockModal.tsx",
+        "components/ui/AchievementCard.tsx",
+        "hooks/useAchievementNotifications.ts"
+      ],
+      "expectedIntegrationPoints": [
+        "app/(tabs)/achievements.tsx",
+        "app/(tabs)/index.tsx"
+      ],
+      "actualIntegrationPoints": [],
+      "integrationGap": 2
+    },
+    "challenges": {
+      "totalFiles": 9,
+      "existingFiles": 9,
+      "missingFiles": [],
+      "integratedFiles": [
+        {
+          "file": "components/ChallengeCard.tsx",
+          "integratedIn": [
+            "app/(tabs)/social.tsx"
+          ]
+        },
+        {
+          "file": "components/challenges/ChallengeCard.tsx",
+          "integratedIn": [
+            "app/(tabs)/social.tsx"
+          ]
+        }
+      ],
+      "unintegratedFiles": [
+        "components/challenges/ChallengeList.tsx",
+        "components/challenges/ChallengeProgress.tsx",
+        "components/challenges/CreateChallengeModal.tsx",
+        "hooks/useChallenges.ts",
+        "lib/challengeEngine.ts",
+        "lib/challenges.ts",
+        "lib/challenges/challengeEngine.ts"
+      ],
+      "expectedIntegrationPoints": [
+        "app/(tabs)/social.tsx",
+        "app/(tabs)/index.tsx"
+      ],
+      "actualIntegrationPoints": [],
+      "integrationGap": 2
+    },
+    "social": {
+      "totalFiles": 13,
+      "existingFiles": 13,
+      "missingFiles": [],
+      "integratedFiles": [
+        {
+          "file": "components/CreatePostModal.tsx",
+          "integratedIn": [
+            "app/(tabs)/social.tsx"
+          ]
+        },
+        {
+          "file": "components/PostCommentsModal.tsx",
+          "integratedIn": [
+            "app/(tabs)/social.tsx"
+          ]
+        },
+        {
+          "file": "components/SocialFeedPost.tsx",
+          "integratedIn": [
+            "app/(tabs)/social.tsx"
+          ]
+        },
+        {
+          "file": "components/SocialStatsCard.tsx",
+          "integratedIn": [
+            "app/(tabs)/social.tsx"
+          ]
+        },
+        {
+          "file": "lib/supabase/social.ts",
+          "integratedIn": [
+            "app/(tabs)/social.tsx"
+          ]
+        }
+      ],
+      "unintegratedFiles": [
+        "components/social/SocialActivityFeed.tsx",
+        "components/social/SocialAnalyticsDashboard.tsx",
+        "components/social/SocialAutoPostSettings.tsx",
+        "components/social/SocialPrivacySettings.tsx",
+        "components/social/SocialProfileCard.tsx",
+        "lib/social/localSocialEngine.ts",
+        "lib/social/socialFeed.ts",
+        "lib/socialFeed.ts"
+      ],
+      "expectedIntegrationPoints": [
+        "app/(tabs)/social.tsx",
+        "app/(tabs)/profile.tsx"
+      ],
+      "actualIntegrationPoints": [
+        "app/(tabs)/social.tsx",
+        "app/(tabs)/profile.tsx"
+      ],
+      "integrationGap": 0
+    },
+    "leaderboards": {
+      "totalFiles": 14,
+      "existingFiles": 14,
+      "missingFiles": [],
+      "integratedFiles": [
+        {
+          "file": "components/LeaderboardCard.tsx",
+          "integratedIn": [
+            "app/(tabs)/social.tsx"
+          ]
+        },
+        {
+          "file": "components/challenges/LeaderboardCard.tsx",
+          "integratedIn": [
+            "app/(tabs)/social.tsx"
+          ]
+        }
+      ],
+      "unintegratedFiles": [
+        "components/LeaderboardList.tsx",
+        "components/challenges/LeaderboardList.tsx",
+        "components/challenges/LeaderboardStats.tsx",
+        "components/challenges/LeaderboardTabs.tsx",
+        "components/challenges/SocialLeaderboard.tsx",
+        "components/SocialLeaderboard.tsx",
+        "hooks/useLeaderboards.ts",
+        "contexts/LeaderboardContext.tsx",
+        "lib/leaderboardEngine.ts",
+        "lib/leaderboards.ts",
+        "lib/challenges/leaderboardEngine.ts",
+        "lib/challenges/localLeaderboards.ts"
+      ],
+      "expectedIntegrationPoints": [
+        "app/(tabs)/social.tsx",
+        "app/(tabs)/achievements.tsx"
+      ],
+      "actualIntegrationPoints": [],
+      "integrationGap": 2
+    },
+    "analytics": {
+      "totalFiles": 3,
+      "existingFiles": 3,
+      "missingFiles": [],
+      "integratedFiles": [
+        {
+          "file": "components/AnalyticsChart.tsx",
+          "integratedIn": [
+            "app/(tabs)/progress.tsx"
+          ]
+        },
+        {
+          "file": "lib/supabase/analytics.ts",
+          "integratedIn": [
+            "app/(tabs)/progress.tsx"
+          ]
+        }
+      ],
+      "unintegratedFiles": [
+        "components/ui/InteractiveChart.tsx"
+      ],
+      "expectedIntegrationPoints": [
+        "app/(tabs)/progress.tsx",
+        "app/(tabs)/index.tsx"
+      ],
+      "actualIntegrationPoints": [
+        "app/(tabs)/progress.tsx"
+      ],
+      "integrationGap": 1
+    },
+    "ai": {
+      "totalFiles": 5,
+      "existingFiles": 5,
+      "missingFiles": [],
+      "integratedFiles": [],
+      "unintegratedFiles": [
+        "lib/ai/fatigueDetection.ts",
+        "lib/ai/patternAnalysis.ts",
+        "lib/ai/recoveryAnalysis.ts",
+        "lib/ai/workoutRecommendations.ts",
+        "types/aiRecommendation.ts"
+      ],
+      "expectedIntegrationPoints": [
+        "app/(tabs)/workout.tsx",
+        "app/(tabs)/index.tsx"
+      ],
+      "actualIntegrationPoints": [
+        "app/(tabs)/workout.tsx"
+      ],
+      "integrationGap": 1
+    },
+    "photos": {
+      "totalFiles": 3,
+      "existingFiles": 3,
+      "missingFiles": [],
+      "integratedFiles": [],
+      "unintegratedFiles": [
+        "components/photos/AddPhotoModal.tsx",
+        "components/photos/PhotoComparisonCard.tsx",
+        "lib/supabase/progressPhotos.ts"
+      ],
+      "expectedIntegrationPoints": [
+        "app/(tabs)/progress.tsx",
+        "app/(tabs)/measurements.tsx"
+      ],
+      "actualIntegrationPoints": [],
+      "integrationGap": 2
+    },
+    "storage": {
+      "totalFiles": 7,
+      "existingFiles": 7,
+      "missingFiles": [],
+      "integratedFiles": [],
+      "unintegratedFiles": [
+        "lib/storage/adapters/RealmAdapter.ts",
+        "lib/storage/adapters/SQLiteAdapter.ts",
+        "lib/storage/adapters/WebAdapter.ts",
+        "lib/storage/asyncStorage.ts",
+        "lib/storage/database.ts",
+        "lib/storage/fileStorage.ts",
+        "lib/storage/StorageManager.ts"
+      ],
+      "expectedIntegrationPoints": [
+        "app/_layout.tsx",
+        "contexts/"
+      ],
+      "actualIntegrationPoints": [],
+      "integrationGap": 2
+    },
+    "sync": {
+      "totalFiles": 12,
+      "existingFiles": 12,
+      "missingFiles": [],
+      "integratedFiles": [
+        {
+          "file": "contexts/SyncContext.tsx",
+          "integratedIn": [
+            "app/_layout.tsx"
+          ]
+        }
+      ],
+      "unintegratedFiles": [
+        "hooks/useDataSync.ts",
+        "contexts/OfflineContext.tsx",
+        "lib/migration/dataMigration.ts",
+        "lib/migration/index.ts",
+        "lib/migration/migrationHooks.ts",
+        "lib/migration/migrationManager.ts",
+        "lib/migration/migrationUtils.ts",
+        "lib/migration/offlineSync.ts",
+        "lib/migration/syncEngine.ts",
+        "lib/sync/index.ts",
+        "lib/sync/SyncScheduler.ts"
+      ],
+      "expectedIntegrationPoints": [
+        "app/_layout.tsx"
+      ],
+      "actualIntegrationPoints": [],
+      "integrationGap": 1
+    },
+    "ui": {
+      "totalFiles": 10,
+      "existingFiles": 10,
+      "missingFiles": [],
+      "integratedFiles": [
+        {
+          "file": "components/ui/Card.tsx",
+          "integratedIn": [
+            "app/(tabs)/index.tsx"
+          ]
+        },
+        {
+          "file": "components/ui/Modal.tsx",
+          "integratedIn": [
+            "app/(tabs)/workout.tsx"
+          ]
+        },
+        {
+          "file": "components/ui/WorkoutCard.tsx",
+          "integratedIn": [
+            "app/(tabs)/index.tsx"
+          ]
+        }
+      ],
+      "unintegratedFiles": [
+        "components/ui/CircularProgress.tsx",
+        "components/ui/Input.tsx",
+        "components/ui/LoadingSpinner.tsx",
+        "components/ui/MetricCard.tsx",
+        "components/ui/OfflineIndicator.tsx",
+        "components/ui/ProgressBar.tsx",
+        "components/ui/SyncStatusIndicator.tsx"
+      ],
+      "expectedIntegrationPoints": [
+        "All screens and components"
+      ],
+      "actualIntegrationPoints": [],
+      "integrationGap": 1
+    }
+  },
+  "missingConnections": [],
+  "architecturalIssues": [
+    {
+      "type": "Missing Context Providers",
+      "description": "Root layout missing: LeaderboardContext/Provider, OfflineContext/Provider",
+      "impact": "High - Features cannot function without context",
+      "file": "app/_layout.tsx"
+    },
+    {
+      "type": "Unused UI Components",
+      "description": "7 UI components built but not used",
+      "impact": "Medium - Code bloat and maintenance overhead",
+      "files": [
+        "components/ui/CircularProgress.tsx",
+        "components/ui/Input.tsx",
+        "components/ui/LoadingSpinner.tsx",
+        "components/ui/MetricCard.tsx",
+        "components/ui/OfflineIndicator.tsx",
+        "components/ui/ProgressBar.tsx",
+        "components/ui/SyncStatusIndicator.tsx"
+      ]
+    }
+  ],
+  "integrationRecommendations": [
+    {
+      "feature": "achievements",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "Import Components",
+          "description": "Import and use 7 achievements components",
+          "files": [
+            "app/(tabs)/achievements.tsx",
+            "app/(tabs)/index.tsx"
+          ]
+        },
+        {
+          "type": "Use Hooks",
+          "description": "Integrate 1 achievements hooks in screens",
+          "files": [
+            "app/(tabs)/achievements.tsx",
+            "app/(tabs)/index.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "feature": "challenges",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "Import Components",
+          "description": "Import and use 3 challenges components",
+          "files": [
+            "app/(tabs)/social.tsx",
+            "app/(tabs)/index.tsx"
+          ]
+        },
+        {
+          "type": "Use Hooks",
+          "description": "Integrate 1 challenges hooks in screens",
+          "files": [
+            "app/(tabs)/social.tsx",
+            "app/(tabs)/index.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "feature": "social",
+      "priority": 9,
+      "actions": [
+        {
+          "type": "Import Components",
+          "description": "Import and use 5 social components",
+          "files": [
+            "app/(tabs)/social.tsx",
+            "app/(tabs)/profile.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "feature": "leaderboards",
+      "priority": 8,
+      "actions": [
+        {
+          "type": "Integrate Context",
+          "description": "Add leaderboards context providers to app/_layout.tsx",
+          "files": [
+            "app/_layout.tsx"
+          ]
+        },
+        {
+          "type": "Import Components",
+          "description": "Import and use 6 leaderboards components",
+          "files": [
+            "app/(tabs)/social.tsx",
+            "app/(tabs)/achievements.tsx"
+          ]
+        },
+        {
+          "type": "Use Hooks",
+          "description": "Integrate 1 leaderboards hooks in screens",
+          "files": [
+            "app/(tabs)/social.tsx",
+            "app/(tabs)/achievements.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "feature": "storage",
+      "priority": 8,
+      "actions": []
+    },
+    {
+      "feature": "photos",
+      "priority": 7,
+      "actions": [
+        {
+          "type": "Import Components",
+          "description": "Import and use 2 photos components",
+          "files": [
+            "app/(tabs)/progress.tsx",
+            "app/(tabs)/measurements.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "feature": "sync",
+      "priority": 7,
+      "actions": [
+        {
+          "type": "Integrate Context",
+          "description": "Add sync context providers to app/_layout.tsx",
+          "files": [
+            "app/_layout.tsx"
+          ]
+        },
+        {
+          "type": "Use Hooks",
+          "description": "Integrate 1 sync hooks in screens",
+          "files": [
+            "app/_layout.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "feature": "ui",
+      "priority": 7,
+      "actions": [
+        {
+          "type": "Import Components",
+          "description": "Import and use 7 ui components",
+          "files": [
+            "All screens and components"
+          ]
+        }
+      ]
+    },
+    {
+      "feature": "analytics",
+      "priority": 6,
+      "actions": [
+        {
+          "type": "Import Components",
+          "description": "Import and use 1 analytics components",
+          "files": [
+            "app/(tabs)/progress.tsx",
+            "app/(tabs)/index.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "feature": "ai",
+      "priority": 6,
+      "actions": []
+    }
+  ]
+}

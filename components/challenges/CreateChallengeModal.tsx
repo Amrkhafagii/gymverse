@@ -1,708 +1,813 @@
+/**
+ * Create Challenge Modal Component
+ * Allows users to create custom challenges
+ */
+
 import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
-  ScrollView,
-  TextInput,
   TouchableOpacity,
+  TextInput,
+  ScrollView,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  X,
-  Trophy,
-  Users,
-  Target,
-  Calendar,
-  TrendingUp,
-  Clock,
+import { 
+  X, 
+  Target, 
+  Calendar, 
+  Users, 
   Award,
   Plus,
   Minus,
+  Check,
 } from 'lucide-react-native';
-import { Challenge } from '@/contexts/ChallengeContext';
-import { useChallenges } from '@/hooks/useChallenges';
 import { DesignTokens } from '@/design-system/tokens';
-import * as Haptics from 'expo-haptics';
+
+interface ChallengeData {
+  title: string;
+  description: string;
+  type: 'consistency' | 'volume' | 'frequency' | 'duration' | 'strength';
+  duration: number;
+  target: number;
+  reward: number;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: string;
+  rules: string[];
+  isPublic: boolean;
+}
 
 interface CreateChallengeModalProps {
   visible: boolean;
   onClose: () => void;
-  onChallengeCreated?: (challenge: Challenge) => void;
+  onCreateChallenge: (challengeData: ChallengeData) => void;
 }
 
-type ChallengeType = 'individual' | 'team' | 'community';
-type ChallengeCategory = 'strength' | 'cardio' | 'consistency' | 'distance' | 'time' | 'social';
-type ChallengeDifficulty = 'beginner' | 'intermediate' | 'advanced';
-
-interface CreateChallengeForm {
-  title: string;
-  description: string;
-  type: ChallengeType;
-  category: ChallengeCategory;
-  difficulty: ChallengeDifficulty;
-  duration: {
-    days: number;
-  };
-  target: {
-    value: number;
-    unit: string;
-  };
-  reward: {
-    points: number;
-    badge?: string;
-  };
-  maxParticipants?: number;
-}
-
-export function CreateChallengeModal({
+export const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({
   visible,
   onClose,
-  onChallengeCreated,
-}: CreateChallengeModalProps) {
-  const { createChallenge } = useChallenges();
-
-  const [form, setForm] = useState<CreateChallengeForm>({
+  onCreateChallenge,
+}) => {
+  const [formData, setFormData] = useState<ChallengeData>({
     title: '',
     description: '',
-    type: 'individual',
-    category: 'strength',
-    difficulty: 'beginner',
-    duration: { days: 30 },
-    target: { value: 20, unit: 'workouts' },
-    reward: { points: 500 },
-    maxParticipants: undefined,
+    type: 'consistency',
+    duration: 30,
+    target: 30,
+    reward: 500,
+    difficulty: 'intermediate',
+    category: 'fitness',
+    rules: [''],
+    isPublic: true,
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const challengeTypes: Array<{ key: ChallengeType; label: string; description: string; icon: any }> = [
-    {
-      key: 'individual',
-      label: 'Individual',
-      description: 'Personal challenge for self-improvement',
-      icon: Target,
-    },
-    {
-      key: 'team',
-      label: 'Team',
-      description: 'Collaborate with others to reach goals',
-      icon: Users,
-    },
-    {
-      key: 'community',
-      label: 'Community',
-      description: 'Open challenge for everyone to join',
-      icon: Trophy,
-    },
+  const challengeTypes = [
+    { id: 'consistency', label: 'Consistency', description: 'Complete workouts regularly' },
+    { id: 'volume', label: 'Volume', description: 'Increase total workout volume' },
+    { id: 'frequency', label: 'Frequency', description: 'Workout a certain number of times' },
+    { id: 'duration', label: 'Duration', description: 'Achieve total workout time' },
+    { id: 'strength', label: 'Strength', description: 'Improve strength metrics' },
   ];
 
-  const challengeCategories: Array<{ key: ChallengeCategory; label: string; icon: any; color: string }> = [
-    { key: 'strength', label: 'Strength', icon: Trophy, color: '#FF6B35' },
-    { key: 'cardio', label: 'Cardio', icon: TrendingUp, color: '#4A90E2' },
-    { key: 'consistency', label: 'Consistency', icon: Target, color: '#27AE60' },
-    { key: 'distance', label: 'Distance', icon: Calendar, color: '#9B59B6' },
-    { key: 'time', label: 'Time', icon: Clock, color: '#F39C12' },
-    { key: 'social', label: 'Social', icon: Users, color: '#E74C3C' },
+  const difficulties = [
+    { id: 'beginner', label: 'Beginner', color: '#10B981' },
+    { id: 'intermediate', label: 'Intermediate', color: '#F59E0B' },
+    { id: 'advanced', label: 'Advanced', color: '#EF4444' },
   ];
 
-  const challengeDifficulties: Array<{ key: ChallengeDifficulty; label: string; color: string; multiplier: number }> = [
-    { key: 'beginner', label: 'Beginner', color: '#27AE60', multiplier: 1 },
-    { key: 'intermediate', label: 'Intermediate', color: '#F39C12', multiplier: 1.5 },
-    { key: 'advanced', label: 'Advanced', color: '#E74C3C', multiplier: 2 },
+  const categories = [
+    'fitness', 'strength', 'endurance', 'flexibility', 'weight-loss', 'muscle-gain'
   ];
 
-  const targetUnits = [
-    'workouts', 'exercises', 'sets', 'reps', 'minutes', 'hours', 
-    'miles', 'kilometers', 'steps', 'calories', 'days', 'sessions'
-  ];
-
-  const handleClose = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onClose();
+  const handleInputChange = (field: keyof ChallengeData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setIsSubmitting(true);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(startDate.getDate() + form.duration.days);
-
-      const difficultyMultiplier = challengeDifficulties.find(d => d.key === form.difficulty)?.multiplier || 1;
-      const basePoints = form.reward.points;
-      const adjustedPoints = Math.round(basePoints * difficultyMultiplier);
-
-      const newChallenge: Omit<Challenge, 'id' | 'participants' | 'isJoined' | 'isCompleted' | 'createdAt' | 'updatedAt'> = {
-        title: form.title.trim(),
-        description: form.description.trim(),
-        type: form.type,
-        category: form.category,
-        difficulty: form.difficulty,
-        duration: {
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-          daysLeft: form.duration.days,
-        },
-        progress: {
-          current: 0,
-          target: form.target.value,
-          unit: form.target.unit,
-        },
-        reward: {
-          points: adjustedPoints,
-          badge: form.reward.badge,
-        },
-        maxParticipants: form.maxParticipants,
-      };
-
-      const createdChallenge = await createChallenge(newChallenge);
-      
-      Alert.alert(
-        'Challenge Created!',
-        `Your ${form.type} challenge "${form.title}" has been created successfully.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              onChallengeCreated?.(createdChallenge);
-              onClose();
-            },
-          },
-        ]
-      );
-
-      // Reset form
-      setForm({
-        title: '',
-        description: '',
-        type: 'individual',
-        category: 'strength',
-        difficulty: 'beginner',
-        duration: { days: 30 },
-        target: { value: 20, unit: 'workouts' },
-        reward: { points: 500 },
-        maxParticipants: undefined,
-      });
-
-    } catch (error) {
-      Alert.alert('Error', 'Failed to create challenge. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleAddRule = () => {
+    setFormData(prev => ({
+      ...prev,
+      rules: [...prev.rules, '']
+    }));
   };
 
-  const validateForm = (): boolean => {
-    if (!form.title.trim()) {
-      Alert.alert('Validation Error', 'Please enter a challenge title.');
+  const handleRemoveRule = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      rules: prev.rules.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleRuleChange = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      rules: prev.rules.map((rule, i) => i === index ? value : rule)
+    }));
+  };
+
+  const validateForm = () => {
+    if (!formData.title.trim()) {
+      Alert.alert('Error', 'Please enter a challenge title');
       return false;
     }
-
-    if (!form.description.trim()) {
-      Alert.alert('Validation Error', 'Please enter a challenge description.');
+    if (!formData.description.trim()) {
+      Alert.alert('Error', 'Please enter a challenge description');
       return false;
     }
-
-    if (form.duration.days < 1 || form.duration.days > 365) {
-      Alert.alert('Validation Error', 'Duration must be between 1 and 365 days.');
+    if (formData.target <= 0) {
+      Alert.alert('Error', 'Target must be greater than 0');
       return false;
     }
-
-    if (form.target.value < 1) {
-      Alert.alert('Validation Error', 'Target value must be at least 1.');
+    if (formData.duration <= 0) {
+      Alert.alert('Error', 'Duration must be greater than 0');
       return false;
     }
-
-    if (form.reward.points < 1) {
-      Alert.alert('Validation Error', 'Reward points must be at least 1.');
+    if (formData.rules.filter(rule => rule.trim()).length === 0) {
+      Alert.alert('Error', 'Please add at least one rule');
       return false;
     }
-
-    if (form.maxParticipants && form.maxParticipants < 1) {
-      Alert.alert('Validation Error', 'Max participants must be at least 1.');
-      return false;
-    }
-
     return true;
   };
 
-  const updateForm = (updates: Partial<CreateChallengeForm>) => {
-    setForm(prev => ({ ...prev, ...updates }));
+  const handleCreate = () => {
+    if (!validateForm()) return;
+
+    const cleanedData = {
+      ...formData,
+      rules: formData.rules.filter(rule => rule.trim()),
+    };
+
+    onCreateChallenge(cleanedData);
   };
 
-  const adjustNumber = (field: string, delta: number, min: number = 1, max: number = 999999) => {
-    const keys = field.split('.');
-    const currentValue = keys.reduce((obj, key) => obj[key], form as any);
-    const newValue = Math.max(min, Math.min(max, currentValue + delta));
-    
-    if (keys.length === 2) {
-      updateForm({
-        [keys[0]]: {
-          ...(form as any)[keys[0]],
-          [keys[1]]: newValue,
-        },
-      });
-    } else {
-      updateForm({ [field]: newValue });
-    }
+  const handleReset = () => {
+    setFormData({
+      title: '',
+      description: '',
+      type: 'consistency',
+      duration: 30,
+      target: 30,
+      reward: 500,
+      difficulty: 'intermediate',
+      category: 'fitness',
+      rules: [''],
+      isPublic: true,
+    });
   };
-
-  const renderSection = (title: string, children: React.ReactNode) => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-
-  const renderTypeSelector = () => (
-    <View style={styles.optionGrid}>
-      {challengeTypes.map(({ key, label, description, icon: Icon }) => (
-        <TouchableOpacity
-          key={key}
-          style={[
-            styles.optionCard,
-            form.type === key && styles.optionCardSelected
-          ]}
-          onPress={() => updateForm({ type: key })}
-        >
-          <Icon size={24} color={form.type === key ? '#FFFFFF' : '#666'} />
-          <Text style={[
-            styles.optionLabel,
-            form.type === key && styles.optionLabelSelected
-          ]}>
-            {label}
-          </Text>
-          <Text style={[
-            styles.optionDescription,
-            form.type === key && styles.optionDescriptionSelected
-          ]}>
-            {description}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
-  const renderCategorySelector = () => (
-    <View style={styles.optionGrid}>
-      {challengeCategories.map(({ key, label, icon: Icon, color }) => (
-        <TouchableOpacity
-          key={key}
-          style={[
-            styles.optionCard,
-            form.category === key && { backgroundColor: color }
-          ]}
-          onPress={() => updateForm({ category: key })}
-        >
-          <Icon size={24} color={form.category === key ? '#FFFFFF' : color} />
-          <Text style={[
-            styles.optionLabel,
-            form.category === key && styles.optionLabelSelected
-          ]}>
-            {label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
-  const renderDifficultySelector = () => (
-    <View style={styles.difficultyContainer}>
-      {challengeDifficulties.map(({ key, label, color, multiplier }) => (
-        <TouchableOpacity
-          key={key}
-          style={[
-            styles.difficultyOption,
-            form.difficulty === key && { backgroundColor: color }
-          ]}
-          onPress={() => updateForm({ difficulty: key })}
-        >
-          <Text style={[
-            styles.difficultyLabel,
-            form.difficulty === key && styles.difficultyLabelSelected
-          ]}>
-            {label}
-          </Text>
-          <Text style={[
-            styles.difficultyMultiplier,
-            form.difficulty === key && styles.difficultyMultiplierSelected
-          ]}>
-            {multiplier}x points
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
-  const renderNumberInput = (
-    label: string,
-    value: number,
-    field: string,
-    min: number = 1,
-    max: number = 999999,
-    suffix?: string
-  ) => (
-    <View style={styles.numberInput}>
-      <Text style={styles.numberInputLabel}>{label}</Text>
-      <View style={styles.numberInputContainer}>
-        <TouchableOpacity
-          style={styles.numberInputButton}
-          onPress={() => adjustNumber(field, -1, min, max)}
-        >
-          <Minus size={16} color="#666" />
-        </TouchableOpacity>
-        <Text style={styles.numberInputValue}>
-          {value}{suffix && ` ${suffix}`}
-        </Text>
-        <TouchableOpacity
-          style={styles.numberInputButton}
-          onPress={() => adjustNumber(field, 1, min, max)}
-        >
-          <Plus size={16} color="#666" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <KeyboardAvoidingView 
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <View style={styles.container}>
+        {/* Header */}
+        <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.header}>
           <View style={styles.headerContent}>
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIcon}>
+                <Target size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.headerTitle}>Create Challenge</Text>
+            </View>
+            
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <X size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Create Challenge</Text>
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                isSubmitting && styles.submitButtonDisabled
-              ]}
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.submitButtonText}>
-                {isSubmitting ? 'Creating...' : 'Create'}
-              </Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {renderSection('Basic Information', (
-            <>
+        {/* Form */}
+        <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+          {/* Basic Info */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Basic Information</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Challenge Title</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="Challenge title"
-                placeholderTextColor="#999"
-                value={form.title}
-                onChangeText={(title) => updateForm({ title })}
+                placeholder="Enter challenge title..."
+                placeholderTextColor={DesignTokens.colors.text.secondary}
+                value={formData.title}
+                onChangeText={(value) => handleInputChange('title', value)}
                 maxLength={50}
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Description</Text>
               <TextInput
-                style={[styles.textInput, styles.textInputMultiline]}
+                style={[styles.textInput, styles.textArea]}
                 placeholder="Describe your challenge..."
-                placeholderTextColor="#999"
-                value={form.description}
-                onChangeText={(description) => updateForm({ description })}
+                placeholderTextColor={DesignTokens.colors.text.secondary}
+                value={formData.description}
+                onChangeText={(value) => handleInputChange('description', value)}
                 multiline
                 numberOfLines={3}
                 maxLength={200}
               />
-            </>
-          ))}
+            </View>
+          </View>
 
-          {renderSection('Challenge Type', renderTypeSelector())}
+          {/* Challenge Type */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Challenge Type</Text>
+            <View style={styles.typeGrid}>
+              {challengeTypes.map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  style={[
+                    styles.typeOption,
+                    formData.type === type.id && styles.typeOptionSelected
+                  ]}
+                  onPress={() => handleInputChange('type', type.id)}
+                >
+                  <Text style={[
+                    styles.typeLabel,
+                    formData.type === type.id && styles.typeLabelSelected
+                  ]}>
+                    {type.label}
+                  </Text>
+                  <Text style={[
+                    styles.typeDescription,
+                    formData.type === type.id && styles.typeDescriptionSelected
+                  ]}>
+                    {type.description}
+                  </Text>
+                  {formData.type === type.id && (
+                    <View style={styles.typeCheck}>
+                      <Check size={16} color="#FFFFFF" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
-          {renderSection('Category', renderCategorySelector())}
-
-          {renderSection('Difficulty', renderDifficultySelector())}
-
-          {renderSection('Duration & Target', (
-            <>
-              {renderNumberInput('Duration', form.duration.days, 'duration.days', 1, 365, 'days')}
-              {renderNumberInput('Target Value', form.target.value, 'target.value', 1, 10000)}
-              
-              <View style={styles.unitSelector}>
-                <Text style={styles.unitSelectorLabel}>Target Unit</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={styles.unitOptions}>
-                    {targetUnits.map((unit) => (
-                      <TouchableOpacity
-                        key={unit}
-                        style={[
-                          styles.unitOption,
-                          form.target.unit === unit && styles.unitOptionSelected
-                        ]}
-                        onPress={() => updateForm({ 
-                          target: { ...form.target, unit } 
-                        })}
-                      >
-                        <Text style={[
-                          styles.unitOptionText,
-                          form.target.unit === unit && styles.unitOptionTextSelected
-                        ]}>
-                          {unit}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
+          {/* Settings */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Challenge Settings</Text>
+            
+            <View style={styles.settingsGrid}>
+              <View style={styles.settingItem}>
+                <Text style={styles.settingLabel}>Duration (days)</Text>
+                <View style={styles.numberInput}>
+                  <TouchableOpacity
+                    style={styles.numberButton}
+                    onPress={() => handleInputChange('duration', Math.max(1, formData.duration - 1))}
+                  >
+                    <Minus size={16} color={DesignTokens.colors.text.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.numberValue}>{formData.duration}</Text>
+                  <TouchableOpacity
+                    style={styles.numberButton}
+                    onPress={() => handleInputChange('duration', formData.duration + 1)}
+                  >
+                    <Plus size={16} color={DesignTokens.colors.text.primary} />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </>
-          ))}
 
-          {renderSection('Rewards', (
-            <>
-              {renderNumberInput('Points Reward', form.reward.points, 'reward.points', 1, 10000)}
-              <TextInput
-                style={styles.textInput}
-                placeholder="Badge name (optional)"
-                placeholderTextColor="#999"
-                value={form.reward.badge || ''}
-                onChangeText={(badge) => updateForm({ 
-                  reward: { ...form.reward, badge: badge || undefined } 
-                })}
-                maxLength={30}
-              />
-            </>
-          ))}
+              <View style={styles.settingItem}>
+                <Text style={styles.settingLabel}>Target</Text>
+                <View style={styles.numberInput}>
+                  <TouchableOpacity
+                    style={styles.numberButton}
+                    onPress={() => handleInputChange('target', Math.max(1, formData.target - 1))}
+                  >
+                    <Minus size={16} color={DesignTokens.colors.text.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.numberValue}>{formData.target}</Text>
+                  <TouchableOpacity
+                    style={styles.numberButton}
+                    onPress={() => handleInputChange('target', formData.target + 1)}
+                  >
+                    <Plus size={16} color={DesignTokens.colors.text.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-          {form.type !== 'individual' && renderSection('Participants', (
-            <>
-              {renderNumberInput(
-                'Max Participants', 
-                form.maxParticipants || 100, 
-                'maxParticipants', 
-                1, 
-                10000
-              )}
-              <Text style={styles.helperText}>
-                Leave empty for unlimited participants
-              </Text>
-            </>
-          ))}
+              <View style={styles.settingItem}>
+                <Text style={styles.settingLabel}>Reward (points)</Text>
+                <View style={styles.numberInput}>
+                  <TouchableOpacity
+                    style={styles.numberButton}
+                    onPress={() => handleInputChange('reward', Math.max(100, formData.reward - 100))}
+                  >
+                    <Minus size={16} color={DesignTokens.colors.text.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.numberValue}>{formData.reward}</Text>
+                  <TouchableOpacity
+                    style={styles.numberButton}
+                    onPress={() => handleInputChange('reward', formData.reward + 100)}
+                  >
+                    <Plus size={16} color={DesignTokens.colors.text.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
 
-          <View style={styles.bottomSpacer} />
+          {/* Difficulty */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Difficulty Level</Text>
+            <View style={styles.difficultyGrid}>
+              {difficulties.map((difficulty) => (
+                <TouchableOpacity
+                  key={difficulty.id}
+                  style={[
+                    styles.difficultyOption,
+                    { borderColor: difficulty.color },
+                    formData.difficulty === difficulty.id && { backgroundColor: difficulty.color }
+                  ]}
+                  onPress={() => handleInputChange('difficulty', difficulty.id)}
+                >
+                  <Text style={[
+                    styles.difficultyLabel,
+                    formData.difficulty === difficulty.id && styles.difficultyLabelSelected
+                  ]}>
+                    {difficulty.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Category */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Category</Text>
+            <View style={styles.categoryGrid}>
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryOption,
+                    formData.category === category && styles.categoryOptionSelected
+                  ]}
+                  onPress={() => handleInputChange('category', category)}
+                >
+                  <Text style={[
+                    styles.categoryLabel,
+                    formData.category === category && styles.categoryLabelSelected
+                  ]}>
+                    {category.replace('-', ' ')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Rules */}
+          <View style={styles.section}>
+            <View style={styles.rulesHeader}>
+              <Text style={styles.sectionTitle}>Challenge Rules</Text>
+              <TouchableOpacity style={styles.addRuleButton} onPress={handleAddRule}>
+                <Plus size={16} color={DesignTokens.colors.primary[500]} />
+                <Text style={styles.addRuleText}>Add Rule</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {formData.rules.map((rule, index) => (
+              <View key={index} style={styles.ruleItem}>
+                <TextInput
+                  style={styles.ruleInput}
+                  placeholder={`Rule ${index + 1}...`}
+                  placeholderTextColor={DesignTokens.colors.text.secondary}
+                  value={rule}
+                  onChangeText={(value) => handleRuleChange(index, value)}
+                  maxLength={100}
+                />
+                {formData.rules.length > 1 && (
+                  <TouchableOpacity
+                    style={styles.removeRuleButton}
+                    onPress={() => handleRemoveRule(index)}
+                  >
+                    <Minus size={16} color={DesignTokens.colors.error[500]} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </View>
+
+          {/* Visibility */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Visibility</Text>
+            <View style={styles.visibilityOptions}>
+              <TouchableOpacity
+                style={[
+                  styles.visibilityOption,
+                  formData.isPublic && styles.visibilityOptionSelected
+                ]}
+                onPress={() => handleInputChange('isPublic', true)}
+              >
+                <Users size={20} color={formData.isPublic ? '#FFFFFF' : DesignTokens.colors.text.secondary} />
+                <Text style={[
+                  styles.visibilityLabel,
+                  formData.isPublic && styles.visibilityLabelSelected
+                ]}>
+                  Public
+                </Text>
+                <Text style={[
+                  styles.visibilityDescription,
+                  formData.isPublic && styles.visibilityDescriptionSelected
+                ]}>
+                  Anyone can join
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.visibilityOption,
+                  !formData.isPublic && styles.visibilityOptionSelected
+                ]}
+                onPress={() => handleInputChange('isPublic', false)}
+              >
+                <Target size={20} color={!formData.isPublic ? '#FFFFFF' : DesignTokens.colors.text.secondary} />
+                <Text style={[
+                  styles.visibilityLabel,
+                  !formData.isPublic && styles.visibilityLabelSelected
+                ]}>
+                  Private
+                </Text>
+                <Text style={[
+                  styles.visibilityDescription,
+                  !formData.isPublic && styles.visibilityDescriptionSelected
+                ]}>
+                  Invite only
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.createButton} onPress={handleCreate}>
+            <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.createButtonGradient}>
+              <Text style={styles.createButtonText}>Create Challenge</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: DesignTokens.colors.background.primary,
   },
+
   header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingTop: DesignTokens.spacing[6],
+    paddingBottom: DesignTokens.spacing[4],
+    paddingHorizontal: DesignTokens.spacing[5],
   },
+
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  closeButton: {
-    padding: 8,
+
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[3],
   },
+
+  headerIcon: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
+  },
+
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: DesignTokens.typography.fontSize.xl,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
     color: '#FFFFFF',
   },
-  submitButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+
+  closeButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
   },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-  submitButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  content: {
+
+  form: {
     flex: 1,
-    padding: 20,
+    padding: DesignTokens.spacing[5],
   },
+
   section: {
-    marginBottom: 32,
+    marginBottom: DesignTokens.spacing[6],
   },
+
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 16,
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[3],
   },
+
+  inputGroup: {
+    marginBottom: DesignTokens.spacing[4],
+  },
+
+  inputLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[2],
+  },
+
   textInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1F2937',
+    backgroundColor: DesignTokens.colors.surface.primary,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 12,
+    borderColor: DesignTokens.colors.border.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[3],
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
   },
-  textInputMultiline: {
+
+  textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
-  optionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+
+  typeGrid: {
+    gap: DesignTokens.spacing[3],
   },
-  optionCard: {
-    flex: 1,
-    minWidth: '30%',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 8,
+
+  typeOption: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderWidth: 2,
+    borderColor: DesignTokens.colors.border.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[4],
+    position: 'relative',
   },
-  optionCardSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+
+  typeOptionSelected: {
+    borderColor: DesignTokens.colors.primary[500],
+    backgroundColor: DesignTokens.colors.primary[500],
   },
-  optionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-    textAlign: 'center',
+
+  typeLabel: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[1],
   },
-  optionLabelSelected: {
+
+  typeLabelSelected: {
     color: '#FFFFFF',
   },
-  optionDescription: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 16,
+
+  typeDescription: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
   },
-  optionDescriptionSelected: {
+
+  typeDescriptionSelected: {
     color: 'rgba(255, 255, 255, 0.8)',
   },
-  difficultyContainer: {
-    flexDirection: 'row',
-    gap: 12,
+
+  typeCheck: {
+    position: 'absolute',
+    top: DesignTokens.spacing[2],
+    right: DesignTokens.spacing[2],
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    padding: DesignTokens.spacing[1],
   },
+
+  settingsGrid: {
+    gap: DesignTokens.spacing[4],
+  },
+
+  settingItem: {
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[4],
+  },
+
+  settingLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.primary,
+    marginBottom: DesignTokens.spacing[2],
+  },
+
+  numberInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: DesignTokens.spacing[3],
+  },
+
+  numberButton: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+
+  numberValue: {
+    fontSize: DesignTokens.typography.fontSize.lg,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    minWidth: 40,
+    textAlign: 'center',
+  },
+
+  difficultyGrid: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[3],
+  },
+
   difficultyOption: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
+    borderWidth: 2,
+    borderRadius: DesignTokens.borderRadius.md,
+    paddingVertical: DesignTokens.spacing[3],
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
+
   difficultyLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
   },
+
   difficultyLabelSelected: {
     color: '#FFFFFF',
   },
-  difficultyMultiplier: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  difficultyMultiplierSelected: {
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  numberInput: {
-    marginBottom: 16,
-  },
-  numberInputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  numberInputContainer: {
+
+  categoryGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    flexWrap: 'wrap',
+    gap: DesignTokens.spacing[2],
+  },
+
+  categoryOption: {
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    overflow: 'hidden',
+    borderColor: 'transparent',
   },
-  numberInputButton: {
-    padding: 16,
-    backgroundColor: '#F9FAFB',
+
+  categoryOptionSelected: {
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderColor: DesignTokens.colors.primary[600],
   },
-  numberInputValue: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+
+  categoryLabel: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+    color: DesignTokens.colors.text.primary,
+    textTransform: 'capitalize',
   },
-  unitSelector: {
-    marginTop: 16,
-  },
-  unitSelectorLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  unitOptions: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingRight: 20,
-  },
-  unitOption: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  unitOptionSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
-  },
-  unitOptionText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  unitOptionTextSelected: {
+
+  categoryLabelSelected: {
     color: '#FFFFFF',
   },
-  helperText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 8,
-    fontStyle: 'italic',
+
+  rulesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: DesignTokens.spacing[3],
   },
-  bottomSpacer: {
-    height: 100,
+
+  addRuleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[1],
+  },
+
+  addRuleText: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.primary[500],
+    fontWeight: DesignTokens.typography.fontWeight.medium,
+  },
+
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[3],
+  },
+
+  ruleInput: {
+    flex: 1,
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderWidth: 1,
+    borderColor: DesignTokens.colors.border.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    paddingHorizontal: DesignTokens.spacing[3],
+    paddingVertical: DesignTokens.spacing[3],
+    fontSize: DesignTokens.typography.fontSize.base,
+    color: DesignTokens.colors.text.primary,
+  },
+
+  removeRuleButton: {
+    backgroundColor: DesignTokens.colors.error[100],
+    padding: DesignTokens.spacing[2],
+    borderRadius: DesignTokens.borderRadius.sm,
+  },
+
+  visibilityOptions: {
+    flexDirection: 'row',
+    gap: DesignTokens.spacing[3],
+  },
+
+  visibilityOption: {
+    flex: 1,
+    backgroundColor: DesignTokens.colors.surface.primary,
+    borderWidth: 2,
+    borderColor: DesignTokens.colors.border.primary,
+    borderRadius: DesignTokens.borderRadius.md,
+    padding: DesignTokens.spacing[4],
+    alignItems: 'center',
+  },
+
+  visibilityOptionSelected: {
+    backgroundColor: DesignTokens.colors.primary[500],
+    borderColor: DesignTokens.colors.primary[600],
+  },
+
+  visibilityLabel: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+    marginTop: DesignTokens.spacing[2],
+    marginBottom: DesignTokens.spacing[1],
+  },
+
+  visibilityLabelSelected: {
+    color: '#FFFFFF',
+  },
+
+  visibilityDescription: {
+    fontSize: DesignTokens.typography.fontSize.sm,
+    color: DesignTokens.colors.text.secondary,
+    textAlign: 'center',
+  },
+
+  visibilityDescriptionSelected: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+
+  footer: {
+    flexDirection: 'row',
+    padding: DesignTokens.spacing[5],
+    gap: DesignTokens.spacing[3],
+    borderTopWidth: 1,
+    borderTopColor: DesignTokens.colors.border.primary,
+  },
+
+  resetButton: {
+    flex: 1,
+    backgroundColor: DesignTokens.colors.surface.secondary,
+    paddingVertical: DesignTokens.spacing[4],
+    borderRadius: DesignTokens.borderRadius.md,
+    alignItems: 'center',
+  },
+
+  resetButtonText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: DesignTokens.colors.text.primary,
+  },
+
+  createButton: {
+    flex: 2,
+    borderRadius: DesignTokens.borderRadius.md,
+    overflow: 'hidden',
+  },
+
+  createButtonGradient: {
+    paddingVertical: DesignTokens.spacing[4],
+    alignItems: 'center',
+  },
+
+  createButtonText: {
+    fontSize: DesignTokens.typography.fontSize.base,
+    fontWeight: DesignTokens.typography.fontWeight.bold,
+    color: '#FFFFFF',
   },
 });

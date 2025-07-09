@@ -1,45 +1,55 @@
 import { Stack } from 'expo-router';
-import { WorkoutSessionProvider } from '@/contexts/WorkoutSessionContext';
-import { WorkoutHistoryProvider } from '@/contexts/WorkoutHistoryContext';
+import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+
+// Context Providers
+import { WorkoutProvider } from '@/contexts/WorkoutContext';
 import { AchievementProvider } from '@/contexts/AchievementContext';
-import { MeasurementProvider } from '@/contexts/MeasurementContext';
-import { PersonalRecordProvider } from '@/contexts/PersonalRecordContext';
-import { ProgressPhotoProvider } from '@/contexts/ProgressPhotoContext';
-import { SocialProvider } from '@/contexts/SocialContext';
-import { StreakProvider } from '@/contexts/StreakContext';
 import { ChallengeProvider } from '@/contexts/ChallengeContext';
-import { NotificationProvider } from '@/contexts/NotificationContext';
-import { OfflineSyncProvider } from '@/contexts/OfflineSyncContext';
-import { AchievementNotificationProvider } from '@/components/achievements/AchievementNotificationProvider';
+import { SocialProvider } from '@/contexts/SocialContext';
+import { LeaderboardProvider } from '@/contexts/LeaderboardContext';
+import { OfflineProvider } from '@/contexts/OfflineContext';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const [loaded] = useFonts({
+    'Inter-Regular': require('../assets/fonts/Inter-Regular.ttf'),
+    'Inter-Medium': require('../assets/fonts/Inter-Medium.ttf'),
+    'Inter-SemiBold': require('../assets/fonts/Inter-SemiBold.ttf'),
+    'Inter-Bold': require('../assets/fonts/Inter-Bold.ttf'),
+  });
+
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
+
+  if (!loaded) {
+    return null;
+  }
+
   return (
-    <OfflineSyncProvider>
-      <NotificationProvider>
-        <WorkoutSessionProvider>
-          <WorkoutHistoryProvider>
-            <PersonalRecordProvider>
-              <StreakProvider>
-                <AchievementProvider>
-                  <ChallengeProvider>
-                    <MeasurementProvider>
-                      <ProgressPhotoProvider>
-                        <SocialProvider>
-                          <AchievementNotificationProvider>
-                            <Stack>
-                              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                            </Stack>
-                          </AchievementNotificationProvider>
-                        </SocialProvider>
-                      </ProgressPhotoProvider>
-                    </MeasurementProvider>
-                  </ChallengeProvider>
-                </AchievementProvider>
-              </StreakProvider>
-            </PersonalRecordProvider>
-          </WorkoutHistoryProvider>
-        </WorkoutSessionProvider>
-      </NotificationProvider>
-    </OfflineSyncProvider>
+    <OfflineProvider>
+      <WorkoutProvider>
+        <AchievementProvider>
+          <ChallengeProvider>
+            <SocialProvider>
+              <LeaderboardProvider>
+                <Stack>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="achievements" options={{ headerShown: false }} />
+                </Stack>
+                <StatusBar style="light" />
+              </LeaderboardProvider>
+            </SocialProvider>
+          </ChallengeProvider>
+        </AchievementProvider>
+      </WorkoutProvider>
+    </OfflineProvider>
   );
 }
