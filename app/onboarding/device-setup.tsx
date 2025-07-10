@@ -647,6 +647,8 @@ export default function DeviceSetupScreen() {
   );
 }
 
+
+// Assuming DesignTokens are properly typed with React Native compatible values
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -662,7 +664,7 @@ const styles = StyleSheet.create({
   stepIndicator: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
+    textAlign: 'center' as const,
     marginBottom: DesignTokens.spacing[3],
   },
   progressBar: {
@@ -684,11 +686,11 @@ const styles = StyleSheet.create({
   stepContainer: {
     flex: 1,
     paddingHorizontal: DesignTokens.spacing[5],
-    justifyContent: 'space-between',
+    justifyContent: 'space-between' as const,
   },
   stepContent: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'center' as const,
     paddingTop: DesignTokens.spacing[8],
   },
   iconContainer: {
@@ -698,21 +700,21 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     ...DesignTokens.shadow.lg,
   },
   stepTitle: {
     fontSize: DesignTokens.typography.fontSize['3xl'],
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.bold,
-    textAlign: 'center',
+    fontWeight: 'bold' as const,
+    textAlign: 'center' as const,
     marginBottom: DesignTokens.spacing[3],
   },
   stepSubtitle: {
     fontSize: DesignTokens.typography.fontSize.lg,
     color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
+    textAlign: 'center' as const,
     marginBottom: DesignTokens.spacing[8],
     lineHeight: 24,
   },
@@ -720,14 +722,14 @@ const styles = StyleSheet.create({
     paddingBottom: DesignTokens.spacing[8],
   },
   navigationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
     marginTop: DesignTokens.spacing[4],
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     padding: DesignTokens.spacing[3],
   },
   backText: {
@@ -741,16 +743,15 @@ const styles = StyleSheet.create({
   skipText: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.primary[500],
-    textAlign: 'center',
+    textAlign: 'center' as const,
   },
-  // Feature list styles
   featuresList: {
     width: '100%',
     gap: DesignTokens.spacing[4],
   },
   featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     backgroundColor: DesignTokens.colors.surface.secondary,
     padding: DesignTokens.spacing[4],
     borderRadius: DesignTokens.borderRadius.lg,
@@ -764,7 +765,7 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: DesignTokens.typography.fontSize.lg,
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    fontWeight: '600' as const,
     marginBottom: DesignTokens.spacing[1],
   },
   featureDescription: {
@@ -772,7 +773,6 @@ const styles = StyleSheet.create({
     color: DesignTokens.colors.text.secondary,
     lineHeight: 20,
   },
-  // Input styles
   inputContainer: {
     width: '100%',
     marginBottom: DesignTokens.spacing[4],
@@ -780,7 +780,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.medium,
+    fontWeight: '500' as const,
     marginBottom: DesignTokens.spacing[2],
   },
   textInput: {
@@ -794,9 +794,8 @@ const styles = StyleSheet.create({
   },
   textArea: {
     height: 80,
-    textAlignVertical: 'top',
+    textAlignVertical: 'top' as const,
   },
-  // Options styles
   optionsContainer: {
     width: '100%',
     gap: DesignTokens.spacing[3],
@@ -807,7 +806,7 @@ const styles = StyleSheet.create({
     padding: DesignTokens.spacing[5],
     borderWidth: 2,
     borderColor: 'transparent',
-    position: 'relative',
+    position: 'relative' as const,
   },
   optionCardSelected: {
     borderColor: DesignTokens.colors.primary[500],
@@ -815,14 +814,14 @@ const styles = StyleSheet.create({
   },
   optionIcon: {
     fontSize: 32,
-    textAlign: 'center',
+    textAlign: 'center' as const,
     marginBottom: DesignTokens.spacing[3],
   },
   optionTitle: {
     fontSize: DesignTokens.typography.fontSize.lg,
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
-    textAlign: 'center',
+    fontWeight: '600' as const,
+    textAlign: 'center' as const,
     marginBottom: DesignTokens.spacing[2],
   },
   optionTitleSelected: {
@@ -831,18 +830,17 @@ const styles = StyleSheet.create({
   optionDescription: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.text.secondary,
-    textAlign: 'center',
+    textAlign: 'center' as const,
     lineHeight: 20,
   },
   optionDescriptionSelected: {
     color: DesignTokens.colors.text.primary,
   },
   checkIcon: {
-    position: 'absolute',
+    position: 'absolute' as const,
     top: DesignTokens.spacing[3],
     right: DesignTokens.spacing[3],
   },
-  // Privacy styles
   privacyOptions: {
     width: '100%',
     gap: DesignTokens.spacing[3],
@@ -852,8 +850,8 @@ const styles = StyleSheet.create({
     backgroundColor: DesignTokens.colors.surface.secondary,
     borderRadius: DesignTokens.borderRadius.lg,
     padding: DesignTokens.spacing[4],
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     borderWidth: 2,
     borderColor: 'transparent',
   },
@@ -867,7 +865,7 @@ const styles = StyleSheet.create({
   privacyOptionTitle: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    fontWeight: '600' as const,
     marginBottom: DesignTokens.spacing[1],
   },
   privacyOptionDescription: {
@@ -880,15 +878,15 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: DesignTokens.colors.neutral[700],
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
   toggleActive: {
     backgroundColor: DesignTokens.colors.primary[500],
   },
   privacyNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
     backgroundColor: `${DesignTokens.colors.success[500]}15`,
     padding: DesignTokens.spacing[4],
     borderRadius: DesignTokens.borderRadius.lg,
@@ -902,14 +900,13 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 18,
   },
-  // Completion styles
   completionFeatures: {
     width: '100%',
     gap: DesignTokens.spacing[4],
   },
   completionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     backgroundColor: DesignTokens.colors.surface.secondary,
     padding: DesignTokens.spacing[4],
     borderRadius: DesignTokens.borderRadius.lg,
@@ -924,7 +921,7 @@ const styles = StyleSheet.create({
   completionTitle: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.text.primary,
-    fontWeight: DesignTokens.typography.fontWeight.semibold,
+    fontWeight: '600' as const,
     marginBottom: DesignTokens.spacing[1],
   },
   completionDescription: {
@@ -933,3 +930,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -185,11 +184,21 @@ export function WorkoutStatsOverview() {
       style={styles.container} 
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl 
+          refreshing={refreshing} 
+          onRefresh={onRefresh}
+          colors={[DesignTokens.colors.primary[500]]}
+          tintColor={DesignTokens.colors.primary[500]}
+        />
       }
     >
       {/* Header Stats */}
-      <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.headerCard}>
+      <LinearGradient 
+        colors={[DesignTokens.colors.surface.secondary, DesignTokens.colors.surface.tertiary]} 
+        style={styles.headerCard}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <View style={styles.headerContent}>
           <View style={styles.headerStat}>
             <Text style={styles.headerStatValue}>{stats.totalWorkouts}</Text>
@@ -215,8 +224,8 @@ export function WorkoutStatsOverview() {
             title="This Week"
             value={stats.workoutsThisWeek}
             subtitle="Workouts completed"
-            icon={<Calendar size={20} color="#00D4AA" />}
-            color="#00D4AA"
+            icon={<Calendar size={20} color={DesignTokens.colors.success[500]} />}
+            color={DesignTokens.colors.success[500]}
             trend={{ 
               value: Math.abs(stats.weeklyTrend), 
               isPositive: stats.weeklyTrend >= 0 
@@ -226,8 +235,8 @@ export function WorkoutStatsOverview() {
             title="This Month"
             value={stats.workoutsThisMonth}
             subtitle="Total sessions"
-            icon={<BarChart3 size={20} color="#9E7FFF" />}
-            color="#9E7FFF"
+            icon={<BarChart3 size={20} color={DesignTokens.colors.primary[500]} />}
+            color={DesignTokens.colors.primary[500]}
             trend={{ 
               value: Math.abs(stats.monthlyTrend), 
               isPositive: stats.monthlyTrend >= 0 
@@ -240,15 +249,15 @@ export function WorkoutStatsOverview() {
             title="Avg Duration"
             value={`${Math.round(stats.averageWorkoutDuration)}m`}
             subtitle="Per workout"
-            icon={<Clock size={20} color="#FF6B35" />}
-            color="#FF6B35"
+            icon={<Clock size={20} color={DesignTokens.colors.warning[500]} />}
+            color={DesignTokens.colors.warning[500]}
           />
           <ProfileStatCard
             title="Total Volume"
             value={`${(stats.totalVolume / 1000).toFixed(1)}k`}
             subtitle="kg lifted"
-            icon={<Trophy size={20} color="#FFD700" />}
-            color="#FFD700"
+            icon={<Trophy size={20} color={DesignTokens.colors.primary[400]} />}
+            color={DesignTokens.colors.primary[400]}
           />
         </View>
       </View>
@@ -262,15 +271,15 @@ export function WorkoutStatsOverview() {
             title="Total Sets"
             value={stats.totalSets}
             subtitle="Completed"
-            icon={<Target size={20} color="#4ECDC4" />}
-            color="#4ECDC4"
+            icon={<Target size={20} color={DesignTokens.colors.success[400]} />}
+            color={DesignTokens.colors.success[400]}
           />
           <ProfileStatCard
             title="Total Reps"
             value={stats.totalReps}
             subtitle="Performed"
-            icon={<Activity size={20} color="#45B7D1" />}
-            color="#45B7D1"
+            icon={<Activity size={20} color={DesignTokens.colors.primary[300]} />}
+            color={DesignTokens.colors.primary[300]}
           />
         </View>
 
@@ -279,15 +288,15 @@ export function WorkoutStatsOverview() {
             title="Calories Burned"
             value={stats.totalCalories}
             subtitle="Total energy"
-            icon={<Flame size={20} color="#E74C3C" />}
-            color="#E74C3C"
+            icon={<Flame size={20} color={DesignTokens.colors.error[500]} />}
+            color={DesignTokens.colors.error[500]}
           />
           <ProfileStatCard
             title="Exercises"
             value={stats.uniqueExercises}
             subtitle="Unique movements"
-            icon={<Zap size={20} color="#F39C12" />}
-            color="#F39C12"
+            icon={<Zap size={20} color={DesignTokens.colors.warning[400]} />}
+            color={DesignTokens.colors.warning[400]}
           />
         </View>
       </View>
@@ -301,15 +310,15 @@ export function WorkoutStatsOverview() {
             title="Personal Records"
             value={prStats.totalPRs}
             subtitle="All time"
-            icon={<Award size={20} color="#9B59B6" />}
-            color="#9B59B6"
+            icon={<Award size={20} color={DesignTokens.colors.primary[600]} />}
+            color={DesignTokens.colors.primary[600]}
           />
           <ProfileStatCard
             title="Recent PRs"
             value={prStats.recentPRs}
             subtitle="This month"
-            icon={<Star size={20} color="#E67E22" />}
-            color="#E67E22"
+            icon={<Star size={20} color={DesignTokens.colors.primary[500]} />}
+            color={DesignTokens.colors.primary[500]}
           />
         </View>
 
@@ -318,8 +327,8 @@ export function WorkoutStatsOverview() {
             title="Longest Streak"
             value={stats.longestStreak}
             subtitle="Days in a row"
-            icon={<TrendingUp size={20} color="#27AE60" />}
-            color="#27AE60"
+            icon={<TrendingUp size={20} color={DesignTokens.colors.success[500]} />}
+            color={DesignTokens.colors.success[500]}
           />
           <ProfileStatCard
             title="Favorite Exercise"
@@ -328,20 +337,25 @@ export function WorkoutStatsOverview() {
               stats.favoriteExercise
             }
             subtitle="Most performed"
-            icon={<Trophy size={20} color="#8E44AD" />}
-            color="#8E44AD"
+            icon={<Trophy size={20} color={DesignTokens.colors.primary[700]} />}
+            color={DesignTokens.colors.primary[700]}
           />
         </View>
       </View>
 
       {/* Quick Insights */}
-      <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.insightsCard}>
+      <LinearGradient 
+        colors={[DesignTokens.colors.surface.secondary, DesignTokens.colors.surface.tertiary]} 
+        style={styles.insightsCard}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <Text style={styles.insightsTitle}>Quick Insights</Text>
         
         <View style={styles.insightsList}>
           {stats.weeklyTrend > 0 && (
             <View style={styles.insightItem}>
-              <TrendingUp size={16} color="#00D4AA" />
+              <TrendingUp size={16} color={DesignTokens.colors.success[500]} />
               <Text style={styles.insightText}>
                 You're {stats.weeklyTrend.toFixed(0)}% more active this week!
               </Text>
@@ -350,7 +364,7 @@ export function WorkoutStatsOverview() {
           
           {stats.currentStreak >= 3 && (
             <View style={styles.insightItem}>
-              <Flame size={16} color="#FF6B35" />
+              <Flame size={16} color={DesignTokens.colors.warning[500]} />
               <Text style={styles.insightText}>
                 Great streak! You're on fire with {stats.currentStreak} days!
               </Text>
@@ -359,7 +373,7 @@ export function WorkoutStatsOverview() {
           
           {prStats.recentPRs > 0 && (
             <View style={styles.insightItem}>
-              <Trophy size={16} color="#FFD700" />
+              <Trophy size={16} color={DesignTokens.colors.primary[400]} />
               <Text style={styles.insightText}>
                 You've set {prStats.recentPRs} personal record{prStats.recentPRs !== 1 ? 's' : ''} this month!
               </Text>
@@ -368,7 +382,7 @@ export function WorkoutStatsOverview() {
           
           {stats.totalWorkouts === 0 && (
             <View style={styles.insightItem}>
-              <Target size={16} color="#9E7FFF" />
+              <Target size={16} color={DesignTokens.colors.primary[500]} />
               <Text style={styles.insightText}>
                 Start your fitness journey by completing your first workout!
               </Text>
@@ -383,17 +397,18 @@ export function WorkoutStatsOverview() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: DesignTokens.colors.background.primary,
+    backgroundColor: DesignTokens.colors.surface.primary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: DesignTokens.colors.background.primary,
+    backgroundColor: DesignTokens.colors.surface.primary,
   },
   loadingText: {
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.text.secondary,
+    fontFamily: DesignTokens.typography.fontFamily.primary,
   },
   headerCard: {
     marginHorizontal: DesignTokens.spacing[5],
@@ -415,11 +430,13 @@ const styles = StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
     marginBottom: DesignTokens.spacing[1],
+    fontFamily: DesignTokens.typography.fontFamily.primary,
   },
   headerStatLabel: {
     fontSize: DesignTokens.typography.fontSize.sm,
     color: DesignTokens.colors.text.secondary,
     textAlign: 'center',
+    fontFamily: DesignTokens.typography.fontFamily.primary,
   },
   statsSection: {
     marginBottom: DesignTokens.spacing[6],
@@ -430,6 +447,7 @@ const styles = StyleSheet.create({
     color: DesignTokens.colors.text.primary,
     marginBottom: DesignTokens.spacing[4],
     paddingHorizontal: DesignTokens.spacing[5],
+    fontFamily: DesignTokens.typography.fontFamily.display,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -448,6 +466,7 @@ const styles = StyleSheet.create({
     fontWeight: DesignTokens.typography.fontWeight.bold,
     color: DesignTokens.colors.text.primary,
     marginBottom: DesignTokens.spacing[4],
+    fontFamily: DesignTokens.typography.fontFamily.display,
   },
   insightsList: {
     gap: DesignTokens.spacing[3],
@@ -461,6 +480,7 @@ const styles = StyleSheet.create({
     fontSize: DesignTokens.typography.fontSize.base,
     color: DesignTokens.colors.text.secondary,
     flex: 1,
-    lineHeight: 20,
+    lineHeight: DesignTokens.typography.fontSize.base * DesignTokens.typography.lineHeight.normal,
+    fontFamily: DesignTokens.typography.fontFamily.primary,
   },
 });

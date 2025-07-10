@@ -17,7 +17,23 @@ export const DesignTokens = {
       800: '#6D28D9',  // Very dark
       900: '#5B21B6',  // Darkest
     },
-    
+    border: {
+      primary:  {     600: '#8B5FFF'},  // Dark
+
+      secondary:  {     700: '#7C3AED'},  // Darker (current secondary)
+
+      accent:   {    500: '#9E7FFF'},  // Primary (current)
+
+      error: {     500: '#EF4444'},
+
+    },
+
+    background: {
+      primary:  {     600: '#8B5FFF'},  // Dark
+
+   
+
+    },
     // Semantic Colors
     success: {
       50: '#ECFDF5',
