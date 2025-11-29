@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Image,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { X, Send } from 'lucide-react-native';
 import { usePostComments } from '@/hooks/usePostComments';
 
@@ -95,7 +95,9 @@ export default function PostCommentsModal({
                   source={{ 
                     uri: comment.profile.avatar_url || 'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2'
                   }} 
-                  style={styles.commentAvatar} 
+                  style={styles.commentAvatar}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                 />
                 <View style={styles.commentContent}>
                   <View style={styles.commentHeader}>

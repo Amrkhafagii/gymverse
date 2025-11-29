@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { Heart, MessageCircle, Share2, MoveHorizontal as MoreHorizontal, Trophy, Zap, Calendar, Clock, Target } from 'lucide-react-native';
 import { SocialFeedPost } from '@/lib/socialFeed';
 
@@ -93,7 +87,9 @@ export default function SocialFeedPostComponent({
           source={{ 
             uri: post.profile.avatar_url || 'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2'
           }} 
-          style={styles.userAvatar} 
+          style={styles.userAvatar}
+          contentFit="cover"
+          cachePolicy="memory-disk"
         />
         <View style={styles.userInfo}>
           <View style={styles.userNameRow}>

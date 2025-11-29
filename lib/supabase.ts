@@ -1,9 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
+import * as Sentry from '@sentry/react-native';
 import { Database } from '@/types';
 import { getRequiredEnv } from './env';
 
 const supabaseUrl = getRequiredEnv('EXPO_PUBLIC_SUPABASE_URL');
 const supabaseAnonKey = getRequiredEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+
+const tracedFetch: typeof fetch = async (input, init) => {
+  const url = typeof input === 'string' ? input : (input as Request).url;
+  Sentry.addBreadcrumb({
+    category: 'supabase',
+    message: url,
+    level: 'info',
+    data: { method: init?.method || 'GET' },
+  });
+
+  try {
+    return await fetch(input as any, init as any);
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { service: 'supabase' },
+      extra: { url, method: init?.method || 'GET' },
+    });
+    throw err;
+  }
+};
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -11,7 +32,16 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  global: {
+    fetch: tracedFetch,
+  },
 });
+
+export const logSupabaseError = (error: unknown, context: string) => {
+  Sentry.captureException(error, {
+    tags: { service: 'supabase', context },
+  });
+};
 
 // Database types for TypeScript
 export interface Profile {
@@ -284,7 +314,11 @@ export const createWorkout = async (workout: Omit<Workout, 'id' | 'created_at' |
     .insert(workout)
     .select()
     .single();
-  
+
+  if (error) {
+    logSupabaseError(error, 'create_workout');
+  }
+
   return { data, error };
 };
 
@@ -316,7 +350,11 @@ export const createWorkoutExercise = async (workoutExercise: Omit<WorkoutExercis
     .insert(workoutExercise)
     .select()
     .single();
-  
+
+  if (error) {
+    logSupabaseError(error, 'create_workout_exercise');
+  }
+
   return { data, error };
 };
 
@@ -366,6 +404,9 @@ export const createWorkoutSession = async (session: Omit<WorkoutSession, 'id' | 
     .select()
     .single();
   
+  if (error) {
+    logSupabaseError(error, 'create_workout_session');
+  }
   return { data, error };
 };
 
@@ -377,6 +418,7 @@ const getUserWorkoutSessions = async (userId: string): Promise<WorkoutSession[]>
     .order('started_at', { ascending: false });
   
   if (error) {
+    logSupabaseError(error, 'get_user_workout_sessions');
     console.error('Error fetching workout sessions:', error);
     return [];
   }
@@ -397,6 +439,9 @@ export const completeWorkoutSession = async (sessionId: number, duration: number
     .select()
     .single();
   
+  if (error) {
+    logSupabaseError(error, 'complete_workout_session');
+  }
   return { data, error };
 };
 
@@ -512,6 +557,10 @@ export const createSocialPost = async (post: Omit<SocialPost, 'id' | 'created_at
     .select()
     .single();
   
+  if (error) {
+    logSupabaseError(error, 'create_social_post');
+  }
+
   return { data, error };
 };
 

@@ -145,7 +145,7 @@ export default function WorkoutsScreen() {
   };
 
   const handleCreateWorkout = () => {
-    router.push(routes.createWorkout as any);
+    router.push(routes.createWorkout);
   };
 
   const getDifficultyColor = (difficulty: string) => {

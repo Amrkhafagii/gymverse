@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Settings, Pencil, Share } from 'lucide-react-native';
 
@@ -29,7 +30,12 @@ export default function ProfileHeader({
           <Settings size={24} color="#fff" />
         </TouchableOpacity>
         <View style={styles.profileImageContainer}>
-          <Image source={{ uri: profileImageUrl }} style={styles.profileImage} />
+          <Image
+            source={{ uri: profileImageUrl }}
+            style={styles.profileImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
           <TouchableOpacity style={styles.editImageButton} onPress={onEditProfilePress}>
             <Pencil size={16} color="#fff" />
           </TouchableOpacity>

@@ -1,4 +1,4 @@
-import { supabase, SocialPost, createSocialPost } from './supabase';
+import { supabase, SocialPost, createSocialPost, logSupabaseError } from './supabase';
 
 export interface SocialFeedPost extends SocialPost {
   profile: {
@@ -97,6 +97,7 @@ export const getSocialFeedWithStats = async (
 
     return postsWithStats;
   } catch (error) {
+    logSupabaseError(error, 'fetch_social_feed');
     console.error('Error fetching social feed:', error);
     throw error;
   }
@@ -137,6 +138,7 @@ export const togglePostLike = async (postId: number, userId: string): Promise<bo
       return true; // Post was liked
     }
   } catch (error) {
+    logSupabaseError(error, 'toggle_post_like');
     console.error('Error toggling post like:', error);
     throw error;
   }
@@ -165,6 +167,7 @@ export const addPostComment = async (
     if (error) throw error;
     return data as PostComment;
   } catch (error) {
+    logSupabaseError(error, 'add_post_comment');
     console.error('Error adding comment:', error);
     return null;
   }
@@ -185,6 +188,7 @@ export const getPostComments = async (postId: number): Promise<PostComment[]> =>
     if (error) throw error;
     return (data || []) as PostComment[];
   } catch (error) {
+    logSupabaseError(error, 'fetch_post_comments');
     console.error('Error fetching comments:', error);
     return [];
   }
@@ -209,6 +213,7 @@ export const createWorkoutPost = async (
     if (error) throw error;
     return data;
   } catch (error) {
+    logSupabaseError(error, 'create_workout_post');
     console.error('Error creating workout post:', error);
     return null;
   }
@@ -233,6 +238,7 @@ export const createAchievementPost = async (
     if (error) throw error;
     return data;
   } catch (error) {
+    logSupabaseError(error, 'create_achievement_post');
     console.error('Error creating achievement post:', error);
     return null;
   }
@@ -257,6 +263,7 @@ export const createProgressPost = async (
     if (error) throw error;
     return data;
   } catch (error) {
+    logSupabaseError(error, 'create_progress_post');
     console.error('Error creating progress post:', error);
     return null;
   }
@@ -274,6 +281,7 @@ export const deletePost = async (postId: number, userId: string): Promise<boolea
     if (error) throw error;
     return true;
   } catch (error) {
+    logSupabaseError(error, 'delete_post');
     console.error('Error deleting post:', error);
     return false;
   }

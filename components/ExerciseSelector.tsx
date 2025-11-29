@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { X, Search, Filter } from 'lucide-react-native';
 import { Exercise, getExercises } from '@/lib/supabase';
 
@@ -241,6 +241,8 @@ export default function ExerciseSelector({
                   <Image
                     source={{ uri: exercise.demo_image_url }}
                     style={styles.exerciseImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
                   />
                 )}
                 <View style={styles.exerciseInfo}>

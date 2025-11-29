@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -18,7 +18,9 @@ import {
   ArrowLeft,
   Dumbbell,
 } from 'lucide-react-native';
-import { supabase, Workout, Exercise } from '@/lib/supabase';
+ import { supabase, Workout, Exercise } from '@/lib/supabase';
+ import { routes } from '@/utils/routes';
+ import { useTheme } from '@/theme/ThemeProvider';
 
 interface WorkoutExercise {
   id: number;
@@ -34,7 +36,9 @@ interface WorkoutExercise {
 export default function WorkoutDetailScreen() {
   const params = useLocalSearchParams();
   const workoutId = params?.workoutId as string;
-  
+  const { colors } = useTheme();
+  const borderColor = colors.border || '#333';
+  const cardBg = colors.surface || '#1a1a1a';
   const [workout, setWorkout] = useState<Workout | null>(null);
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,13 +107,7 @@ export default function WorkoutDetailScreen() {
   const startWorkout = () => {
     if (!workout) return;
     
-    router.push({
-      pathname: '/(tabs)/workout-session',
-      params: {
-        workoutId: workoutId,
-        workoutName: workout.name || 'Workout',
-      },
-    });
+    router.push(routes.workoutSession(workoutId, workout.name || 'Workout'));
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -158,9 +156,9 @@ export default function WorkoutDetailScreen() {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Dumbbell size={48} color="#FF6B35" />
-        <Text style={styles.loadingText}>Loading workout...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <Dumbbell size={48} color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.text }]}>Loading workout...</Text>
       </View>
     );
   }
@@ -168,7 +166,7 @@ export default function WorkoutDetailScreen() {
   // No workout found
   if (!workout) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
         <Text style={styles.errorTitle}>Workout Not Found</Text>
         <Text style={styles.errorText}>The requested workout could not be found.</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -180,8 +178,8 @@ export default function WorkoutDetailScreen() {
 
   // Main content - only render when workout is not null
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
+      <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
@@ -193,8 +191,8 @@ export default function WorkoutDetailScreen() {
         
         <View style={styles.workoutMeta}>
           <View style={styles.metaItem}>
-            <Clock size={16} color="#FF6B35" />
-            <Text style={styles.metaText}>{workout?.estimated_duration_minutes || 0} min</Text>
+            <Clock size={16} color={colors.primary} />
+            <Text style={[styles.metaText, { color: colors.text }]}>{workout?.estimated_duration_minutes || 0} min</Text>
           </View>
           <View style={styles.metaItem}>
             <Target size={16} color={getDifficultyColor(workout?.difficulty_level || 'beginner')} />
@@ -213,23 +211,23 @@ export default function WorkoutDetailScreen() {
 
       <View style={styles.content}>
         <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{exercises.length}</Text>
-            <Text style={styles.statLabel}>Exercises</Text>
+          <View style={[styles.statCard, { backgroundColor: cardBg, borderColor }]}>
+            <Text style={[styles.statValue, { color: colors.text }]}>{exercises.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Exercises</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>
+          <View style={[styles.statCard, { backgroundColor: cardBg, borderColor }]}>
+            <Text style={[styles.statValue, { color: colors.text }]}>
               {exercises.reduce((total, ex) => total + ex.target_sets, 0)}
             </Text>
-            <Text style={styles.statLabel}>Total Sets</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total Sets</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>
+          <View style={[styles.statCard, { backgroundColor: cardBg, borderColor }]}>
+            <Text style={[styles.statValue, { color: colors.text }]}>
               {exercises.length > 0 
                 ? Math.round(exercises.reduce((total, ex) => total + ex.rest_seconds, 0) / exercises.length)
                 : 0}s
             </Text>
-            <Text style={styles.statLabel}>Avg Rest</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Avg Rest</Text>
           </View>
         </View>
 
@@ -237,17 +235,17 @@ export default function WorkoutDetailScreen() {
           <View style={styles.exercisesSection}>
             <Text style={styles.sectionTitle}>Exercises</Text>
             {exercises.map((workoutExercise, index) => (
-              <View key={workoutExercise.id} style={styles.exerciseCard}>
+              <View key={workoutExercise.id} style={[styles.exerciseCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={styles.exerciseHeader}>
-                  <View style={styles.exerciseNumber}>
+                  <View style={[styles.exerciseNumber, { backgroundColor: colors.primary }]}>
                     <Text style={styles.exerciseNumberText}>{index + 1}</Text>
                   </View>
                   <View style={styles.exerciseInfo}>
-                    <Text style={styles.exerciseName}>
+                    <Text style={[styles.exerciseName, { color: colors.text }]}>
                       {workoutExercise.exercise?.name || 'Unknown Exercise'}
                     </Text>
                     {workoutExercise.exercise?.description && (
-                      <Text style={styles.exerciseDescription}>
+                      <Text style={[styles.exerciseDescription, { color: colors.textMuted }]}>
                         {workoutExercise.exercise.description}
                       </Text>
                     )}
@@ -258,6 +256,8 @@ export default function WorkoutDetailScreen() {
                   <Image
                     source={{ uri: workoutExercise.exercise.demo_image_url }}
                     style={styles.exerciseImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
                   />
                 )}
 
@@ -329,13 +329,11 @@ export default function WorkoutDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
   },
   loadingText: {
     fontSize: 18,
@@ -347,7 +345,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
     paddingHorizontal: 20,
   },
   errorTitle: {
@@ -371,11 +368,13 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginBottom: 20,
-    backgroundColor: '#FF6B35',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
     alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   backButtonText: {
     fontSize: 16,
@@ -420,7 +419,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   statCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -521,7 +520,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   muscleTag: {
-    backgroundColor: '#333',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,

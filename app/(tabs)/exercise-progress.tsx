@@ -6,8 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Trophy, TrendingUp, Calendar, Target } from 'lucide-react-native';
@@ -119,7 +119,12 @@ export default function ExerciseProgressScreen() {
 
       {exercise.demo_image_url && (
         <View style={styles.imageContainer}>
-          <Image source={{ uri: exercise.demo_image_url }} style={styles.exerciseImage} />
+          <Image
+            source={{ uri: exercise.demo_image_url }}
+            style={styles.exerciseImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
         </View>
       )}
 

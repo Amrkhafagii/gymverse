@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Clock, Target, Users, Star } from 'lucide-react-native';
 import { Workout } from '@/lib/supabase';
 
@@ -92,8 +93,10 @@ export default function WorkoutTemplatesSection({
             onPress={() => onWorkoutPress(workout)}
           >
             <Image 
-              source={{ uri: getWorkoutImage(workout.workout_type) }}
+              source={{ uri: getWorkoutImage(workout.workout_type) }} 
               style={styles.workoutImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
             />
             
             <View style={styles.workoutContent}>

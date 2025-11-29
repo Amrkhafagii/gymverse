@@ -1,5 +1,5 @@
 {
-  "extends": ["expo", "expo/router"],
+  "extends": ["expo"],
   "rules": {
     "react-hooks/exhaustive-deps": "warn"
   }

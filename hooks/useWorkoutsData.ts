@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Workout, getWorkoutTemplates, getUserWorkouts } from '@/lib/supabase';
+import { Workout, getWorkoutTemplates, getUserWorkouts, logSupabaseError } from '@/lib/supabase';
 
 type WorkoutsData = {
   templates: Workout[];
@@ -10,11 +10,16 @@ export const useWorkoutsData = (userId?: string | null) => {
   const query = useQuery<WorkoutsData>({
     queryKey: ['workouts', userId],
     queryFn: async () => {
-      const [templates, userWorkouts] = await Promise.all([
-        getWorkoutTemplates(),
-        userId ? getUserWorkouts(userId) : Promise.resolve([]),
-      ]);
-      return { templates, userWorkouts };
+      try {
+        const [templates, userWorkouts] = await Promise.all([
+          getWorkoutTemplates(),
+          userId ? getUserWorkouts(userId) : Promise.resolve([]),
+        ]);
+        return { templates, userWorkouts };
+      } catch (err) {
+        logSupabaseError(err, 'fetch_workouts');
+        throw err;
+      }
     },
     staleTime: 60 * 1000,
   });

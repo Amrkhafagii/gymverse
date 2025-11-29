@@ -1,0 +1,32 @@
+npm warn ERESOLVE overriding peer dependency
+npm error code ERESOLVE
+npm error ERESOLVE could not resolve
+npm error
+npm error While resolving: lucide-react-native@0.475.0
+npm error Found: react@19.0.0
+npm error node_modules/react
+npm error   peer react@"15.x || 16.x || 17.x || 18.x" from @sentry/react@7.119.1
+npm error   node_modules/@sentry/react-native/node_modules/@sentry/react
+npm error     @sentry/react@"7.119.1" from @sentry/react-native@5.36.0
+npm error     node_modules/@sentry/react-native
+npm error       @sentry/react-native@"^5.21.0" from the root project
+npm error
+npm error Could not resolve dependency:
+npm error peer react@"^16.5.1 || ^17.0.0 || ^18.0.0" from lucide-react-native@0.475.0
+npm error node_modules/lucide-react-native
+npm error   lucide-react-native@"^0.475.0" from the root project
+npm error
+npm error Conflicting peer dependency: react@18.3.1
+npm error node_modules/react
+npm error   peer react@"^16.5.1 || ^17.0.0 || ^18.0.0" from lucide-react-native@0.475.0
+npm error   node_modules/lucide-react-native
+npm error     lucide-react-native@"^0.475.0" from the root project
+npm error
+npm error Fix the upstream dependency conflict, or retry
+npm error this command with --force or --legacy-peer-deps
+npm error to accept an incorrect (and potentially broken) dependency resolution.
+npm error
+npm error
+npm error For a full report see:
+npm error /Users/amrkhafagi/.npm/_logs/2025-11-29T15_46_47_510Z-eresolve-report.txt
+npm error A complete log of this run can be found in: /Users/amrkhafagi/.npm/_logs/2025-11-29T15_46_47_510Z-debug-0.log

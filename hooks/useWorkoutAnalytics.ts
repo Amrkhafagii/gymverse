@@ -6,6 +6,7 @@ import {
   WorkoutSession,
   WorkoutStreak 
 } from '@/lib/supabase';
+import { logSupabaseError } from '@/lib/supabase';
 
 interface WorkoutStats {
   totalWorkouts: number;
@@ -124,27 +125,32 @@ const fetchWorkoutAnalytics = async (userId: string): Promise<ProgressData> => {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [workoutSessions, streak, personalRecords] = await Promise.all([
-    getWorkoutAnalytics(userId, thirtyDaysAgo.toISOString()),
-    getUserStreak(userId),
-    getUserPersonalRecords(userId),
-  ]);
+  try {
+    const [workoutSessions, streak, personalRecords] = await Promise.all([
+      getWorkoutAnalytics(userId, thirtyDaysAgo.toISOString()),
+      getUserStreak(userId),
+      getUserPersonalRecords(userId),
+    ]);
 
-  const completedSessions = workoutSessions.filter(session => session.completed_at);
-  const stats = calculateWorkoutStats(completedSessions, sevenDaysAgo, thirtyDaysAgo);
-  const weeklyProgress = calculateWeeklyProgress(completedSessions);
-  const monthlyProgress = calculateMonthlyProgress(completedSessions);
+    const completedSessions = workoutSessions.filter(session => session.completed_at);
+    const stats = calculateWorkoutStats(completedSessions, sevenDaysAgo, thirtyDaysAgo);
+    const weeklyProgress = calculateWeeklyProgress(completedSessions);
+    const monthlyProgress = calculateMonthlyProgress(completedSessions);
 
-  return {
-    workoutSessions: completedSessions,
-    streak,
-    stats,
-    personalRecordsCount: personalRecords.length,
-    weeklyProgress,
-    monthlyProgress,
-    loading: false,
-    error: null,
-  };
+    return {
+      workoutSessions: completedSessions,
+      streak,
+      stats,
+      personalRecordsCount: personalRecords.length,
+      weeklyProgress,
+      monthlyProgress,
+      loading: false,
+      error: null,
+    };
+  } catch (err) {
+    logSupabaseError(err, 'workout_analytics');
+    throw err;
+  }
 };
 
 export function useWorkoutAnalytics(userId: string | null) {

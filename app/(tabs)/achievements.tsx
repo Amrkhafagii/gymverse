@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   RefreshControl,
   TouchableOpacity,
+  FlatList,
 } from 'react-native';
 import { Trophy, Star, Target, Award, Filter, Crown, Zap, Calendar, Users, Medal } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,9 +14,13 @@ import AchievementProgressCard from '@/components/AchievementProgressCard';
 import AchievementsHeader from '@/components/AchievementsHeader';
 import AchievementCategoryFilter from '@/components/AchievementCategoryFilter';
 import { Achievement } from '@/lib/supabase';
+import { ScreenState } from '@/components/ScreenState';
+import { useTheme } from '@/theme/ThemeProvider';
+import { colors as tokens } from '@/theme/tokens';
 
 export default function AchievementsScreen() {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const {
     userAchievements,
     achievementProgress,
@@ -76,14 +80,46 @@ export default function AchievementsScreen() {
     ? Math.round((getUnlockedCount() / getTotalAchievements()) * 100) 
     : 0;
 
+  const displayItems = useMemo(() => {
+    const items: Array<{ type: 'header'; label: string } | { type: 'card'; data: any }> = [];
+    if (unlockedProgress.length > 0) {
+      items.push({ type: 'header', label: `Unlocked (${unlockedProgress.length})` });
+      unlockedProgress.forEach(p => items.push({ type: 'card', data: p }));
+    }
+    if (lockedProgress.length > 0) {
+      items.push({ type: 'header', label: `In Progress (${lockedProgress.length})` });
+      lockedProgress.forEach(p => items.push({ type: 'card', data: p }));
+    }
+    return items;
+  }, [lockedProgress, unlockedProgress]);
+
+  const renderItem = ({ item }: { item: any }) => {
+    if (item.type === 'header') {
+      return (
+        <View style={styles.sectionHeader}>
+          <Target size={20} color={colors.primary} />
+          <Text style={styles.sectionTitle}>{item.label}</Text>
+        </View>
+      );
+    }
+    const achievement = getAchievementData(item.data);
+    if (!achievement) return null;
+    return (
+      <AchievementProgressCard
+        achievement={achievement}
+        progress={item.data}
+      />
+    );
+  };
+
   return (
-    <ScrollView 
-      style={styles.container} 
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
+    <FlatList
+      style={[styles.container, { backgroundColor: colors.background }]}
+      data={displayItems}
+      keyExtractor={(_, idx) => idx.toString()}
+      renderItem={renderItem}
+      ListHeaderComponent={
+        <>
       <AchievementsHeader
         unlockedCount={getUnlockedCount()}
         totalPoints={getTotalPoints()}
@@ -120,53 +156,8 @@ export default function AchievementsScreen() {
           </View>
         </View>
 
-        {unlockedProgress.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Trophy size={20} color="#FFD700" />
-              <Text style={styles.sectionTitle}>Unlocked ({unlockedProgress.length})</Text>
-            </View>
-            {unlockedProgress.map((progress) => {
-              const achievement = getAchievementData(progress);
-              if (!achievement) return null;
-              
-              return (
-                <AchievementProgressCard
-                  key={progress.achievement_id}
-                  achievement={achievement}
-                  progress={progress}
-                />
-              );
-            })}
-          </View>
-        )}
-
-        {lockedProgress.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Target size={20} color="#999" />
-              <Text style={styles.sectionTitle}>In Progress ({lockedProgress.length})</Text>
-            </View>
-            {lockedProgress.map((progress) => {
-              const achievement = getAchievementData(progress);
-              if (!achievement) return null;
-              
-              return (
-                <AchievementProgressCard
-                  key={progress.achievement_id}
-                  achievement={achievement}
-                  progress={progress}
-                />
-              );
-            })}
-          </View>
-        )}
-
         {loading && (
-          <View style={styles.loadingContainer}>
-            <Trophy size={48} color="#666" />
-            <Text style={styles.loadingText}>Loading achievements...</Text>
-          </View>
+          <ScreenState variant="loading" title="Loading achievements..." />
         )}
 
         {!loading && filteredProgress.length === 0 && (
@@ -196,14 +187,21 @@ export default function AchievementsScreen() {
           </View>
         )}
       </View>
-    </ScrollView>
+        </>
+      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      ListEmptyComponent={
+        !loading && filteredProgress.length === 0 ? (
+          <ScreenState variant="empty" title="No achievements yet" message="Complete workouts to start unlocking achievements!" />
+        ) : null
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
   },
   content: {
     paddingHorizontal: 20,
@@ -213,7 +211,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   summaryCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(255,255,255,0.02)',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
@@ -297,7 +295,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   motivationCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',

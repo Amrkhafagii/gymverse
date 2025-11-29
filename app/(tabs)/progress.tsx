@@ -8,10 +8,13 @@ import ProgressStatsCard from '@/components/ProgressStatsCard';
 import ProgressChart from '@/components/ProgressChart';
 import StreakDisplay from '@/components/StreakDisplay';
 import PersonalRecordsSection from '@/components/PersonalRecordsSection';
+import { useTheme } from '@/theme/ThemeProvider';
 import { ScreenState } from '@/components/ScreenState';
+import { colors as tokens } from '@/theme/tokens';
 
 export default function ProgressScreen() {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const { 
     workoutSessions, 
     streak, 
@@ -60,7 +63,7 @@ export default function ProgressScreen() {
       change: getChangeText(stats.workoutsThisWeek, previousWeekWorkouts),
       changeType: getChangeType(stats.workoutsThisWeek, previousWeekWorkouts),
       icon: Dumbbell,
-      color: '#FF6B35',
+      color: colors.primary,
     },
     {
       label: 'Current Streak',
@@ -68,7 +71,7 @@ export default function ProgressScreen() {
       change: streak?.current_streak === streak?.longest_streak && (streak?.current_streak || 0) > 0 ? 'Personal best!' : undefined,
       changeType: 'positive' as const,
       icon: Zap,
-      color: '#27AE60',
+      color: colors.success,
     },
     {
       label: 'Personal Records',
@@ -76,7 +79,7 @@ export default function ProgressScreen() {
       change: personalRecordsCount > 0 ? `${personalRecordsCount} total` : 'None yet',
       changeType: 'neutral' as const,
       icon: Target,
-      color: '#4A90E2',
+      color: colors.info,
     },
     {
       label: 'Total Time',
@@ -84,7 +87,7 @@ export default function ProgressScreen() {
       change: getChangeText(weeklyProgress.reduce((a, b) => a + b, 0), previousWeekDuration, ' min'),
       changeType: getChangeType(weeklyProgress.reduce((a, b) => a + b, 0), previousWeekDuration),
       icon: Clock,
-      color: '#9B59B6',
+      color: tokens.dark.info,
     },
   ];
 
@@ -114,13 +117,13 @@ export default function ProgressScreen() {
 
   return (
     <ScrollView 
-      style={styles.container} 
+      style={[styles.container, { backgroundColor: colors.background }]} 
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
       }
     >
-      <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+      <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
         <Text style={styles.headerTitle}>Progress</Text>
         <Text style={styles.headerSubtitle}>Track your fitness journey</Text>
       </LinearGradient>
@@ -153,7 +156,7 @@ export default function ProgressScreen() {
             data={weeklyProgress}
             title="Weekly Activity"
             subtitle="Workout duration (minutes) for the last 7 days"
-            color="#FF6B35"
+            color={colors.primary}
             height={120}
             labelFormatter={(index) => {
               const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -172,7 +175,7 @@ export default function ProgressScreen() {
             data={monthlyProgress}
             title="Monthly Activity"
             subtitle="Workout duration (minutes) for the last 30 days"
-            color="#4A90E2"
+            color={colors.info}
             height={100}
             showLabels={false}
           />
@@ -235,7 +238,6 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
   },
   header: {
     paddingHorizontal: 20,
@@ -291,7 +293,7 @@ const styles = StyleSheet.create({
     marginTop: 30,
   },
   summaryCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,

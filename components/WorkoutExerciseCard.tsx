@@ -5,9 +5,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Trash2, ChevronUp, ChevronDown, CreditCard as Edit3, Check, X } from 'lucide-react-native';
 import { Exercise } from '@/lib/supabase';
 
@@ -156,6 +156,8 @@ export default function WorkoutExerciseCard({
         <Image
           source={{ uri: exercise.exercise.demo_image_url }}
           style={styles.exerciseImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
         />
       )}
 

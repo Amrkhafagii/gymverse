@@ -26,6 +26,7 @@ import {
   Exercise,
   Workout,
 } from '@/lib/supabase';
+import { useTheme } from '@/theme/ThemeProvider';
 
 interface WorkoutExercise {
   id: number;
@@ -66,6 +67,9 @@ export default function WorkoutSessionScreen() {
     workoutName: string;
   }>();
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const borderColor = colors.border || '#333';
+  const cardBg = colors.surface || '#1a1a1a';
   const { checkForNewAchievements, newAchievements, clearNewAchievements } = useAchievements(user?.id || null);
   const { checkForNewRecords, newRecords, clearNewRecords } = usePersonalRecords(user?.id || null);
 
@@ -544,8 +548,8 @@ export default function WorkoutSessionScreen() {
 
   if (!isSessionActive) {
     return (
-      <View style={styles.container}>
-        <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <X size={24} color="#fff" />
           </TouchableOpacity>
@@ -558,37 +562,37 @@ export default function WorkoutSessionScreen() {
 
         <ScrollView style={styles.content}>
           <View style={styles.previewStats}>
-            <View style={styles.previewStatCard}>
-              <Target size={24} color="#FF6B35" />
-              <Text style={styles.previewStatValue}>{exercises.length}</Text>
-              <Text style={styles.previewStatLabel}>Exercises</Text>
+            <View style={[styles.previewStatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Target size={24} color={colors.primary} />
+              <Text style={[styles.previewStatValue, { color: colors.text }]}>{exercises.length}</Text>
+              <Text style={[styles.previewStatLabel, { color: colors.textMuted }]}>Exercises</Text>
             </View>
-            <View style={styles.previewStatCard}>
-              <Clock size={24} color="#4A90E2" />
-              <Text style={styles.previewStatValue}>{workout?.estimated_duration_minutes}</Text>
-              <Text style={styles.previewStatLabel}>Minutes</Text>
+            <View style={[styles.previewStatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Clock size={24} color={colors.info} />
+              <Text style={[styles.previewStatValue, { color: colors.text }]}>{workout?.estimated_duration_minutes}</Text>
+              <Text style={[styles.previewStatLabel, { color: colors.textMuted }]}>Minutes</Text>
             </View>
-            <View style={styles.previewStatCard}>
-              <Trophy size={24} color="#27AE60" />
-              <Text style={styles.previewStatValue}>
+            <View style={[styles.previewStatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Trophy size={24} color={colors.success} />
+              <Text style={[styles.previewStatValue, { color: colors.text }]}>
                 {exercises.reduce((sum, ex) => sum + ex.target_sets, 0)}
               </Text>
-              <Text style={styles.previewStatLabel}>Total Sets</Text>
+              <Text style={[styles.previewStatLabel, { color: colors.textMuted }]}>Total Sets</Text>
             </View>
           </View>
 
           <View style={styles.exercisesList}>
-            <Text style={styles.exercisesTitle}>Workout Overview</Text>
+            <Text style={[styles.exercisesTitle, { color: colors.text }]}>Workout Overview</Text>
             {exercises.map((exercise, index) => (
-              <View key={exercise.id} style={styles.exercisePreviewCard}>
-                <View style={styles.exerciseNumber}>
+              <View key={exercise.id} style={[styles.exercisePreviewCard, { backgroundColor: cardBg, borderColor }]}>
+                <View style={[styles.exerciseNumber, { backgroundColor: colors.primary }]}>
                   <Text style={styles.exerciseNumberText}>{index + 1}</Text>
                 </View>
                 <View style={styles.exercisePreviewInfo}>
-                  <Text style={styles.exercisePreviewName}>
+                  <Text style={[styles.exercisePreviewName, { color: colors.text }]}>
                     {exercise.exercise?.name || 'Unknown Exercise'}
                   </Text>
-                  <Text style={styles.exercisePreviewDetails}>
+                  <Text style={[styles.exercisePreviewDetails, { color: colors.textMuted }]}>
                     {exercise.target_sets} sets
                     {exercise.target_reps && ` • ${exercise.target_reps.join('-')} reps`}
                     {exercise.target_duration_seconds && ` • ${exercise.target_duration_seconds}s`}
@@ -615,17 +619,17 @@ export default function WorkoutSessionScreen() {
   const currentExercise = exercises[currentExerciseIndex];
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.activeHeader}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={handleExitWorkout} style={styles.exitButton}>
-            <PauseCircle size={24} color="#FF6B35" />
-          </TouchableOpacity>
-          <View style={styles.timerContainer}>
-            <Clock size={16} color="#FF6B35" />
-            <Text style={styles.timerText}>{formatTime(elapsedTime)}</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.activeHeader}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity onPress={handleExitWorkout} style={styles.exitButton}>
+              <PauseCircle size={24} color={colors.primary} />
+            </TouchableOpacity>
+            <View style={styles.timerContainer}>
+              <Clock size={16} color={colors.primary} />
+              <Text style={[styles.timerText, { color: colors.text }]}>{formatTime(elapsedTime)}</Text>
+            </View>
           </View>
-        </View>
         
         <Text style={styles.exerciseTitle}>
           {currentExercise.exercise?.name || 'Unknown Exercise'}
@@ -636,15 +640,15 @@ export default function WorkoutSessionScreen() {
         
         {/* Progress Bar */}
         <View style={styles.progressBarContainer}>
-          <View style={styles.progressBar}>
+          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
             <View 
               style={[
                 styles.progressFill, 
-                { width: `${getProgressPercentage()}%` }
+                { width: `${getProgressPercentage()}%`, backgroundColor: colors.primary }
               ]} 
             />
           </View>
-          <Text style={styles.progressText}>{Math.round(getProgressPercentage())}% Complete</Text>
+          <Text style={[styles.progressText, { color: colors.text }]}>{Math.round(getProgressPercentage())}% Complete</Text>
         </View>
       </LinearGradient>
 

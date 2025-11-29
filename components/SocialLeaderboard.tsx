@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Trophy, Zap, Target, Crown } from 'lucide-react-native';
 
 interface LeaderboardUser {
@@ -73,7 +74,12 @@ export default function SocialLeaderboard({ leaderboard, currentUserId }: Social
               </Text>
             </View>
             
-            <Image source={{ uri: user.avatar }} style={styles.avatar} />
+            <Image
+              source={{ uri: user.avatar }}
+              style={styles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
             
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{user.name}</Text>
