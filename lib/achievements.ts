@@ -19,9 +19,12 @@ export interface AchievementProgress {
 }
 
 // Achievement checking functions
-const checkWorkoutCountAchievements = async (userId: string, totalWorkouts: number): Promise<Achievement[]> => {
+const checkWorkoutCountAchievements = async (
+  userId: string,
+  totalWorkouts: number
+): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
-  
+
   try {
     // Get user's already unlocked achievement IDs
     const { data: userAchievements, error: userAchievementsError } = await supabase
@@ -31,7 +34,7 @@ const checkWorkoutCountAchievements = async (userId: string, totalWorkouts: numb
 
     if (userAchievementsError) throw userAchievementsError;
 
-    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+    const unlockedIds = userAchievements?.map((ua) => ua.achievement_id) || [];
 
     // Get workout count achievements that user hasn't unlocked yet
     let query = supabase
@@ -62,9 +65,12 @@ const checkWorkoutCountAchievements = async (userId: string, totalWorkouts: numb
   return unlockedAchievements;
 };
 
-const checkStreakAchievements = async (userId: string, currentStreak: number): Promise<Achievement[]> => {
+const checkStreakAchievements = async (
+  userId: string,
+  currentStreak: number
+): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
-  
+
   try {
     // Get user's already unlocked achievement IDs
     const { data: userAchievements, error: userAchievementsError } = await supabase
@@ -74,7 +80,7 @@ const checkStreakAchievements = async (userId: string, currentStreak: number): P
 
     if (userAchievementsError) throw userAchievementsError;
 
-    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+    const unlockedIds = userAchievements?.map((ua) => ua.achievement_id) || [];
 
     let query = supabase
       .from('achievements')
@@ -106,12 +112,12 @@ const checkStreakAchievements = async (userId: string, currentStreak: number): P
 
 const checkWeeklyWorkoutAchievements = async (userId: string): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
-  
+
   try {
     // Get workouts from the last 7 days
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    
+
     const { data: weeklyWorkouts, error: workoutsError } = await supabase
       .from('workout_sessions')
       .select('*')
@@ -131,7 +137,7 @@ const checkWeeklyWorkoutAchievements = async (userId: string): Promise<Achieveme
 
     if (userAchievementsError) throw userAchievementsError;
 
-    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+    const unlockedIds = userAchievements?.map((ua) => ua.achievement_id) || [];
 
     let query = supabase
       .from('achievements')
@@ -163,7 +169,7 @@ const checkWeeklyWorkoutAchievements = async (userId: string): Promise<Achieveme
 
 const checkPersonalRecordAchievements = async (userId: string): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
-  
+
   try {
     // Get total personal records count
     const { data: personalRecords, error: prError } = await supabase
@@ -183,7 +189,7 @@ const checkPersonalRecordAchievements = async (userId: string): Promise<Achievem
 
     if (userAchievementsError) throw userAchievementsError;
 
-    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+    const unlockedIds = userAchievements?.map((ua) => ua.achievement_id) || [];
 
     let query = supabase
       .from('achievements')
@@ -215,15 +221,17 @@ const checkPersonalRecordAchievements = async (userId: string): Promise<Achievem
 
 const checkCardioAchievements = async (userId: string): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
-  
+
   try {
     // Get cardio workouts count
     const { data: cardioWorkouts, error: workoutsError } = await supabase
       .from('workout_sessions')
-      .select(`
+      .select(
+        `
         *,
         workout:workouts(workout_type)
-      `)
+      `
+      )
       .eq('user_id', userId)
       .not('completed_at', 'is', null)
       .eq('workout.workout_type', 'cardio');
@@ -240,7 +248,7 @@ const checkCardioAchievements = async (userId: string): Promise<Achievement[]> =
 
     if (userAchievementsError) throw userAchievementsError;
 
-    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+    const unlockedIds = userAchievements?.map((ua) => ua.achievement_id) || [];
 
     let query = supabase
       .from('achievements')
@@ -272,12 +280,12 @@ const checkCardioAchievements = async (userId: string): Promise<Achievement[]> =
 
 const checkMonthlyWorkoutAchievements = async (userId: string): Promise<Achievement[]> => {
   const unlockedAchievements: Achievement[] = [];
-  
+
   try {
     // Get workouts from the last 30 days
     const monthAgo = new Date();
     monthAgo.setDate(monthAgo.getDate() - 30);
-    
+
     const { data: monthlyWorkouts, error: workoutsError } = await supabase
       .from('workout_sessions')
       .select('*')
@@ -297,7 +305,7 @@ const checkMonthlyWorkoutAchievements = async (userId: string): Promise<Achievem
 
     if (userAchievementsError) throw userAchievementsError;
 
-    const unlockedIds = userAchievements?.map(ua => ua.achievement_id) || [];
+    const unlockedIds = userAchievements?.map((ua) => ua.achievement_id) || [];
 
     let query = supabase
       .from('achievements')
@@ -330,7 +338,7 @@ const checkMonthlyWorkoutAchievements = async (userId: string): Promise<Achievem
 // Main achievement checking function
 export const checkAllAchievements = async (userId: string): Promise<Achievement[]> => {
   const allUnlockedAchievements: Achievement[] = [];
-  
+
   try {
     // Get user's workout statistics
     const { data: workoutSessions, error: sessionsError } = await supabase
@@ -378,13 +386,11 @@ export const checkAllAchievements = async (userId: string): Promise<Achievement[
 // Unlock achievement function
 const unlockAchievement = async (userId: string, achievementId: number): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('user_achievements')
-      .insert({
-        user_id: userId,
-        achievement_id: achievementId,
-        unlocked_at: new Date().toISOString(),
-      });
+    const { error } = await supabase.from('user_achievements').insert({
+      user_id: userId,
+      achievement_id: achievementId,
+      unlocked_at: new Date().toISOString(),
+    });
 
     if (error) throw error;
   } catch (error) {
@@ -393,9 +399,11 @@ const unlockAchievement = async (userId: string, achievementId: number): Promise
 };
 
 // Get user's achievement progress
-export const getUserAchievementProgress = async (userId: string): Promise<AchievementProgress[]> => {
+export const getUserAchievementProgress = async (
+  userId: string
+): Promise<AchievementProgress[]> => {
   const progressList: AchievementProgress[] = [];
-  
+
   try {
     // Get all active achievements
     const { data: achievements, error } = await supabase
@@ -415,7 +423,7 @@ export const getUserAchievementProgress = async (userId: string): Promise<Achiev
 
     if (userError) throw userError;
 
-    const unlockedIds = new Set(userAchievements?.map(ua => ua.achievement_id) || []);
+    const unlockedIds = new Set(userAchievements?.map((ua) => ua.achievement_id) || []);
 
     // Get user statistics
     const { data: workoutSessions } = await supabase
@@ -459,17 +467,15 @@ export const getUserAchievementProgress = async (userId: string): Promise<Achiev
           // Calculate current week's workouts
           const weekAgo = new Date();
           weekAgo.setDate(weekAgo.getDate() - 7);
-          currentValue = workoutSessions?.filter(ws => 
-            new Date(ws.started_at) >= weekAgo
-          ).length || 0;
+          currentValue =
+            workoutSessions?.filter((ws) => new Date(ws.started_at) >= weekAgo).length || 0;
           break;
         case 'monthly_workouts':
           // Calculate current month's workouts
           const monthAgo = new Date();
           monthAgo.setDate(monthAgo.getDate() - 30);
-          currentValue = workoutSessions?.filter(ws => 
-            new Date(ws.started_at) >= monthAgo
-          ).length || 0;
+          currentValue =
+            workoutSessions?.filter((ws) => new Date(ws.started_at) >= monthAgo).length || 0;
           break;
         case 'cardio_workouts':
           // This would require joining with workouts table to check workout_type
@@ -503,10 +509,12 @@ export const getUserAchievements = async (userId: string): Promise<UserAchieveme
   try {
     const { data, error } = await supabase
       .from('user_achievements')
-      .select(`
+      .select(
+        `
         *,
         achievement:achievements(*)
-      `)
+      `
+      )
       .eq('user_id', userId)
       .order('unlocked_at', { ascending: false });
 

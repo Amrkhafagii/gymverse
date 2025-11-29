@@ -20,23 +20,19 @@ export default function HomeTodaysWorkoutSection() {
           <Text style={styles.workoutTitle}>Push Day</Text>
           <Text style={styles.workoutDuration}>45 min</Text>
         </View>
-        <Text style={styles.workoutDescription}>
-          Chest, Shoulders & Triceps
-        </Text>
+        <Text style={styles.workoutDescription}>Chest, Shoulders & Triceps</Text>
         <View style={styles.workoutExercises}>
           <Text style={styles.exerciseText}>• Bench Press</Text>
           <Text style={styles.exerciseText}>• Shoulder Press</Text>
           <Text style={styles.exerciseText}>• Tricep Dips</Text>
           <Text style={styles.exerciseText}>• Push-ups</Text>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.startWorkoutButton}
           onPress={handleStartWorkout}
           activeOpacity={0.8}
         >
-          <LinearGradient
-            colors={['#FF6B35', '#FF8C42']}
-            style={styles.startWorkoutGradient}>
+          <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.startWorkoutGradient}>
             <Play size={20} color="#fff" />
             <Text style={styles.startWorkoutText}>Start Workout</Text>
           </LinearGradient>

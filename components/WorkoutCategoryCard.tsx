@@ -55,27 +55,24 @@ export default function WorkoutCategoryCard({
   const IconComponent = getIcon();
 
   return (
-    <TouchableOpacity 
-      style={[styles.container, isSelected && styles.selectedContainer]} 
+    <TouchableOpacity
+      style={[styles.container, isSelected && styles.selectedContainer]}
       onPress={onPress}
     >
-      <LinearGradient
-        colors={[color, `${color}CC`]}
-        style={styles.gradient}
-      >
+      <LinearGradient colors={[color, `${color}CC`]} style={styles.gradient}>
         <View style={styles.iconContainer}>
           <IconComponent size={32} color="#fff" />
         </View>
-        
+
         <Text style={styles.categoryName}>{name}</Text>
-        
+
         <View style={styles.statsContainer}>
           <Text style={styles.exerciseCount}>
             {exercises} {exercises === 1 ? 'workout' : 'workouts'}
           </Text>
           <Text style={styles.duration}>{duration}</Text>
         </View>
-        
+
         <View style={styles.difficultyContainer}>
           <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor() }]}>
             <Text style={styles.difficultyText}>{difficulty}</Text>

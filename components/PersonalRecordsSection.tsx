@@ -23,10 +23,10 @@ interface PersonalRecordsSectionProps {
   onRecordPress?: (record: PersonalRecord) => void;
 }
 
-export default function PersonalRecordsSection({ 
-  personalRecords, 
+export default function PersonalRecordsSection({
+  personalRecords,
   loading,
-  onRecordPress 
+  onRecordPress,
 }: PersonalRecordsSectionProps) {
   const getRecordIcon = (recordType: string) => {
     switch (recordType) {
@@ -86,14 +86,17 @@ export default function PersonalRecordsSection({
   };
 
   // Group records by exercise
-  const recordsByExercise = personalRecords.reduce((acc, record) => {
-    const exerciseName = record.exercise.name;
-    if (!acc[exerciseName]) {
-      acc[exerciseName] = [];
-    }
-    acc[exerciseName].push(record);
-    return acc;
-  }, {} as Record<string, PersonalRecord[]>);
+  const recordsByExercise = personalRecords.reduce(
+    (acc, record) => {
+      const exerciseName = record.exercise.name;
+      if (!acc[exerciseName]) {
+        acc[exerciseName] = [];
+      }
+      acc[exerciseName].push(record);
+      return acc;
+    },
+    {} as Record<string, PersonalRecord[]>
+  );
 
   if (loading) {
     return (
@@ -111,9 +114,7 @@ export default function PersonalRecordsSection({
         <View style={styles.emptyContainer}>
           <Trophy size={48} color="#666" />
           <Text style={styles.emptyTitle}>No records yet</Text>
-          <Text style={styles.emptyText}>
-            Complete workouts to start setting personal records!
-          </Text>
+          <Text style={styles.emptyText}>Complete workouts to start setting personal records!</Text>
         </View>
       </View>
     );
@@ -122,7 +123,7 @@ export default function PersonalRecordsSection({
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Personal Records</Text>
-      
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.recordsGrid}>
           {Object.entries(recordsByExercise).map(([exerciseName, records]) => (
@@ -131,7 +132,7 @@ export default function PersonalRecordsSection({
               {records.map((record) => {
                 const IconComponent = getRecordIcon(record.record_type);
                 const recordColor = getRecordColor(record.record_type);
-                
+
                 return (
                   <TouchableOpacity
                     key={record.id}

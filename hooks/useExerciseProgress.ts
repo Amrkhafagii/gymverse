@@ -69,7 +69,7 @@ export function useExerciseProgress(userId: string | null, exerciseId: number | 
 
       // Load exercise progress data
       const exerciseSets = await getExerciseProgress(userId, exerciseId);
-      
+
       // Load personal records
       const records = await getExercisePersonalRecords(userId, exerciseId);
       setPersonalRecords(records);
@@ -78,7 +78,6 @@ export function useExerciseProgress(userId: string | null, exerciseId: number | 
       const processedData = processExerciseData(exerciseSets);
       setProgressData(processedData.chartData);
       setStats(processedData.stats);
-
     } catch (err: any) {
       console.error('Error loading exercise progress:', err);
       setError(err.message || 'Failed to load exercise progress');
@@ -90,8 +89,8 @@ export function useExerciseProgress(userId: string | null, exerciseId: number | 
   const processExerciseData = (exerciseSets: any[]) => {
     // Group sets by session
     const sessionGroups = new Map<number, any[]>();
-    
-    exerciseSets.forEach(set => {
+
+    exerciseSets.forEach((set) => {
       const sessionId = set.session_exercise.session.id;
       if (!sessionGroups.has(sessionId)) {
         sessionGroups.set(sessionId, []);
@@ -116,12 +115,12 @@ export function useExerciseProgress(userId: string | null, exerciseId: number | 
       if (!sessionDate) return;
 
       const date = new Date(sessionDate).toISOString().split('T')[0];
-      
+
       // Calculate session metrics
-      const sessionMaxWeight = Math.max(...sets.map(s => s.weight_kg || 0));
-      const sessionMaxReps = Math.max(...sets.map(s => s.reps || 0));
+      const sessionMaxWeight = Math.max(...sets.map((s) => s.weight_kg || 0));
+      const sessionMaxReps = Math.max(...sets.map((s) => s.reps || 0));
       const sessionTotalVolume = sets.reduce((sum, s) => {
-        return sum + ((s.weight_kg || 0) * (s.reps || 0));
+        return sum + (s.weight_kg || 0) * (s.reps || 0);
       }, 0);
       const sessionTotalDuration = sets.reduce((sum, s) => {
         return sum + (s.duration_seconds || 0);
@@ -150,7 +149,7 @@ export function useExerciseProgress(userId: string | null, exerciseId: number | 
     });
 
     // Sort progress data by date
-    const sortByDate = (a: ExerciseProgressData, b: ExerciseProgressData) => 
+    const sortByDate = (a: ExerciseProgressData, b: ExerciseProgressData) =>
       new Date(a.date).getTime() - new Date(b.date).getTime();
 
     weightProgress.sort(sortByDate);

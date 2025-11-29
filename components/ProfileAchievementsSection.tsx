@@ -11,7 +11,9 @@ interface ProfileAchievementsSectionProps {
   achievements: Achievement[];
 }
 
-export default function ProfileAchievementsSection({ achievements }: ProfileAchievementsSectionProps) {
+export default function ProfileAchievementsSection({
+  achievements,
+}: ProfileAchievementsSectionProps) {
   return (
     <View style={styles.achievementsContainer}>
       <Text style={styles.sectionTitle}>Achievements</Text>

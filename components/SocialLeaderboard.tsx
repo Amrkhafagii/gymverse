@@ -54,38 +54,32 @@ export default function SocialLeaderboard({ leaderboard, currentUserId }: Social
           <Text style={styles.viewAllText}>View All</Text>
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.leaderboardCard}>
         {leaderboard.map((user, index) => (
           <TouchableOpacity
             key={user.id}
-            style={[
-              styles.leaderboardItem,
-              user.id === currentUserId && styles.currentUserItem
-            ]}
+            style={[styles.leaderboardItem, user.id === currentUserId && styles.currentUserItem]}
           >
             <View style={styles.rankContainer}>
               {getRankIcon(user.rank)}
-              <Text style={[
-                styles.rankText,
-                { color: getRankColor(user.rank) }
-              ]}>
+              <Text style={[styles.rankText, { color: getRankColor(user.rank) }]}>
                 #{user.rank}
               </Text>
             </View>
-            
+
             <Image
               source={{ uri: user.avatar }}
               style={styles.avatar}
               contentFit="cover"
               cachePolicy="memory-disk"
             />
-            
+
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{user.name}</Text>
               <Text style={styles.userHandle}>@{user.username}</Text>
             </View>
-            
+
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{user.points.toLocaleString()}</Text>

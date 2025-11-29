@@ -13,10 +13,10 @@ interface AchievementCategoryFilterProps {
   onCategorySelect: (categoryId: string) => void;
 }
 
-export default function AchievementCategoryFilter({ 
-  categories, 
-  selectedCategory, 
-  onCategorySelect 
+export default function AchievementCategoryFilter({
+  categories,
+  selectedCategory,
+  onCategorySelect,
 }: AchievementCategoryFilterProps) {
   return (
     <View style={styles.categoriesContainer}>
@@ -31,10 +31,7 @@ export default function AchievementCategoryFilter({
             ]}
             onPress={() => onCategorySelect(category.id)}
           >
-            <category.icon 
-              size={18} 
-              color={selectedCategory === category.id ? '#fff' : '#999'} 
-            />
+            <category.icon size={18} color={selectedCategory === category.id ? '#fff' : '#999'} />
             <Text
               style={[
                 styles.categoryButtonText,

@@ -11,19 +11,19 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  X, 
-  Calculator, 
-  Target, 
-  Activity, 
-  Scale, 
-  Ruler, 
-  Calendar, 
-  User, 
+import {
+  X,
+  Calculator,
+  Target,
+  Activity,
+  Scale,
+  Ruler,
+  Calendar,
+  User,
   Info,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
 } from 'lucide-react-native';
 
 interface TDEECalculatorProps {
@@ -79,29 +79,29 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
   ];
 
   const goals = [
-    { 
-      value: 'cutting', 
-      label: 'Cutting', 
+    {
+      value: 'cutting',
+      label: 'Cutting',
       description: '25% deficit for fat loss',
       multiplier: 0.75,
       icon: TrendingDown,
-      color: '#E74C3C'
+      color: '#E74C3C',
     },
-    { 
-      value: 'maintenance', 
-      label: 'Maintenance', 
+    {
+      value: 'maintenance',
+      label: 'Maintenance',
       description: 'Maintain current weight',
       multiplier: 1.0,
       icon: Minus,
-      color: '#4A90E2'
+      color: '#4A90E2',
     },
-    { 
-      value: 'bulking', 
-      label: 'Bulking', 
+    {
+      value: 'bulking',
+      label: 'Bulking',
       description: '10-20% surplus for muscle gain',
       multiplier: 1.15,
       icon: TrendingUp,
-      color: '#27AE60'
+      color: '#27AE60',
     },
   ];
 
@@ -120,7 +120,11 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
       newErrors.age = 'Age must be between 13-100';
     }
 
-    if (!formData.bodyFat || parseFloat(formData.bodyFat) < 5 || parseFloat(formData.bodyFat) > 50) {
+    if (
+      !formData.bodyFat ||
+      parseFloat(formData.bodyFat) < 5 ||
+      parseFloat(formData.bodyFat) > 50
+    ) {
       newErrors.bodyFat = 'Body fat must be between 5-50%';
     }
 
@@ -144,13 +148,13 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
     const lbm = weight * (1 - bodyFat / 100);
 
     // Katch-McArdle BMR formula
-    const bmr = 370 + (21.6 * lbm);
+    const bmr = 370 + 21.6 * lbm;
 
     // Calculate TDEE
     const tdee = bmr * formData.activityLevel;
 
     // Adjust for goal
-    const goalMultiplier = goals.find(g => g.value === formData.goal)?.multiplier || 1.0;
+    const goalMultiplier = goals.find((g) => g.value === formData.goal)?.multiplier || 1.0;
     const adjustedCalories = tdee * goalMultiplier;
 
     // Calculate macros based on Leangains protocol with PERCENTAGE-BASED approach
@@ -161,30 +165,30 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
     if (formData.goal === 'cutting') {
       if (formData.isTrainingDay) {
         // Training day cutting: 30% protein, 35% carbs, 35% fat
-        proteinPercentage = 0.30;
+        proteinPercentage = 0.3;
         carbPercentage = 0.35;
         fatPercentage = 0.35;
       } else {
         // Rest day cutting: 35% protein, 25% carbs, 40% fat
         proteinPercentage = 0.35;
         carbPercentage = 0.25;
-        fatPercentage = 0.40;
+        fatPercentage = 0.4;
       }
     } else if (formData.goal === 'bulking') {
       if (formData.isTrainingDay) {
         // Training day bulking: 25% protein, 45% carbs, 30% fat
         proteinPercentage = 0.25;
         carbPercentage = 0.45;
-        fatPercentage = 0.30;
+        fatPercentage = 0.3;
       } else {
         // Rest day bulking: 30% protein, 35% carbs, 35% fat
-        proteinPercentage = 0.30;
+        proteinPercentage = 0.3;
         carbPercentage = 0.35;
         fatPercentage = 0.35;
       }
     } else {
       // Maintenance: 30% protein, 35% carbs, 35% fat
-      proteinPercentage = 0.30;
+      proteinPercentage = 0.3;
       carbPercentage = 0.35;
       fatPercentage = 0.35;
     }
@@ -238,7 +242,7 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
     return "Don't know your body fat %? Add 20% to your visual estimate. Most people underestimate by 15-20%.";
   };
 
-  const selectedGoal = goals.find(g => g.value === formData.goal);
+  const selectedGoal = goals.find((g) => g.value === formData.goal);
 
   return (
     <Modal
@@ -284,7 +288,7 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
               {/* Basic Information */}
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Basic Information</Text>
-                
+
                 <View style={styles.row}>
                   <View style={[styles.inputContainer, styles.halfWidth]}>
                     <View style={styles.labelWithIcon}>
@@ -297,7 +301,7 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                       style={[styles.input, errors.weight && styles.inputError]}
                       value={formData.weight}
                       onChangeText={(text) => setFormData({ ...formData, weight: text })}
-                      placeholder={formData.isMetric ? "70" : "154"}
+                      placeholder={formData.isMetric ? '70' : '154'}
                       placeholderTextColor="#666"
                       keyboardType="numeric"
                     />
@@ -315,7 +319,7 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                       style={[styles.input, errors.height && styles.inputError]}
                       value={formData.height}
                       onChangeText={(text) => setFormData({ ...formData, height: text })}
-                      placeholder={formData.isMetric ? "175" : "69"}
+                      placeholder={formData.isMetric ? '175' : '69'}
                       placeholderTextColor="#666"
                       keyboardType="numeric"
                     />
@@ -349,16 +353,15 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                       {(['male', 'female'] as const).map((sex) => (
                         <TouchableOpacity
                           key={sex}
-                          style={[
-                            styles.sexButton,
-                            formData.sex === sex && styles.sexButtonActive
-                          ]}
+                          style={[styles.sexButton, formData.sex === sex && styles.sexButtonActive]}
                           onPress={() => setFormData({ ...formData, sex })}
                         >
-                          <Text style={[
-                            styles.sexButtonText,
-                            formData.sex === sex && styles.sexButtonTextActive
-                          ]}>
+                          <Text
+                            style={[
+                              styles.sexButtonText,
+                              formData.sex === sex && styles.sexButtonTextActive,
+                            ]}
+                          >
                             {sex.charAt(0).toUpperCase() + sex.slice(1)}
                           </Text>
                         </TouchableOpacity>
@@ -372,7 +375,7 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                   <View style={styles.labelWithIcon}>
                     <Target size={16} color="#FF6B35" />
                     <Text style={styles.inputLabel}>Body Fat %</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.infoButton}
                       onPress={() => Alert.alert('Body Fat % Hint', getBodyFatHint())}
                     >
@@ -403,20 +406,20 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                     key={level.value}
                     style={[
                       styles.activityButton,
-                      formData.activityLevel === level.value && styles.activityButtonActive
+                      formData.activityLevel === level.value && styles.activityButtonActive,
                     ]}
                     onPress={() => setFormData({ ...formData, activityLevel: level.value })}
                   >
                     <View style={styles.activityContent}>
-                      <Text style={[
-                        styles.activityLabel,
-                        formData.activityLevel === level.value && styles.activityLabelActive
-                      ]}>
+                      <Text
+                        style={[
+                          styles.activityLabel,
+                          formData.activityLevel === level.value && styles.activityLabelActive,
+                        ]}
+                      >
                         {level.label} (×{level.value})
                       </Text>
-                      <Text style={styles.activityDescription}>
-                        {level.description}
-                      </Text>
+                      <Text style={styles.activityDescription}>{level.description}</Text>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -433,7 +436,7 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                       style={[
                         styles.goalButton,
                         formData.goal === goal.value && styles.goalButtonActive,
-                        formData.goal === goal.value && { borderColor: goal.color }
+                        formData.goal === goal.value && { borderColor: goal.color },
                       ]}
                       onPress={() => setFormData({ ...formData, goal: goal.value as any })}
                     >
@@ -441,15 +444,15 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                         <IconComponent size={20} color={goal.color} />
                       </View>
                       <View style={styles.goalContent}>
-                        <Text style={[
-                          styles.goalLabel,
-                          formData.goal === goal.value && styles.goalLabelActive
-                        ]}>
+                        <Text
+                          style={[
+                            styles.goalLabel,
+                            formData.goal === goal.value && styles.goalLabelActive,
+                          ]}
+                        >
                           {goal.label}
                         </Text>
-                        <Text style={styles.goalDescription}>
-                          {goal.description}
-                        </Text>
+                        <Text style={styles.goalDescription}>{goal.description}</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -495,21 +498,30 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                       <Text style={styles.macroValue}>{results?.protein}g</Text>
                       <Text style={styles.macroLabel}>Protein</Text>
                       <Text style={styles.macroPercentage}>
-                        {Math.round((results?.protein || 0) * 4 / (results?.adjustedCalories || 1) * 100)}%
+                        {Math.round(
+                          (((results?.protein || 0) * 4) / (results?.adjustedCalories || 1)) * 100
+                        )}
+                        %
                       </Text>
                     </View>
                     <View style={styles.macroCard}>
                       <Text style={styles.macroValue}>{results?.carbs}g</Text>
                       <Text style={styles.macroLabel}>Carbs</Text>
                       <Text style={styles.macroPercentage}>
-                        {Math.round((results?.carbs || 0) * 4 / (results?.adjustedCalories || 1) * 100)}%
+                        {Math.round(
+                          (((results?.carbs || 0) * 4) / (results?.adjustedCalories || 1)) * 100
+                        )}
+                        %
                       </Text>
                     </View>
                     <View style={styles.macroCard}>
                       <Text style={styles.macroValue}>{results?.fat}g</Text>
                       <Text style={styles.macroLabel}>Fat</Text>
                       <Text style={styles.macroPercentage}>
-                        {Math.round((results?.fat || 0) * 9 / (results?.adjustedCalories || 1) * 100)}%
+                        {Math.round(
+                          (((results?.fat || 0) * 9) / (results?.adjustedCalories || 1)) * 100
+                        )}
+                        %
                       </Text>
                     </View>
                   </View>
@@ -520,38 +532,36 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
                   <Text style={styles.dayToggleTitle}>Day Type</Text>
                   <View style={styles.dayToggle}>
                     <TouchableOpacity
-                      style={[
-                        styles.dayButton,
-                        formData.isTrainingDay && styles.dayButtonActive
-                      ]}
+                      style={[styles.dayButton, formData.isTrainingDay && styles.dayButtonActive]}
                       onPress={() => {
                         setFormData({ ...formData, isTrainingDay: true });
                         const newResults = calculateTDEE();
                         setResults({ ...newResults, isTrainingDay: true } as any);
                       }}
                     >
-                      <Text style={[
-                        styles.dayButtonText,
-                        formData.isTrainingDay && styles.dayButtonTextActive
-                      ]}>
+                      <Text
+                        style={[
+                          styles.dayButtonText,
+                          formData.isTrainingDay && styles.dayButtonTextActive,
+                        ]}
+                      >
                         Training Day
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[
-                        styles.dayButton,
-                        !formData.isTrainingDay && styles.dayButtonActive
-                      ]}
+                      style={[styles.dayButton, !formData.isTrainingDay && styles.dayButtonActive]}
                       onPress={() => {
                         setFormData({ ...formData, isTrainingDay: false });
                         const newResults = calculateTDEE();
                         setResults({ ...newResults, isTrainingDay: false } as any);
                       }}
                     >
-                      <Text style={[
-                        styles.dayButtonText,
-                        !formData.isTrainingDay && styles.dayButtonTextActive
-                      ]}>
+                      <Text
+                        style={[
+                          styles.dayButtonText,
+                          !formData.isTrainingDay && styles.dayButtonTextActive,
+                        ]}
+                      >
                         Rest Day
                       </Text>
                     </TouchableOpacity>
@@ -585,7 +595,10 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
 
                 {/* Action Buttons */}
                 <View style={styles.actionButtons}>
-                  <TouchableOpacity style={styles.recalculateButton} onPress={() => setShowResults(false)}>
+                  <TouchableOpacity
+                    style={styles.recalculateButton}
+                    onPress={() => setShowResults(false)}
+                  >
                     <Text style={styles.recalculateButtonText}>Recalculate</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.resetButton} onPress={handleReset}>

@@ -26,18 +26,10 @@ export default function SegmentedControl<T extends string>({
       {options.map((option) => (
         <TouchableOpacity
           key={option}
-          style={[
-            styles.segment,
-            selectedValue === option && styles.segmentActive,
-          ]}
+          style={[styles.segment, selectedValue === option && styles.segmentActive]}
           onPress={() => onValueChange(option)}
         >
-          <Text
-            style={[
-              styles.segmentText,
-              selectedValue === option && styles.segmentTextActive,
-            ]}
-          >
+          <Text style={[styles.segmentText, selectedValue === option && styles.segmentTextActive]}>
             {getLabel(option)}
           </Text>
         </TouchableOpacity>

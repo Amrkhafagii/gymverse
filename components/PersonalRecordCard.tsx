@@ -10,10 +10,10 @@ interface PersonalRecordCardProps {
   onPress?: () => void;
 }
 
-export default function PersonalRecordCard({ 
-  record, 
+export default function PersonalRecordCard({
+  record,
   showExerciseName = true,
-  onPress 
+  onPress,
 }: PersonalRecordCardProps) {
   const getRecordIcon = (recordType: string) => {
     switch (recordType) {
@@ -64,7 +64,7 @@ export default function PersonalRecordCard({
     const date = new Date(dateString);
     const now = new Date();
     const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return 'Today';
     if (diffInDays === 1) return 'Yesterday';
     if (diffInDays < 7) return `${diffInDays} days ago`;
@@ -81,7 +81,7 @@ export default function PersonalRecordCard({
       <View style={[styles.iconContainer, { backgroundColor: `${recordColor}20` }]}>
         <IconComponent size={24} color={recordColor} />
       </View>
-      
+
       <View style={styles.content}>
         {showExerciseName && record.exercise && (
           <Text style={styles.exerciseName}>{record.exercise.name}</Text>
@@ -92,7 +92,7 @@ export default function PersonalRecordCard({
         </Text>
         <Text style={styles.recordDate}>{formatDate(record.achieved_at)}</Text>
       </View>
-      
+
       <View style={styles.badge}>
         <Text style={styles.badgeText}>PR</Text>
       </View>

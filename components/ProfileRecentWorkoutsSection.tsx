@@ -14,9 +14,9 @@ interface ProfileRecentWorkoutsSectionProps {
   onSeeAllPress: () => void;
 }
 
-export default function ProfileRecentWorkoutsSection({ 
-  recentWorkouts, 
-  onSeeAllPress 
+export default function ProfileRecentWorkoutsSection({
+  recentWorkouts,
+  onSeeAllPress,
 }: ProfileRecentWorkoutsSectionProps) {
   return (
     <View style={styles.recentActivityContainer}>

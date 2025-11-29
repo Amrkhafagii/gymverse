@@ -13,7 +13,17 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Save, X, Calendar, Ruler, Weight, Activity, Globe, Lock } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Save,
+  X,
+  Calendar,
+  Ruler,
+  Weight,
+  Activity,
+  Globe,
+  Lock,
+} from 'lucide-react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -96,7 +106,8 @@ export default function EditProfileScreen() {
         dateOfBirth: profile.date_of_birth || '',
         heightCm: profile.height_cm?.toString() || '',
         weightKg: profile.weight_kg?.toString() || '',
-        fitnessLevel: (profile.fitness_level as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
+        fitnessLevel:
+          (profile.fitness_level as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
         preferredUnits: (profile.preferred_units as 'metric' | 'imperial') || 'metric',
         isPublic: profile.is_public ?? true,
       };
@@ -151,14 +162,10 @@ export default function EditProfileScreen() {
 
   const handleCancel = () => {
     if (hasChanges) {
-      Alert.alert(
-        'Discard Changes',
-        'Are you sure you want to discard your changes?',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => router.back() },
-        ]
-      );
+      Alert.alert('Discard Changes', 'Are you sure you want to discard your changes?', [
+        { text: 'Keep Editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+      ]);
     } else {
       router.back();
     }
@@ -196,19 +203,14 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
           <TouchableOpacity
-            style={[
-              styles.headerButton,
-              (!hasChanges || loading) && styles.disabledButton
-            ]}
+            style={[styles.headerButton, (!hasChanges || loading) && styles.disabledButton]}
             onPress={handleSubmit(handleSave)}
             disabled={!hasChanges || loading}
           >
-            <Save size={24} color={hasChanges && !loading ? "#FF6B35" : "#666"} />
+            <Save size={24} color={hasChanges && !loading ? '#FF6B35' : '#666'} />
           </TouchableOpacity>
         </View>
-        {hasChanges && (
-          <Text style={styles.changesIndicator}>You have unsaved changes</Text>
-        )}
+        {hasChanges && <Text style={styles.changesIndicator}>You have unsaved changes</Text>}
       </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -224,7 +226,7 @@ export default function EditProfileScreen() {
         {/* Basic Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Basic Information</Text>
-          
+
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Full Name</Text>
             <Controller
@@ -242,7 +244,9 @@ export default function EditProfileScreen() {
                     autoCapitalize="words"
                     maxLength={100}
                   />
-                  {errors.fullName && <Text style={styles.errorText}>{errors.fullName.message}</Text>}
+                  {errors.fullName && (
+                    <Text style={styles.errorText}>{errors.fullName.message}</Text>
+                  )}
                 </>
               )}
             />
@@ -298,14 +302,16 @@ export default function EditProfileScreen() {
                 {formatDateForDisplay(watch('dateOfBirth') || '')}
               </Text>
             )}
-            {errors.dateOfBirth && <Text style={styles.errorText}>{errors.dateOfBirth.message}</Text>}
+            {errors.dateOfBirth && (
+              <Text style={styles.errorText}>{errors.dateOfBirth.message}</Text>
+            )}
           </View>
         </View>
 
         {/* Physical Stats */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Physical Stats</Text>
-          
+
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
               <View style={styles.labelWithIcon}>
@@ -321,7 +327,9 @@ export default function EditProfileScreen() {
                   <>
                     <TextInput
                       style={[styles.input, errors.heightCm && styles.inputError]}
-                      value={watch('preferredUnits') === 'metric' ? value : convertHeight(value || '')}
+                      value={
+                        watch('preferredUnits') === 'metric' ? value : convertHeight(value || '')
+                      }
                       onChangeText={(text) => {
                         if (watch('preferredUnits') === 'metric') {
                           onChange(text);
@@ -339,11 +347,13 @@ export default function EditProfileScreen() {
                         }
                       }}
                       onBlur={onBlur}
-                      placeholder={watch('preferredUnits') === 'metric' ? "170" : "5'8\""}
+                      placeholder={watch('preferredUnits') === 'metric' ? '170' : '5\'8"'}
                       placeholderTextColor="#999"
                       keyboardType="numeric"
                     />
-                    {errors.heightCm && <Text style={styles.errorText}>{errors.heightCm.message}</Text>}
+                    {errors.heightCm && (
+                      <Text style={styles.errorText}>{errors.heightCm.message}</Text>
+                    )}
                   </>
                 )}
               />
@@ -363,7 +373,9 @@ export default function EditProfileScreen() {
                   <>
                     <TextInput
                       style={[styles.input, errors.weightKg && styles.inputError]}
-                      value={watch('preferredUnits') === 'metric' ? value : convertWeight(value || '')}
+                      value={
+                        watch('preferredUnits') === 'metric' ? value : convertWeight(value || '')
+                      }
                       onChangeText={(text) => {
                         if (watch('preferredUnits') === 'metric') {
                           onChange(text);
@@ -378,11 +390,13 @@ export default function EditProfileScreen() {
                         }
                       }}
                       onBlur={onBlur}
-                      placeholder={watch('preferredUnits') === 'metric' ? "70" : "154"}
+                      placeholder={watch('preferredUnits') === 'metric' ? '70' : '154'}
                       placeholderTextColor="#999"
                       keyboardType="numeric"
                     />
-                    {errors.weightKg && <Text style={styles.errorText}>{errors.weightKg.message}</Text>}
+                    {errors.weightKg && (
+                      <Text style={styles.errorText}>{errors.weightKg.message}</Text>
+                    )}
                   </>
                 )}
               />
@@ -393,7 +407,7 @@ export default function EditProfileScreen() {
         {/* Fitness Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Fitness Information</Text>
-          
+
           <View style={styles.inputContainer}>
             <View style={styles.labelWithIcon}>
               <Activity size={16} color="#9B59B6" />
@@ -407,16 +421,15 @@ export default function EditProfileScreen() {
                   {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
                     <TouchableOpacity
                       key={level}
-                      style={[
-                        styles.segmentButton,
-                        value === level && styles.segmentButtonActive
-                      ]}
+                      style={[styles.segmentButton, value === level && styles.segmentButtonActive]}
                       onPress={() => onChange(level)}
                     >
-                      <Text style={[
-                        styles.segmentButtonText,
-                        value === level && styles.segmentButtonTextActive
-                      ]}>
+                      <Text
+                        style={[
+                          styles.segmentButtonText,
+                          value === level && styles.segmentButtonTextActive,
+                        ]}
+                      >
                         {level.charAt(0).toUpperCase() + level.slice(1)}
                       </Text>
                     </TouchableOpacity>
@@ -436,16 +449,15 @@ export default function EditProfileScreen() {
                   {(['metric', 'imperial'] as const).map((unit) => (
                     <TouchableOpacity
                       key={unit}
-                      style={[
-                        styles.segmentButton,
-                        value === unit && styles.segmentButtonActive
-                      ]}
+                      style={[styles.segmentButton, value === unit && styles.segmentButtonActive]}
                       onPress={() => onChange(unit)}
                     >
-                      <Text style={[
-                        styles.segmentButtonText,
-                        value === unit && styles.segmentButtonTextActive
-                      ]}>
+                      <Text
+                        style={[
+                          styles.segmentButtonText,
+                          value === unit && styles.segmentButtonTextActive,
+                        ]}
+                      >
                         {unit === 'metric' ? 'Metric (kg, cm)' : 'Imperial (lbs, ft/in)'}
                       </Text>
                     </TouchableOpacity>
@@ -459,7 +471,7 @@ export default function EditProfileScreen() {
         {/* Privacy Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Privacy Settings</Text>
-          
+
           <Controller
             control={control}
             name="isPublic"
@@ -475,10 +487,9 @@ export default function EditProfileScreen() {
                     <Text style={styles.switchLabel}>Public Profile</Text>
                   </View>
                   <Text style={styles.switchDescription}>
-                    {value 
+                    {value
                       ? 'Your profile is visible to other users. They can see your achievements and progress.'
-                      : 'Your profile is private. Only you can see your data and achievements.'
-                    }
+                      : 'Your profile is private. Only you can see your data and achievements.'}
                   </Text>
                 </View>
                 <Switch
@@ -493,10 +504,7 @@ export default function EditProfileScreen() {
         </View>
 
         <TouchableOpacity
-          style={[
-            styles.saveButton,
-            (!hasChanges || loading) && styles.disabledButton
-          ]}
+          style={[styles.saveButton, (!hasChanges || loading) && styles.disabledButton]}
           onPress={handleSubmit(handleSave)}
           disabled={!hasChanges || loading}
         >
@@ -505,9 +513,7 @@ export default function EditProfileScreen() {
             style={styles.saveButtonGradient}
           >
             <Save size={20} color="#fff" />
-            <Text style={styles.saveButtonText}>
-              {loading ? 'Saving...' : 'Save Changes'}
-            </Text>
+            <Text style={styles.saveButtonText}>{loading ? 'Saving...' : 'Save Changes'}</Text>
           </LinearGradient>
         </TouchableOpacity>
 

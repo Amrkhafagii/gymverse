@@ -6,7 +6,12 @@ export function OfflineBanner() {
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.surfaceAlt, borderColor: colors.border || '#333' }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: colors.surfaceAlt, borderColor: colors.border || '#333' },
+      ]}
+    >
       <WifiOff size={18} color={colors.text} />
       <Text style={[styles.text, { color: colors.text }]}>You are offline</Text>
     </View>

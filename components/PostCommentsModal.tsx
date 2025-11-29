@@ -52,13 +52,13 @@ export default function PostCommentsModal({
 
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) return `${diffInHours}h ago`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays}d ago`;
-    
+
     return commentDate.toLocaleDateString();
   };
 
@@ -69,7 +69,7 @@ export default function PostCommentsModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
@@ -91,10 +91,12 @@ export default function PostCommentsModal({
           ) : (
             comments.map((comment) => (
               <View key={comment.id} style={styles.commentCard}>
-                <Image 
-                  source={{ 
-                    uri: comment.profile.avatar_url || 'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2'
-                  }} 
+                <Image
+                  source={{
+                    uri:
+                      comment.profile.avatar_url ||
+                      'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
+                  }}
                   style={styles.commentAvatar}
                   contentFit="cover"
                   cachePolicy="memory-disk"
@@ -104,9 +106,7 @@ export default function PostCommentsModal({
                     <Text style={styles.commentAuthor}>
                       {comment.profile.full_name || comment.profile.username}
                     </Text>
-                    <Text style={styles.commentTime}>
-                      {formatTimeAgo(comment.created_at)}
-                    </Text>
+                    <Text style={styles.commentTime}>{formatTimeAgo(comment.created_at)}</Text>
                   </View>
                   <Text style={styles.commentText}>{comment.content}</Text>
                 </View>
@@ -134,7 +134,7 @@ export default function PostCommentsModal({
               onPress={handleSubmitComment}
               disabled={!newComment.trim() || submitting}
             >
-              <Send size={20} color={!newComment.trim() || submitting ? "#666" : "#FF6B35"} />
+              <Send size={20} color={!newComment.trim() || submitting ? '#666' : '#FF6B35'} />
             </TouchableOpacity>
           </View>
         )}

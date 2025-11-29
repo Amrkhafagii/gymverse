@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Trash2, ChevronUp, ChevronDown, CreditCard as Edit3, Check, X } from 'lucide-react-native';
 import { Exercise } from '@/lib/supabase';
@@ -60,8 +53,8 @@ export default function WorkoutExerciseCard({
       if (editData.target_reps.trim()) {
         const reps = editData.target_reps
           .split(',')
-          .map(r => parseInt(r.trim()))
-          .filter(r => !isNaN(r));
+          .map((r) => parseInt(r.trim()))
+          .filter((r) => !isNaN(r));
         updates.target_reps = reps.length > 0 ? reps : [8];
       } else {
         updates.target_reps = [];
@@ -140,10 +133,7 @@ export default function WorkoutExerciseCard({
               <ChevronDown size={16} color="#999" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setIsEditing(!isEditing)}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={() => setIsEditing(!isEditing)}>
             <Edit3 size={16} color="#4A90E2" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={handleRemove}>
@@ -211,7 +201,9 @@ export default function WorkoutExerciseCard({
                 <TextInput
                   style={styles.editInput}
                   value={editData.target_duration_seconds}
-                  onChangeText={(text) => setEditData({ ...editData, target_duration_seconds: text })}
+                  onChangeText={(text) =>
+                    setEditData({ ...editData, target_duration_seconds: text })
+                  }
                   keyboardType="numeric"
                   placeholder="300"
                   placeholderTextColor="#666"

@@ -11,7 +11,17 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, Search, Trophy, Users, TrendingUp, Heart, MessageCircle, Share2, Filter } from 'lucide-react-native';
+import {
+  Plus,
+  Search,
+  Trophy,
+  Users,
+  TrendingUp,
+  Heart,
+  MessageCircle,
+  Share2,
+  Filter,
+} from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocialFeed } from '@/hooks/useSocialFeed';
 import SocialFeedPost from '@/components/SocialFeedPost';
@@ -45,45 +55,49 @@ export default function SocialScreen() {
 
   // Mock leaderboard data - in production, this would come from the database
   const leaderboard = [
-    { 
+    {
       id: '1',
-      name: 'Alex Thompson', 
+      name: 'Alex Thompson',
       username: 'alex_fit',
-      points: 2450, 
-      rank: 1, 
-      avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
+      points: 2450,
+      rank: 1,
+      avatar:
+        'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
       streak: 28,
-      workouts: 156
+      workouts: 156,
     },
-    { 
+    {
       id: '2',
-      name: 'Sarah Johnson', 
+      name: 'Sarah Johnson',
       username: 'sarah_strong',
-      points: 2380, 
-      rank: 2, 
-      avatar: 'https://images.pexels.com/photos/3823488/pexels-photo-3823488.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
+      points: 2380,
+      rank: 2,
+      avatar:
+        'https://images.pexels.com/photos/3823488/pexels-photo-3823488.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
       streak: 21,
-      workouts: 142
+      workouts: 142,
     },
-    { 
+    {
       id: '3',
-      name: 'Mike Chen', 
+      name: 'Mike Chen',
       username: 'mike_muscle',
-      points: 2290, 
-      rank: 3, 
-      avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
+      points: 2290,
+      rank: 3,
+      avatar:
+        'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
       streak: 15,
-      workouts: 128
+      workouts: 128,
     },
-    { 
+    {
       id: user?.id || '4',
-      name: 'You', 
+      name: 'You',
       username: 'your_username',
-      points: 2180, 
-      rank: 4, 
-      avatar: 'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
+      points: 2180,
+      rank: 4,
+      avatar:
+        'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
       streak: 12,
-      workouts: 98
+      workouts: 98,
     },
   ];
 
@@ -121,27 +135,26 @@ export default function SocialScreen() {
   };
 
   const handleDeletePost = async (postId: number) => {
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to delete this post?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: async () => {
-            try {
-              await deletePost(postId);
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete post. Please try again.');
-            }
+    Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deletePost(postId);
+          } catch (error) {
+            Alert.alert('Error', 'Failed to delete post. Please try again.');
           }
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  const handleCreatePost = async (content: string, type: 'general' | 'workout' | 'achievement' | 'progress') => {
+  const handleCreatePost = async (
+    content: string,
+    type: 'general' | 'workout' | 'achievement' | 'progress'
+  ) => {
     try {
       switch (type) {
         case 'workout':
@@ -164,11 +177,12 @@ export default function SocialScreen() {
   };
 
   const filteredPosts = useMemo(
-    () => (selectedFilter === 'all' ? posts : posts.filter(post => post.post_type === selectedFilter)),
+    () =>
+      selectedFilter === 'all' ? posts : posts.filter((post) => post.post_type === selectedFilter),
     [posts, selectedFilter]
   );
 
-  const renderPost = ({ item }: ListRenderItemInfo<typeof posts[number]>) => (
+  const renderPost = ({ item }: ListRenderItemInfo<(typeof posts)[number]>) => (
     <SocialFeedPost
       post={item}
       onLike={() => handleLike(item.id)}
@@ -185,9 +199,7 @@ export default function SocialScreen() {
         renderItem={renderPost}
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refreshFeed} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshFeed} />}
         ListHeaderComponent={
           <>
             <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
@@ -197,7 +209,7 @@ export default function SocialScreen() {
                   <TouchableOpacity style={styles.headerButton}>
                     <Search size={24} color="#fff" />
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.headerButton}
                     onPress={() => setShowCreatePost(true)}
                   >
@@ -239,10 +251,12 @@ export default function SocialScreen() {
                     onPress={() => setSelectedFilter(filter.id)}
                   >
                     <filter.icon size={16} color={selectedFilter === filter.id ? '#fff' : '#ccc'} />
-                    <Text style={[
-                      styles.filterButtonText,
-                      selectedFilter === filter.id && styles.filterButtonTextActive,
-                    ]}>
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        selectedFilter === filter.id && styles.filterButtonTextActive,
+                      ]}
+                    >
                       {filter.name}
                     </Text>
                   </TouchableOpacity>
@@ -251,7 +265,11 @@ export default function SocialScreen() {
             </View>
 
             {/* Quick Filters */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickFilters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.quickFilters}
+            >
               <TouchableOpacity style={styles.quickFilterButton}>
                 <Filter size={16} color="#fff" />
                 <Text style={styles.quickFilterText}>Trending</Text>
@@ -273,12 +291,22 @@ export default function SocialScreen() {
             {/* Social Feed States */}
             {loading && <ScreenState variant="loading" title="Loading feed..." />}
             {!loading && filteredPosts.length === 0 && (
-              <ScreenState variant="empty" title="No posts yet" message="Create your first post to share with friends." />
+              <ScreenState
+                variant="empty"
+                title="No posts yet"
+                message="Create your first post to share with friends."
+              />
             )}
           </>
         }
         ListEmptyComponent={
-          !loading ? <ScreenState variant="empty" title="No posts yet" message="Create your first post to share with friends." /> : null
+          !loading ? (
+            <ScreenState
+              variant="empty"
+              title="No posts yet"
+              message="Create your first post to share with friends."
+            />
+          ) : null
         }
         contentContainerStyle={styles.listContent}
       />
@@ -287,7 +315,9 @@ export default function SocialScreen() {
         visible={showCreatePost}
         onClose={() => setShowCreatePost(false)}
         onCreatePost={handleCreatePost}
-        onCreateAchievementPost={(content, achievementId) => createAchievementPost(content, achievementId)}
+        onCreateAchievementPost={(content, achievementId) =>
+          createAchievementPost(content, achievementId)
+        }
         onCreateProgressPost={(content, mediaUrls) => createProgressPost(content, mediaUrls)}
       />
 

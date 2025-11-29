@@ -37,33 +37,33 @@ export function usePostComments(postId: number, userId?: string) {
         },
         async (payload) => {
           console.log('Comment change detected:', payload);
-          
+
           if (payload.eventType === 'INSERT') {
             // Add new comment
             const { data: newComment, error } = await supabase
               .from('post_comments')
-              .select(`
+              .select(
+                `
                 *,
                 profile:profiles(username, full_name, avatar_url)
-              `)
+              `
+              )
               .eq('id', payload.new.id)
               .single();
 
             if (!error && newComment) {
-              setComments(prevComments => [...prevComments, newComment as PostComment]);
+              setComments((prevComments) => [...prevComments, newComment as PostComment]);
             }
           } else if (payload.eventType === 'DELETE') {
             // Remove deleted comment
-            setComments(prevComments =>
-              prevComments.filter(comment => comment.id !== payload.old.id)
+            setComments((prevComments) =>
+              prevComments.filter((comment) => comment.id !== payload.old.id)
             );
           } else if (payload.eventType === 'UPDATE') {
             // Update existing comment
-            setComments(prevComments =>
-              prevComments.map(comment =>
-                comment.id === payload.new.id
-                  ? { ...comment, ...payload.new }
-                  : comment
+            setComments((prevComments) =>
+              prevComments.map((comment) =>
+                comment.id === payload.new.id ? { ...comment, ...payload.new } : comment
               )
             );
           }

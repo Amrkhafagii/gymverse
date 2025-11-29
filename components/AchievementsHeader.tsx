@@ -9,10 +9,10 @@ interface AchievementsHeaderProps {
   completionPercentage: number;
 }
 
-export default function AchievementsHeader({ 
-  unlockedCount, 
-  totalPoints, 
-  completionPercentage 
+export default function AchievementsHeader({
+  unlockedCount,
+  totalPoints,
+  completionPercentage,
 }: AchievementsHeaderProps) {
   const getRankTitle = (points: number) => {
     if (points >= 1000) return 'Fitness Legend';
@@ -49,7 +49,7 @@ export default function AchievementsHeader({
     <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
       <Text style={styles.headerTitle}>Achievements</Text>
       <Text style={styles.headerSubtitle}>Track your fitness milestones</Text>
-      
+
       {/* Rank Display */}
       <View style={styles.rankContainer}>
         <View style={[styles.rankIcon, { backgroundColor: `${rankColor}20` }]}>
@@ -62,17 +62,19 @@ export default function AchievementsHeader({
           </Text>
         </View>
       </View>
-      
+
       {/* Progress Ring */}
       <View style={styles.progressRingContainer}>
         <View style={styles.progressRing}>
-          <View style={[
-            styles.progressRingFill,
-            {
-              transform: [{ rotate: `${(completionPercentage / 100) * 360}deg` }],
-              borderColor: rankColor,
-            }
-          ]} />
+          <View
+            style={[
+              styles.progressRingFill,
+              {
+                transform: [{ rotate: `${(completionPercentage / 100) * 360}deg` }],
+                borderColor: rankColor,
+              },
+            ]}
+          />
           <View style={styles.progressRingCenter}>
             <Text style={styles.progressPercentage}>{completionPercentage}%</Text>
             <Text style={styles.progressLabel}>Complete</Text>

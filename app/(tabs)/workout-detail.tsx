@@ -1,26 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  Play,
-  Clock,
-  Target,
-  TrendingUp,
-  ArrowLeft,
-  Dumbbell,
-} from 'lucide-react-native';
- import { supabase, Workout, Exercise } from '@/lib/supabase';
- import { routes } from '@/utils/routes';
- import { useTheme } from '@/theme/ThemeProvider';
+import { Play, Clock, Target, TrendingUp, ArrowLeft, Dumbbell } from 'lucide-react-native';
+import { supabase, Workout, Exercise } from '@/lib/supabase';
+import { routes } from '@/utils/routes';
+import { useTheme } from '@/theme/ThemeProvider';
 
 interface WorkoutExercise {
   id: number;
@@ -84,10 +70,12 @@ export default function WorkoutDetailScreen() {
       // Load workout exercises with exercise details
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('workout_exercises')
-        .select(`
+        .select(
+          `
           *,
           exercise:exercises(*)
-        `)
+        `
+        )
         .eq('workout_id', workoutId)
         .order('order_index');
 
@@ -106,7 +94,7 @@ export default function WorkoutDetailScreen() {
 
   const startWorkout = () => {
     if (!workout) return;
-    
+
     router.push(routes.workoutSession(workoutId, workout.name || 'Workout'));
   };
 
@@ -178,31 +166,49 @@ export default function WorkoutDetailScreen() {
 
   // Main content - only render when workout is not null
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      showsVerticalScrollIndicator={false}
+    >
       <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
-        
+
         <Text style={styles.workoutTitle}>{workout?.name || 'Untitled Workout'}</Text>
         {workout?.description && (
           <Text style={styles.workoutDescription}>{workout.description}</Text>
         )}
-        
+
         <View style={styles.workoutMeta}>
           <View style={styles.metaItem}>
             <Clock size={16} color={colors.primary} />
-            <Text style={[styles.metaText, { color: colors.text }]}>{workout?.estimated_duration_minutes || 0} min</Text>
+            <Text style={[styles.metaText, { color: colors.text }]}>
+              {workout?.estimated_duration_minutes || 0} min
+            </Text>
           </View>
           <View style={styles.metaItem}>
             <Target size={16} color={getDifficultyColor(workout?.difficulty_level || 'beginner')} />
-            <Text style={[styles.metaText, { color: getDifficultyColor(workout?.difficulty_level || 'beginner') }]}>
+            <Text
+              style={[
+                styles.metaText,
+                { color: getDifficultyColor(workout?.difficulty_level || 'beginner') },
+              ]}
+            >
               {workout?.difficulty_level || 'beginner'}
             </Text>
           </View>
           <View style={styles.metaItem}>
-            <TrendingUp size={16} color={getWorkoutTypeColor(workout?.workout_type || 'strength')} />
-            <Text style={[styles.metaText, { color: getWorkoutTypeColor(workout?.workout_type || 'strength') }]}>
+            <TrendingUp
+              size={16}
+              color={getWorkoutTypeColor(workout?.workout_type || 'strength')}
+            />
+            <Text
+              style={[
+                styles.metaText,
+                { color: getWorkoutTypeColor(workout?.workout_type || 'strength') },
+              ]}
+            >
               {workout?.workout_type || 'strength'}
             </Text>
           </View>
@@ -223,9 +229,12 @@ export default function WorkoutDetailScreen() {
           </View>
           <View style={[styles.statCard, { backgroundColor: cardBg, borderColor }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>
-              {exercises.length > 0 
-                ? Math.round(exercises.reduce((total, ex) => total + ex.rest_seconds, 0) / exercises.length)
-                : 0}s
+              {exercises.length > 0
+                ? Math.round(
+                    exercises.reduce((total, ex) => total + ex.rest_seconds, 0) / exercises.length
+                  )
+                : 0}
+              s
             </Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Avg Rest</Text>
           </View>
@@ -235,7 +244,10 @@ export default function WorkoutDetailScreen() {
           <View style={styles.exercisesSection}>
             <Text style={styles.sectionTitle}>Exercises</Text>
             {exercises.map((workoutExercise, index) => (
-              <View key={workoutExercise.id} style={[styles.exerciseCard, { backgroundColor: cardBg, borderColor }]}>
+              <View
+                key={workoutExercise.id}
+                style={[styles.exerciseCard, { backgroundColor: cardBg, borderColor }]}
+              >
                 <View style={styles.exerciseHeader}>
                   <View style={[styles.exerciseNumber, { backgroundColor: colors.primary }]}>
                     <Text style={styles.exerciseNumberText}>{index + 1}</Text>
@@ -302,19 +314,17 @@ export default function WorkoutDetailScreen() {
           <View style={styles.noExercisesContainer}>
             <Dumbbell size={48} color="#666" />
             <Text style={styles.noExercisesTitle}>No Exercises</Text>
-            <Text style={styles.noExercisesText}>
-              This workout doesn't have any exercises yet.
-            </Text>
+            <Text style={styles.noExercisesText}>This workout doesn't have any exercises yet.</Text>
           </View>
         )}
 
-        <TouchableOpacity 
-          style={[styles.startWorkoutButton, exercises.length === 0 && styles.disabledButton]} 
+        <TouchableOpacity
+          style={[styles.startWorkoutButton, exercises.length === 0 && styles.disabledButton]}
           onPress={startWorkout}
           disabled={exercises.length === 0}
         >
-          <LinearGradient 
-            colors={exercises.length > 0 ? ['#FF6B35', '#FF8C42'] : ['#666', '#666']} 
+          <LinearGradient
+            colors={exercises.length > 0 ? ['#FF6B35', '#FF8C42'] : ['#666', '#666']}
             style={styles.startWorkoutGradient}
           >
             <Play size={24} color="#fff" />

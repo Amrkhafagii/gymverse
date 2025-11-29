@@ -15,29 +15,26 @@ import { colors as tokens } from '@/theme/tokens';
 export default function ProgressScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
-  const { 
-    workoutSessions, 
-    streak, 
-    stats, 
+  const {
+    workoutSessions,
+    streak,
+    stats,
     personalRecordsCount,
-    weeklyProgress, 
-    monthlyProgress, 
-    loading, 
+    weeklyProgress,
+    monthlyProgress,
+    loading,
     error,
-    refreshAnalytics 
+    refreshAnalytics,
   } = useWorkoutAnalytics(user?.id || null);
-  
-  const { 
-    personalRecords, 
+
+  const {
+    personalRecords,
     loading: recordsLoading,
-    refreshRecords 
+    refreshRecords,
   } = usePersonalRecords(user?.id || null);
 
   const handleRefresh = async () => {
-    await Promise.all([
-      refreshAnalytics(),
-      refreshRecords(),
-    ]);
+    await Promise.all([refreshAnalytics(), refreshRecords()]);
   };
 
   const getChangeText = (current: number, previous: number, unit: string = '') => {
@@ -46,7 +43,10 @@ export default function ProgressScreen() {
     return `${sign}${diff}${unit} this week`;
   };
 
-  const getChangeType = (current: number, previous: number): 'positive' | 'negative' | 'neutral' => {
+  const getChangeType = (
+    current: number,
+    previous: number
+  ): 'positive' | 'negative' | 'neutral' => {
     if (current > previous) return 'positive';
     if (current < previous) return 'negative';
     return 'neutral';
@@ -54,7 +54,10 @@ export default function ProgressScreen() {
 
   // Calculate previous week stats for comparison
   const previousWeekWorkouts = Math.max(0, stats.workoutsThisMonth - stats.workoutsThisWeek);
-  const previousWeekDuration = Math.max(0, stats.totalDuration - weeklyProgress.reduce((a, b) => a + b, 0));
+  const previousWeekDuration = Math.max(
+    0,
+    stats.totalDuration - weeklyProgress.reduce((a, b) => a + b, 0)
+  );
 
   const statsData = [
     {
@@ -68,7 +71,10 @@ export default function ProgressScreen() {
     {
       label: 'Current Streak',
       value: `${streak?.current_streak || 0} days`,
-      change: streak?.current_streak === streak?.longest_streak && (streak?.current_streak || 0) > 0 ? 'Personal best!' : undefined,
+      change:
+        streak?.current_streak === streak?.longest_streak && (streak?.current_streak || 0) > 0
+          ? 'Personal best!'
+          : undefined,
       changeType: 'positive' as const,
       icon: Zap,
       color: colors.success,
@@ -84,8 +90,15 @@ export default function ProgressScreen() {
     {
       label: 'Total Time',
       value: `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m`,
-      change: getChangeText(weeklyProgress.reduce((a, b) => a + b, 0), previousWeekDuration, ' min'),
-      changeType: getChangeType(weeklyProgress.reduce((a, b) => a + b, 0), previousWeekDuration),
+      change: getChangeText(
+        weeklyProgress.reduce((a, b) => a + b, 0),
+        previousWeekDuration,
+        ' min'
+      ),
+      changeType: getChangeType(
+        weeklyProgress.reduce((a, b) => a + b, 0),
+        previousWeekDuration
+      ),
       icon: Clock,
       color: tokens.dark.info,
     },
@@ -95,9 +108,7 @@ export default function ProgressScreen() {
     return (
       <ScrollView
         style={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={handleRefresh} />}
       >
         <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
           <Text style={styles.headerTitle}>Progress</Text>
@@ -116,12 +127,10 @@ export default function ProgressScreen() {
   }
 
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: colors.background }]} 
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={handleRefresh} />}
     >
       <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
         <Text style={styles.headerTitle}>Progress</Text>
@@ -221,10 +230,9 @@ export default function ProgressScreen() {
             <TrendingUp size={32} color="#fff" />
             <Text style={styles.motivationTitle}>Keep it up! 🎉</Text>
             <Text style={styles.motivationText}>
-              {stats.workoutsThisWeek > 0 
+              {stats.workoutsThisWeek > 0
                 ? `You've completed ${stats.workoutsThisWeek} workout${stats.workoutsThisWeek > 1 ? 's' : ''} this week. You're building great habits!`
-                : "Ready to start a new week? Your next workout is waiting!"
-              }
+                : 'Ready to start a new week? Your next workout is waiting!'}
             </Text>
           </LinearGradient>
         </View>

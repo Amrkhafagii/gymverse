@@ -25,9 +25,12 @@ export function useSocialFeed(userId?: string) {
     staleTime: 30 * 1000,
   });
 
-  const setFeed = useCallback((updater: (prev: SocialFeedPost[]) => SocialFeedPost[]) => {
-    queryClient.setQueryData<SocialFeedPost[]>(feedKey, (prev = []) => updater(prev));
-  }, [feedKey, queryClient]);
+  const setFeed = useCallback(
+    (updater: (prev: SocialFeedPost[]) => SocialFeedPost[]) => {
+      queryClient.setQueryData<SocialFeedPost[]>(feedKey, (prev = []) => updater(prev));
+    },
+    [feedKey, queryClient]
+  );
 
   // Set up realtime subscriptions
   useEffect(() => {
@@ -47,25 +50,21 @@ export function useSocialFeed(userId?: string) {
         },
         async (payload) => {
           console.log('Post change detected:', payload);
-          
+
           if (payload.eventType === 'INSERT') {
             // Add new post to the beginning of the feed
             const newPost = await getSocialFeedWithStats(userId, 1);
             if (newPost.length > 0) {
-              setFeed(prevPosts => [newPost[0], ...prevPosts]);
+              setFeed((prevPosts) => [newPost[0], ...prevPosts]);
             }
           } else if (payload.eventType === 'DELETE') {
             // Remove deleted post from feed
-            setFeed(prevPosts => 
-              prevPosts.filter(post => post.id !== payload.old.id)
-            );
+            setFeed((prevPosts) => prevPosts.filter((post) => post.id !== payload.old.id));
           } else if (payload.eventType === 'UPDATE') {
             // Update existing post
-            setFeed(prevPosts =>
-              prevPosts.map(post =>
-                post.id === payload.new.id
-                  ? { ...post, ...payload.new }
-                  : post
+            setFeed((prevPosts) =>
+              prevPosts.map((post) =>
+                post.id === payload.new.id ? { ...post, ...payload.new } : post
               )
             );
           }
@@ -85,13 +84,13 @@ export function useSocialFeed(userId?: string) {
         },
         async (payload) => {
           console.log('Like change detected:', payload);
-          
+
           const postId = payload.new?.post_id || payload.old?.post_id;
           if (!postId) return;
 
           // Update the likes count for the affected post
-          setFeed(prevPosts =>
-            prevPosts.map(post => {
+          setFeed((prevPosts) =>
+            prevPosts.map((post) => {
               if (post.id === postId) {
                 if (payload.eventType === 'INSERT') {
                   return {
@@ -126,13 +125,13 @@ export function useSocialFeed(userId?: string) {
         },
         async (payload) => {
           console.log('Comment change detected:', payload);
-          
+
           const postId = payload.new?.post_id || payload.old?.post_id;
           if (!postId) return;
 
           // Update the comments count for the affected post
-          setFeed(prevPosts =>
-            prevPosts.map(post => {
+          setFeed((prevPosts) =>
+            prevPosts.map((post) => {
               if (post.id === postId) {
                 if (payload.eventType === 'INSERT') {
                   return {
@@ -170,8 +169,8 @@ export function useSocialFeed(userId?: string) {
       await queryClient.cancelQueries({ queryKey: feedKey });
       const previous = queryClient.getQueryData<SocialFeedPost[]>(feedKey);
 
-      setFeed(prev =>
-        prev.map(post =>
+      setFeed((prev) =>
+        prev.map((post) =>
           post.id === postId
             ? {
                 ...post,
@@ -200,18 +199,16 @@ export function useSocialFeed(userId?: string) {
 
     try {
       const comment = await addPostComment(postId, userId, content);
-      
+
       if (comment) {
         // Optimistically update the comments count
-        setFeed(prevPosts =>
-          prevPosts.map(post =>
-            post.id === postId
-              ? { ...post, comments_count: post.comments_count + 1 }
-              : post
+        setFeed((prevPosts) =>
+          prevPosts.map((post) =>
+            post.id === postId ? { ...post, comments_count: post.comments_count + 1 } : post
           )
         );
       }
-      
+
       return comment;
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -275,7 +272,7 @@ export function useSocialFeed(userId?: string) {
       const success = await deletePost(postId, userId);
       if (success) {
         // Optimistically remove from UI
-        setFeed(prevPosts => prevPosts.filter(post => post.id !== postId));
+        setFeed((prevPosts) => prevPosts.filter((post) => post.id !== postId));
       }
       return success;
     } catch (error) {

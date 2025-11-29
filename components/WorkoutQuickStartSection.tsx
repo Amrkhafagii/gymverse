@@ -19,10 +19,10 @@ interface WorkoutQuickStartSectionProps {
   selectedCategory?: string;
 }
 
-export default function WorkoutQuickStartSection({ 
-  workoutCategories, 
+export default function WorkoutQuickStartSection({
+  workoutCategories,
   onCategoryPress,
-  selectedCategory = 'all'
+  selectedCategory = 'all',
 }: WorkoutQuickStartSectionProps) {
   const handleCreateWorkout = () => {
     router.push('/(tabs)/create-workout');
@@ -37,7 +37,7 @@ export default function WorkoutQuickStartSection({
           <Text style={styles.createButtonText}>Create</Text>
         </TouchableOpacity>
       </View>
-      
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
         <View style={styles.categoriesContainer}>
           {workoutCategories.map((category, index) => (

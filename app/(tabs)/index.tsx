@@ -21,7 +21,7 @@ export default function HomeScreen() {
   const stats = [
     { label: 'Workouts', value: workouts, icon: Dumbbell },
     { label: 'Streak', value: streak, icon: Zap },
-    { label: 'PR\'s', value: personalRecords, icon: Trophy },
+    { label: "PR's", value: personalRecords, icon: Trophy },
     { label: 'Hours', value: hours, icon: Clock },
   ];
 
@@ -49,8 +49,10 @@ export default function HomeScreen() {
     return workoutSessions.slice(0, 3).map((session, index) => {
       const sessionDate = new Date(session.started_at);
       const now = new Date();
-      const diffInDays = Math.floor((now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+      const diffInDays = Math.floor(
+        (now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
       let dateLabel = 'Today';
       if (diffInDays === 1) dateLabel = 'Yesterday';
       else if (diffInDays > 1) dateLabel = `${diffInDays} days ago`;
@@ -72,12 +74,10 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: colors.background }]} 
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
       <HomeHeader />
       <HomeStatsSection stats={stats} loading={loading} />

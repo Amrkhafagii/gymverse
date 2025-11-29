@@ -10,7 +10,9 @@ interface ProfilePersonalRecordsSectionProps {
   personalRecords: PersonalRecord[];
 }
 
-export default function ProfilePersonalRecordsSection({ personalRecords }: ProfilePersonalRecordsSectionProps) {
+export default function ProfilePersonalRecordsSection({
+  personalRecords,
+}: ProfilePersonalRecordsSectionProps) {
   return (
     <View style={styles.personalRecordsContainer}>
       <Text style={styles.sectionTitle}>Personal Records</Text>

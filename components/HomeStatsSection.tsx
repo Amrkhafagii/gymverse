@@ -23,9 +23,7 @@ export default function HomeStatsSection({ stats, loading }: HomeStatsSectionPro
             <View style={styles.statIcon}>
               <stat.icon size={24} color="#FF6B35" />
             </View>
-            <Text style={styles.statValue}>
-              {loading ? '...' : stat.value}
-            </Text>
+            <Text style={styles.statValue}>{loading ? '...' : stat.value}</Text>
             <Text style={styles.statLabel}>{stat.label}</Text>
           </View>
         ))}

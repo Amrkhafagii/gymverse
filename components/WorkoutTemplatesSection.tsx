@@ -14,14 +14,14 @@ interface WorkoutTemplatesSectionProps {
   selectedFilter?: string;
 }
 
-export default function WorkoutTemplatesSection({ 
-  loading, 
-  workoutTemplates, 
+export default function WorkoutTemplatesSection({
+  loading,
+  workoutTemplates,
   onWorkoutPress,
   getDifficultyColor,
   getWorkoutTypeColor,
   searchQuery = '',
-  selectedFilter = 'all'
+  selectedFilter = 'all',
 }: WorkoutTemplatesSectionProps) {
   const getWorkoutImage = (workoutType: string): string => {
     switch (workoutType) {
@@ -63,9 +63,7 @@ export default function WorkoutTemplatesSection({
       <View style={styles.sectionHeader}>
         <View>
           <Text style={styles.sectionTitle}>{getFilterTitle()}</Text>
-          {getResultsCount() && (
-            <Text style={styles.resultsCount}>{getResultsCount()}</Text>
-          )}
+          {getResultsCount() && <Text style={styles.resultsCount}>{getResultsCount()}</Text>}
         </View>
       </View>
 
@@ -79,10 +77,9 @@ export default function WorkoutTemplatesSection({
             {searchQuery ? 'No workouts found' : 'No workouts available'}
           </Text>
           <Text style={styles.emptyText}>
-            {searchQuery 
+            {searchQuery
               ? 'Try adjusting your search terms or filters'
-              : 'Check back later for new workout templates'
-            }
+              : 'Check back later for new workout templates'}
           </Text>
         </View>
       ) : (
@@ -92,13 +89,13 @@ export default function WorkoutTemplatesSection({
             style={styles.workoutCard}
             onPress={() => onWorkoutPress(workout)}
           >
-            <Image 
-              source={{ uri: getWorkoutImage(workout.workout_type) }} 
+            <Image
+              source={{ uri: getWorkoutImage(workout.workout_type) }}
               style={styles.workoutImage}
               contentFit="cover"
               cachePolicy="memory-disk"
             />
-            
+
             <View style={styles.workoutContent}>
               <View style={styles.workoutHeader}>
                 <Text style={styles.workoutName}>{workout.name}</Text>
@@ -107,11 +104,11 @@ export default function WorkoutTemplatesSection({
                   <Text style={styles.ratingText}>4.8</Text>
                 </View>
               </View>
-              
+
               <Text style={styles.workoutDescription} numberOfLines={2}>
                 {workout.description}
               </Text>
-              
+
               <View style={styles.workoutMeta}>
                 <View style={styles.metaItem}>
                   <Clock size={14} color="#999" />
@@ -119,23 +116,33 @@ export default function WorkoutTemplatesSection({
                 </View>
                 <View style={styles.metaItem}>
                   <Target size={14} color={getDifficultyColor(workout.difficulty_level)} />
-                  <Text style={[styles.metaText, { color: getDifficultyColor(workout.difficulty_level) }]}>
+                  <Text
+                    style={[
+                      styles.metaText,
+                      { color: getDifficultyColor(workout.difficulty_level) },
+                    ]}
+                  >
                     {workout.difficulty_level}
                   </Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <Text style={[styles.workoutTypeText, { color: getWorkoutTypeColor(workout.workout_type) }]}>
+                  <Text
+                    style={[
+                      styles.workoutTypeText,
+                      { color: getWorkoutTypeColor(workout.workout_type) },
+                    ]}
+                  >
                     {workout.workout_type.toUpperCase()}
                   </Text>
                 </View>
               </View>
-              
+
               <View style={styles.workoutFooter}>
                 <View style={styles.popularityIndicator}>
                   <Users size={12} color="#999" />
                   <Text style={styles.popularityText}>1.2k users</Text>
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.startButton}
                   onPress={() => onWorkoutPress(workout)}
                 >

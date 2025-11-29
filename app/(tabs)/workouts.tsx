@@ -1,8 +1,26 @@
-import { View, StyleSheet, Text, RefreshControl, TouchableOpacity, FlatList, ListRenderItemInfo, ScrollView } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  RefreshControl,
+  TouchableOpacity,
+  FlatList,
+  ListRenderItemInfo,
+  ScrollView,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect, useMemo } from 'react';
 import { router } from 'expo-router';
-import { Plus, Filter, Search, Dumbbell, Clock, Target, TrendingUp, Users } from 'lucide-react-native';
+import {
+  Plus,
+  Filter,
+  Search,
+  Dumbbell,
+  Clock,
+  Target,
+  TrendingUp,
+  Users,
+} from 'lucide-react-native';
 import { supabase, Workout } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import WorkoutSearchBar from '@/components/WorkoutSearchBar';
@@ -44,7 +62,7 @@ export default function WorkoutsScreen() {
   const generateWorkoutCategories = (templates: Workout[]) => {
     const categoryMap = new Map<string, WorkoutCategory>();
 
-    templates.forEach(template => {
+    templates.forEach((template) => {
       const type = template.workout_type;
       const key = type;
 
@@ -69,10 +87,38 @@ export default function WorkoutsScreen() {
 
     if (categoryMap.size === 0) {
       const defaultCategories: WorkoutCategory[] = [
-        { name: 'Strength', exercises: 0, duration: '45 min', color: '#FF6B35', type: 'strength', difficulty: 'intermediate' },
-        { name: 'Cardio', exercises: 0, duration: '30 min', color: '#E74C3C', type: 'cardio', difficulty: 'beginner' },
-        { name: 'HIIT', exercises: 0, duration: '25 min', color: '#9B59B6', type: 'hiit', difficulty: 'intermediate' },
-        { name: 'Flexibility', exercises: 0, duration: '20 min', color: '#27AE60', type: 'flexibility', difficulty: 'beginner' },
+        {
+          name: 'Strength',
+          exercises: 0,
+          duration: '45 min',
+          color: '#FF6B35',
+          type: 'strength',
+          difficulty: 'intermediate',
+        },
+        {
+          name: 'Cardio',
+          exercises: 0,
+          duration: '30 min',
+          color: '#E74C3C',
+          type: 'cardio',
+          difficulty: 'beginner',
+        },
+        {
+          name: 'HIIT',
+          exercises: 0,
+          duration: '25 min',
+          color: '#9B59B6',
+          type: 'hiit',
+          difficulty: 'intermediate',
+        },
+        {
+          name: 'Flexibility',
+          exercises: 0,
+          duration: '20 min',
+          color: '#27AE60',
+          type: 'flexibility',
+          difficulty: 'beginner',
+        },
       ];
       setWorkoutCategories(defaultCategories);
     } else {
@@ -110,16 +156,17 @@ export default function WorkoutsScreen() {
     let filtered = workoutTemplates;
 
     if (searchQuery.trim()) {
-      filtered = filtered.filter(workout =>
-        workout.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        workout.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        workout.workout_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        workout.difficulty_level.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(
+        (workout) =>
+          workout.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          workout.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          workout.workout_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          workout.difficulty_level.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     if (selectedFilter !== 'all') {
-      filtered = filtered.filter(workout => workout.workout_type === selectedFilter);
+      filtered = filtered.filter((workout) => workout.workout_type === selectedFilter);
     }
 
     setFilteredTemplates(filtered);
@@ -245,16 +292,15 @@ export default function WorkoutsScreen() {
           <View style={styles.filterContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  selectedFilter === 'all' && styles.filterChipActive
-                ]}
+                style={[styles.filterChip, selectedFilter === 'all' && styles.filterChipActive]}
                 onPress={() => setSelectedFilter('all')}
               >
-                <Text style={[
-                  styles.filterChipText,
-                  selectedFilter === 'all' && styles.filterChipTextActive
-                ]}>
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedFilter === 'all' && styles.filterChipTextActive,
+                  ]}
+                >
                   All
                 </Text>
               </TouchableOpacity>
@@ -263,14 +309,16 @@ export default function WorkoutsScreen() {
                   key={category.type}
                   style={[
                     styles.filterChip,
-                    selectedFilter === category.type && styles.filterChipActive
+                    selectedFilter === category.type && styles.filterChipActive,
                   ]}
                   onPress={() => setSelectedFilter(category.type)}
                 >
-                  <Text style={[
-                    styles.filterChipText,
-                    selectedFilter === category.type && styles.filterChipTextActive
-                  ]}>
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedFilter === category.type && styles.filterChipTextActive,
+                    ]}
+                  >
                     {category.name}
                   </Text>
                 </TouchableOpacity>
@@ -280,7 +328,11 @@ export default function WorkoutsScreen() {
 
           {loading && <ScreenState variant="loading" title="Loading workouts..." />}
           {!loading && filteredTemplates.length === 0 && (
-            <ScreenState variant="empty" title="No workouts found" message="Try adjusting filters or search." />
+            <ScreenState
+              variant="empty"
+              title="No workouts found"
+              message="Try adjusting filters or search."
+            />
           )}
         </>
       }
@@ -301,22 +353,34 @@ export default function WorkoutsScreen() {
                     <View style={styles.workoutStats}>
                       <View style={styles.statItem}>
                         <Clock size={16} color="#999" />
-                        <Text style={styles.statText}>{workout.estimated_duration_minutes} min</Text>
+                        <Text style={styles.statText}>
+                          {workout.estimated_duration_minutes} min
+                        </Text>
                       </View>
                       <View style={styles.statItem}>
                         <Target size={16} color={getDifficultyColor(workout.difficulty_level)} />
-                        <Text style={[styles.statText, { color: getDifficultyColor(workout.difficulty_level) }]}>
+                        <Text
+                          style={[
+                            styles.statText,
+                            { color: getDifficultyColor(workout.difficulty_level) },
+                          ]}
+                        >
                           {workout.difficulty_level}
                         </Text>
                       </View>
                       <View style={styles.statItem}>
-                        <Text style={[styles.workoutTypeText, { color: getWorkoutTypeColor(workout.workout_type) }]}>
+                        <Text
+                          style={[
+                            styles.workoutTypeText,
+                            { color: getWorkoutTypeColor(workout.workout_type) },
+                          ]}
+                        >
                           {workout.workout_type}
                         </Text>
                       </View>
                     </View>
                   </View>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.startButton}
                     onPress={() => handleWorkoutPress(workout)}
                   >

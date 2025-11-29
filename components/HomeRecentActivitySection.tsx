@@ -47,7 +47,7 @@ export default function HomeRecentActivitySection({ activities }: HomeRecentActi
       {activities.map((activity, index) => {
         const IconComponent = getIcon(activity.icon);
         const iconColor = getIconColor(activity.type);
-        
+
         return (
           <View key={index} style={styles.activityCard}>
             <View style={styles.activityHeader}>

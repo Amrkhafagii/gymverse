@@ -19,10 +19,7 @@ export default function IndexScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#0a0a0a', '#1a1a1a']}
-        style={styles.gradient}
-      />
+      <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.gradient} />
     </View>
   );
 }

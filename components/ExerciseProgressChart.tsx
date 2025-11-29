@@ -33,8 +33,8 @@ export default function ExerciseProgressChart({
     return null;
   }
 
-  const maxValue = Math.max(...data.map(d => d.value), 1);
-  const minValue = Math.min(...data.map(d => d.value));
+  const maxValue = Math.max(...data.map((d) => d.value), 1);
+  const minValue = Math.min(...data.map((d) => d.value));
   const chartWidth = screenWidth - 80;
   const pointWidth = Math.max(8, (chartWidth - (data.length - 1) * 4) / data.length);
 
@@ -55,7 +55,7 @@ export default function ExerciseProgressChart({
     const firstValue = data[0].value;
     const lastValue = data[data.length - 1].value;
     const change = ((lastValue - firstValue) / firstValue) * 100;
-    
+
     if (change > 5) return 'positive';
     if (change < -5) return 'negative';
     return 'neutral';
@@ -90,19 +90,18 @@ export default function ExerciseProgressChart({
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         </View>
         <View style={styles.trendContainer}>
-          <Text style={[styles.trendText, { color: getTrendColor() }]}>
-            {getTrendText()}
-          </Text>
+          <Text style={[styles.trendText, { color: getTrendColor() }]}>{getTrendText()}</Text>
         </View>
       </View>
-      
+
       <View style={[styles.chart, { height }]}>
         {chartType === 'line' ? (
           <View style={styles.lineChart}>
             {data.map((point, index) => {
               const x = (index / (data.length - 1)) * (chartWidth - 20);
-              const y = height - 40 - ((point.value - minValue) / (maxValue - minValue)) * (height - 60);
-              
+              const y =
+                height - 40 - ((point.value - minValue) / (maxValue - minValue)) * (height - 60);
+
               return (
                 <View
                   key={index}
@@ -117,19 +116,23 @@ export default function ExerciseProgressChart({
                 />
               );
             })}
-            
+
             {/* Connect points with lines */}
             {data.map((point, index) => {
               if (index === data.length - 1) return null;
-              
+
               const x1 = (index / (data.length - 1)) * (chartWidth - 20);
-              const y1 = height - 40 - ((point.value - minValue) / (maxValue - minValue)) * (height - 60);
+              const y1 =
+                height - 40 - ((point.value - minValue) / (maxValue - minValue)) * (height - 60);
               const x2 = ((index + 1) / (data.length - 1)) * (chartWidth - 20);
-              const y2 = height - 40 - ((data[index + 1].value - minValue) / (maxValue - minValue)) * (height - 60);
-              
+              const y2 =
+                height -
+                40 -
+                ((data[index + 1].value - minValue) / (maxValue - minValue)) * (height - 60);
+
               const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-              const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-              
+              const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+
               return (
                 <View
                   key={`line-${index}`}
@@ -166,25 +169,19 @@ export default function ExerciseProgressChart({
           </View>
         )}
       </View>
-      
+
       <View style={styles.xAxis}>
         {data.map((point, index) => {
           // Show every nth label to avoid crowding
           const showLabel = data.length <= 7 || index % Math.ceil(data.length / 5) === 0;
           return (
-            <Text
-              key={index}
-              style={[
-                styles.xAxisLabel,
-                { opacity: showLabel ? 1 : 0 },
-              ]}
-            >
+            <Text key={index} style={[styles.xAxisLabel, { opacity: showLabel ? 1 : 0 }]}>
               {formatDate(point.date)}
             </Text>
           );
         })}
       </View>
-      
+
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           Max: {formatValue(maxValue)} {unit}

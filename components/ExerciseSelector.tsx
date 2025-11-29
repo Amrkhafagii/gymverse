@@ -44,13 +44,7 @@ export default function ExerciseSelector({
     'cardio',
   ];
 
-  const exerciseTypes = [
-    'all',
-    'strength',
-    'cardio',
-    'flexibility',
-    'balance',
-  ];
+  const exerciseTypes = ['all', 'strength', 'cardio', 'flexibility', 'balance'];
 
   useEffect(() => {
     if (visible) {
@@ -75,25 +69,22 @@ export default function ExerciseSelector({
   };
 
   const filterExercises = () => {
-    let filtered = exercises.filter(exercise => 
-      !excludeExerciseIds.includes(exercise.id)
-    );
+    let filtered = exercises.filter((exercise) => !excludeExerciseIds.includes(exercise.id));
 
     // Filter by search query
     if (searchQuery.trim()) {
-      filtered = filtered.filter(exercise =>
-        exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        exercise.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        exercise.muscle_groups.some(mg => 
-          mg.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+      filtered = filtered.filter(
+        (exercise) =>
+          exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          exercise.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          exercise.muscle_groups.some((mg) => mg.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
 
     // Filter by muscle group
     if (selectedMuscleGroup !== 'all') {
-      filtered = filtered.filter(exercise =>
-        exercise.muscle_groups.some(mg => 
+      filtered = filtered.filter((exercise) =>
+        exercise.muscle_groups.some((mg) =>
           mg.toLowerCase().includes(selectedMuscleGroup.toLowerCase())
         )
       );
@@ -101,9 +92,7 @@ export default function ExerciseSelector({
 
     // Filter by exercise type
     if (selectedType !== 'all') {
-      filtered = filtered.filter(exercise =>
-        exercise.exercise_type === selectedType
-      );
+      filtered = filtered.filter((exercise) => exercise.exercise_type === selectedType);
     }
 
     setFilteredExercises(filtered);
@@ -200,10 +189,7 @@ export default function ExerciseSelector({
             {exerciseTypes.map((type) => (
               <TouchableOpacity
                 key={type}
-                style={[
-                  styles.filterButton,
-                  selectedType === type && styles.filterButtonActive,
-                ]}
+                style={[styles.filterButton, selectedType === type && styles.filterButtonActive]}
                 onPress={() => setSelectedType(type)}
               >
                 <Text
@@ -226,9 +212,7 @@ export default function ExerciseSelector({
           ) : filteredExercises.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyTitle}>No exercises found</Text>
-              <Text style={styles.emptyText}>
-                Try adjusting your search or filters
-              </Text>
+              <Text style={styles.emptyText}>Try adjusting your search or filters</Text>
             </View>
           ) : (
             filteredExercises.map((exercise) => (
@@ -250,7 +234,7 @@ export default function ExerciseSelector({
                   <Text style={styles.exerciseDescription} numberOfLines={2}>
                     {exercise.description}
                   </Text>
-                  
+
                   <View style={styles.exerciseMeta}>
                     <View style={styles.metaRow}>
                       <View style={styles.metaItem}>
@@ -265,16 +249,13 @@ export default function ExerciseSelector({
                       </View>
                       <View style={styles.metaItem}>
                         <Text
-                          style={[
-                            styles.metaText,
-                            { color: getTypeColor(exercise.exercise_type) },
-                          ]}
+                          style={[styles.metaText, { color: getTypeColor(exercise.exercise_type) }]}
                         >
                           {exercise.exercise_type}
                         </Text>
                       </View>
                     </View>
-                    
+
                     <View style={styles.muscleGroups}>
                       {exercise.muscle_groups.slice(0, 3).map((muscle, index) => (
                         <View key={index} style={styles.muscleTag}>
@@ -282,9 +263,7 @@ export default function ExerciseSelector({
                         </View>
                       ))}
                       {exercise.muscle_groups.length > 3 && (
-                        <Text style={styles.moreText}>
-                          +{exercise.muscle_groups.length - 3}
-                        </Text>
+                        <Text style={styles.moreText}>+{exercise.muscle_groups.length - 3}</Text>
                       )}
                     </View>
                   </View>

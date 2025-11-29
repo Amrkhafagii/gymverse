@@ -1,4 +1,13 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
 type ToastType = 'success' | 'error' | 'info';
@@ -22,20 +31,23 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const timers = useRef<Record<string, NodeJS.Timeout>>({});
 
   const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+    setToasts((prev) => prev.filter((t) => t.id !== id));
     if (timers.current[id]) {
       clearTimeout(timers.current[id]);
       delete timers.current[id];
     }
   }, []);
 
-  const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    const id = Math.random().toString(36).slice(2);
-    setToasts(prev => [{ id, message, type }, ...prev]);
+  const showToast = useCallback(
+    (message: string, type: ToastType = 'info') => {
+      const id = Math.random().toString(36).slice(2);
+      setToasts((prev) => [{ id, message, type }, ...prev]);
 
-    const timer = setTimeout(() => removeToast(id), TOAST_DURATION);
-    timers.current[id] = timer;
-  }, [removeToast]);
+      const timer = setTimeout(() => removeToast(id), TOAST_DURATION);
+      timers.current[id] = timer;
+    },
+    [removeToast]
+  );
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -50,7 +62,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     <ToastContext.Provider value={value}>
       {children}
       <View pointerEvents="box-none" style={styles.container}>
-        {toasts.map(toast => (
+        {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onDismiss={() => removeToast(toast.id)} />
         ))}
       </View>
@@ -77,17 +89,11 @@ const ToastItem = ({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     };
   }, [opacity]);
 
-  const background = toast.type === 'success'
-    ? '#1b5e20'
-    : toast.type === 'error'
-    ? '#7f1d1d'
-    : '#1f2937';
+  const background =
+    toast.type === 'success' ? '#1b5e20' : toast.type === 'error' ? '#7f1d1d' : '#1f2937';
 
-  const borderColor = toast.type === 'success'
-    ? '#4caf50'
-    : toast.type === 'error'
-    ? '#ef4444'
-    : '#60a5fa';
+  const borderColor =
+    toast.type === 'success' ? '#4caf50' : toast.type === 'error' ? '#ef4444' : '#60a5fa';
 
   return (
     <Animated.View style={[styles.toast, { opacity, backgroundColor: background, borderColor }]}>

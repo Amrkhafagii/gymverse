@@ -12,35 +12,69 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X, Send, Dumbbell, Trophy, TrendingUp, MessageSquare, Image as ImageIcon, Smile } from 'lucide-react-native';
+import {
+  X,
+  Send,
+  Dumbbell,
+  Trophy,
+  TrendingUp,
+  MessageSquare,
+  Image as ImageIcon,
+  Smile,
+} from 'lucide-react-native';
 
 interface CreatePostModalProps {
   visible: boolean;
   onClose: () => void;
-  onCreatePost: (content: string, type: 'general' | 'workout' | 'achievement' | 'progress') => Promise<void>;
+  onCreatePost: (
+    content: string,
+    type: 'general' | 'workout' | 'achievement' | 'progress'
+  ) => Promise<void>;
 }
 
-export default function CreatePostModal({
-  visible,
-  onClose,
-  onCreatePost,
-}: CreatePostModalProps) {
+export default function CreatePostModal({ visible, onClose, onCreatePost }: CreatePostModalProps) {
   const [content, setContent] = useState('');
-  const [postType, setPostType] = useState<'general' | 'workout' | 'achievement' | 'progress'>('general');
+  const [postType, setPostType] = useState<'general' | 'workout' | 'achievement' | 'progress'>(
+    'general'
+  );
   const [submitting, setSubmitting] = useState(false);
 
   const postTypes = [
-    { id: 'general', name: 'General', icon: MessageSquare, color: '#4A90E2', description: 'Share thoughts or updates' },
-    { id: 'workout', name: 'Workout', icon: Dumbbell, color: '#FF6B35', description: 'Share your workout session' },
-    { id: 'achievement', name: 'Achievement', icon: Trophy, color: '#FFD700', description: 'Celebrate your wins' },
-    { id: 'progress', name: 'Progress', icon: TrendingUp, color: '#27AE60', description: 'Show your improvements' },
+    {
+      id: 'general',
+      name: 'General',
+      icon: MessageSquare,
+      color: '#4A90E2',
+      description: 'Share thoughts or updates',
+    },
+    {
+      id: 'workout',
+      name: 'Workout',
+      icon: Dumbbell,
+      color: '#FF6B35',
+      description: 'Share your workout session',
+    },
+    {
+      id: 'achievement',
+      name: 'Achievement',
+      icon: Trophy,
+      color: '#FFD700',
+      description: 'Celebrate your wins',
+    },
+    {
+      id: 'progress',
+      name: 'Progress',
+      icon: TrendingUp,
+      color: '#27AE60',
+      description: 'Show your improvements',
+    },
   ];
 
   const placeholderTexts = {
     general: "What's on your mind?",
-    workout: "How was your workout today? Share the details!",
-    achievement: "What achievement are you celebrating? 🎉",
-    progress: "What progress have you made? Share your journey!"
+    workout: 'How was your workout today? Share the details!',
+    achievement: 'What achievement are you celebrating? 🎉',
+    progress: 'What progress have you made? Share your journey!',
   };
 
   const handleSubmit = async () => {
@@ -70,28 +104,24 @@ export default function CreatePostModal({
 
   const handleClose = () => {
     if (content.trim()) {
-      Alert.alert(
-        'Discard Post',
-        'Are you sure you want to discard this post?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Discard', 
-            style: 'destructive', 
-            onPress: () => {
-              setContent('');
-              setPostType('general');
-              onClose();
-            }
+      Alert.alert('Discard Post', 'Are you sure you want to discard this post?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            setContent('');
+            setPostType('general');
+            onClose();
           },
-        ]
-      );
+        },
+      ]);
     } else {
       onClose();
     }
   };
 
-  const selectedPostType = postTypes.find(type => type.id === postType);
+  const selectedPostType = postTypes.find((type) => type.id === postType);
 
   return (
     <Modal
@@ -100,7 +130,7 @@ export default function CreatePostModal({
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
@@ -117,11 +147,13 @@ export default function CreatePostModal({
             onPress={handleSubmit}
             disabled={!content.trim() || submitting}
           >
-            <Send size={16} color={(!content.trim() || submitting) ? "#666" : "#fff"} />
-            <Text style={[
-              styles.postButtonText,
-              (!content.trim() || submitting) && styles.postButtonTextDisabled,
-            ]}>
+            <Send size={16} color={!content.trim() || submitting ? '#666' : '#fff'} />
+            <Text
+              style={[
+                styles.postButtonText,
+                (!content.trim() || submitting) && styles.postButtonTextDisabled,
+              ]}
+            >
               {submitting ? 'Posting...' : 'Post'}
             </Text>
           </TouchableOpacity>
@@ -141,26 +173,20 @@ export default function CreatePostModal({
                   ]}
                   onPress={() => setPostType(type.id as any)}
                 >
-                  <View style={[
-                    styles.postTypeIconContainer,
-                    { backgroundColor: postType === type.id ? type.color : `${type.color}20` }
-                  ]}>
-                    <type.icon 
-                      size={20} 
-                      color={postType === type.id ? '#fff' : type.color} 
-                    />
+                  <View
+                    style={[
+                      styles.postTypeIconContainer,
+                      { backgroundColor: postType === type.id ? type.color : `${type.color}20` },
+                    ]}
+                  >
+                    <type.icon size={20} color={postType === type.id ? '#fff' : type.color} />
                   </View>
                   <Text
-                    style={[
-                      styles.postTypeText,
-                      postType === type.id && styles.postTypeTextActive,
-                    ]}
+                    style={[styles.postTypeText, postType === type.id && styles.postTypeTextActive]}
                   >
                     {type.name}
                   </Text>
-                  <Text style={styles.postTypeDescription}>
-                    {type.description}
-                  </Text>
+                  <Text style={styles.postTypeDescription}>{type.description}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -168,9 +194,7 @@ export default function CreatePostModal({
 
           {/* Content Input */}
           <View style={styles.contentContainer}>
-            <Text style={styles.sectionTitle}>
-              {selectedPostType?.name} Post
-            </Text>
+            <Text style={styles.sectionTitle}>{selectedPostType?.name} Post</Text>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.contentInput}
@@ -183,9 +207,7 @@ export default function CreatePostModal({
                 textAlignVertical="top"
               />
               <View style={styles.inputFooter}>
-                <Text style={styles.characterCount}>
-                  {content.length}/500
-                </Text>
+                <Text style={styles.characterCount}>{content.length}/500</Text>
                 <View style={styles.inputActions}>
                   <TouchableOpacity style={styles.inputActionButton}>
                     <ImageIcon size={20} color="#999" />
@@ -206,10 +228,8 @@ export default function CreatePostModal({
                 <Text style={styles.tipTitle}>💪 Workout Post Tips</Text>
               </View>
               <Text style={styles.tipText}>
-                • Share what exercises you did{'\n'}
-                • Mention your achievements or PRs{'\n'}
-                • Include how you felt during the workout{'\n'}
-                • Add any challenges you overcame
+                • Share what exercises you did{'\n'}• Mention your achievements or PRs{'\n'}•
+                Include how you felt during the workout{'\n'}• Add any challenges you overcame
               </Text>
             </View>
           )}
@@ -221,10 +241,8 @@ export default function CreatePostModal({
                 <Text style={styles.tipTitle}>🏆 Achievement Post Tips</Text>
               </View>
               <Text style={styles.tipText}>
-                • Celebrate your personal records{'\n'}
-                • Share milestone moments{'\n'}
-                • Inspire others with your progress{'\n'}
-                • Mention what helped you achieve this
+                • Celebrate your personal records{'\n'}• Share milestone moments{'\n'}• Inspire
+                others with your progress{'\n'}• Mention what helped you achieve this
               </Text>
             </View>
           )}
@@ -236,10 +254,8 @@ export default function CreatePostModal({
                 <Text style={styles.tipTitle}>📈 Progress Post Tips</Text>
               </View>
               <Text style={styles.tipText}>
-                • Share before/after comparisons{'\n'}
-                • Mention what's working for you{'\n'}
-                • Include your goals and plans{'\n'}
-                • Show your consistency journey
+                • Share before/after comparisons{'\n'}• Mention what's working for you{'\n'}•
+                Include your goals and plans{'\n'}• Show your consistency journey
               </Text>
             </View>
           )}
@@ -251,10 +267,8 @@ export default function CreatePostModal({
                 <Text style={styles.tipTitle}>💬 General Post Tips</Text>
               </View>
               <Text style={styles.tipText}>
-                • Share your thoughts and experiences{'\n'}
-                • Ask questions to the community{'\n'}
-                • Provide motivation and support{'\n'}
-                • Connect with fellow fitness enthusiasts
+                • Share your thoughts and experiences{'\n'}• Ask questions to the community{'\n'}•
+                Provide motivation and support{'\n'}• Connect with fellow fitness enthusiasts
               </Text>
             </View>
           )}

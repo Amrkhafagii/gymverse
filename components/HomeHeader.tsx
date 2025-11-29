@@ -4,9 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export default function HomeHeader() {
   return (
-    <LinearGradient
-      colors={['#1a1a1a', '#2a2a2a']}
-      style={styles.header}>
+    <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
       <View style={styles.headerContent}>
         <Text style={styles.greeting}>Good morning!</Text>
         <Text style={styles.userName}>Alex</Text>

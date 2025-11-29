@@ -49,13 +49,16 @@ export default function CreateWorkoutScreen() {
     estimatedDuration: z
       .string()
       .optional()
-      .refine((val) => {
-        if (!val || !val.trim()) return true;
-        const num = Number(val);
-        return !Number.isNaN(num) && num > 0;
-      }, {
-        message: 'Estimated duration must be a positive number',
-      }),
+      .refine(
+        (val) => {
+          if (!val || !val.trim()) return true;
+          const num = Number(val);
+          return !Number.isNaN(num) && num > 0;
+        },
+        {
+          message: 'Estimated duration must be a positive number',
+        }
+      ),
     difficultyLevel: z.enum(['beginner', 'intermediate', 'advanced']),
     workoutType: z.enum(['strength', 'cardio', 'hiit', 'flexibility', 'mixed']),
     isTemplate: z.boolean(),
@@ -132,7 +135,7 @@ export default function CreateWorkoutScreen() {
     const updatedExercises = [...exercises];
     const [movedExercise] = updatedExercises.splice(fromIndex, 1);
     updatedExercises.splice(toIndex, 0, movedExercise);
-    
+
     // Update order indices
     const reorderedExercises = updatedExercises.map((ex, i) => ({
       ...ex,
@@ -143,22 +146,22 @@ export default function CreateWorkoutScreen() {
 
   const calculateEstimatedDuration = () => {
     let totalMinutes = 0;
-    
-    exercises.forEach(exercise => {
+
+    exercises.forEach((exercise) => {
       const sets = exercise.target_sets;
       const restTime = (exercise.rest_seconds * (sets - 1)) / 60; // Rest between sets
-      
+
       if (exercise.target_duration_seconds) {
         // Cardio exercise
         totalMinutes += (exercise.target_duration_seconds * sets) / 60;
       } else {
         // Strength exercise - estimate 30 seconds per set
-        totalMinutes += (sets * 0.5);
+        totalMinutes += sets * 0.5;
       }
-      
+
       totalMinutes += restTime;
     });
-    
+
     return Math.round(totalMinutes);
   };
 
@@ -181,7 +184,7 @@ export default function CreateWorkoutScreen() {
     }
 
     setError(null);
-    
+
     if (!validateExercises()) {
       showToast('Add at least one exercise', 'error');
       return;
@@ -195,7 +198,9 @@ export default function CreateWorkoutScreen() {
         creator_id: user.id,
         name: name.trim(),
         description: descriptionText || null,
-        estimated_duration_minutes: estimatedDuration ? Number(estimatedDuration) : calculateEstimatedDuration(),
+        estimated_duration_minutes: estimatedDuration
+          ? Number(estimatedDuration)
+          : calculateEstimatedDuration(),
         difficulty_level: difficultyLevel,
         workout_type: workoutType,
         is_template: isTemplate,
@@ -211,7 +216,7 @@ export default function CreateWorkoutScreen() {
       if (workoutError) throw workoutError;
 
       // Create workout exercises
-      const workoutExercises = exercises.map(ex => ({
+      const workoutExercises = exercises.map((ex) => ({
         workout_id: workout.id,
         exercise_id: ex.exercise.id,
         order_index: ex.order_index,
@@ -246,14 +251,10 @@ export default function CreateWorkoutScreen() {
     const nameValue = watch('name');
     const descriptionValue = watch('description') || '';
     if (nameValue.trim() || descriptionValue.trim() || exercises.length > 0) {
-      Alert.alert(
-        'Discard Workout',
-        'Are you sure you want to discard this workout?',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => router.back() },
-        ]
-      );
+      Alert.alert('Discard Workout', 'Are you sure you want to discard this workout?', [
+        { text: 'Keep Editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+      ]);
     } else {
       router.back();
     }
@@ -279,12 +280,10 @@ export default function CreateWorkoutScreen() {
             onPress={handleSubmit(handleSave)}
             disabled={loading}
           >
-            <Save size={24} color={loading ? "#666" : "#FF6B35"} />
+            <Save size={24} color={loading ? '#666' : '#FF6B35'} />
           </TouchableOpacity>
         </View>
-        {hasUnsavedChanges && (
-          <Text style={styles.unsavedIndicator}>You have unsaved changes</Text>
-        )}
+        {hasUnsavedChanges && <Text style={styles.unsavedIndicator}>You have unsaved changes</Text>}
       </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -300,7 +299,7 @@ export default function CreateWorkoutScreen() {
         {/* Basic Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Basic Information</Text>
-          
+
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Workout Name *</Text>
             <Controller
@@ -344,7 +343,9 @@ export default function CreateWorkoutScreen() {
                     textAlignVertical="top"
                     maxLength={500}
                   />
-                  {errors.description && <Text style={styles.errorText}>{errors.description.message}</Text>}
+                  {errors.description && (
+                    <Text style={styles.errorText}>{errors.description.message}</Text>
+                  )}
                   <Text style={styles.characterCount}>{(value || '').length}/500</Text>
                 </>
               )}
@@ -413,7 +414,7 @@ export default function CreateWorkoutScreen() {
                     cardio: 'Cardio',
                     hiit: 'HIIT',
                     flexibility: 'Flexibility',
-                    mixed: 'Mixed'
+                    mixed: 'Mixed',
                   }}
                 />
               )}
@@ -472,7 +473,11 @@ export default function CreateWorkoutScreen() {
                   onUpdate={(updates) => handleUpdateExercise(index, updates)}
                   onRemove={() => handleRemoveExercise(index)}
                   onMoveUp={index > 0 ? () => handleMoveExercise(index, index - 1) : undefined}
-                  onMoveDown={index < exercises.length - 1 ? () => handleMoveExercise(index, index + 1) : undefined}
+                  onMoveDown={
+                    index < exercises.length - 1
+                      ? () => handleMoveExercise(index, index + 1)
+                      : undefined
+                  }
                 />
               ))}
             </View>
@@ -482,7 +487,7 @@ export default function CreateWorkoutScreen() {
         {/* Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
-          
+
           <Controller
             control={control}
             name="isTemplate"
@@ -542,9 +547,7 @@ export default function CreateWorkoutScreen() {
             style={styles.saveButtonGradient}
           >
             <Save size={20} color="#fff" />
-            <Text style={styles.saveButtonText}>
-              {loading ? 'Creating...' : 'Create Workout'}
-            </Text>
+            <Text style={styles.saveButtonText}>{loading ? 'Creating...' : 'Create Workout'}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -556,7 +559,7 @@ export default function CreateWorkoutScreen() {
         visible={showExerciseSelector}
         onClose={() => setShowExerciseSelector(false)}
         onSelectExercise={handleAddExercise}
-        excludeExerciseIds={exercises.map(ex => ex.exercise.id)}
+        excludeExerciseIds={exercises.map((ex) => ex.exercise.id)}
       />
     </KeyboardAvoidingView>
   );

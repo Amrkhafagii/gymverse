@@ -13,7 +13,25 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Play, Pause, Square, Plus, Minus, Clock, Target, CircleCheck as CheckCircle, X, Timer, SkipForward, RotateCcw, Trophy, Star, CirclePause as PauseCircle, CircleStop as StopCircle, TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import {
+  Play,
+  Pause,
+  Square,
+  Plus,
+  Minus,
+  Clock,
+  Target,
+  CircleCheck as CheckCircle,
+  X,
+  Timer,
+  SkipForward,
+  RotateCcw,
+  Trophy,
+  Star,
+  CirclePause as PauseCircle,
+  CircleStop as StopCircle,
+  TriangleAlert as AlertTriangle,
+} from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAchievements } from '@/hooks/useAchievements';
 import { usePersonalRecords } from '@/hooks/usePersonalRecords';
@@ -70,14 +88,16 @@ export default function WorkoutSessionScreen() {
   const { colors } = useTheme();
   const borderColor = colors.border || '#333';
   const cardBg = colors.surface || '#1a1a1a';
-  const { checkForNewAchievements, newAchievements, clearNewAchievements } = useAchievements(user?.id || null);
+  const { checkForNewAchievements, newAchievements, clearNewAchievements } = useAchievements(
+    user?.id || null
+  );
   const { checkForNewRecords, newRecords, clearNewRecords } = usePersonalRecords(user?.id || null);
 
   // Workout data
   const [workout, setWorkout] = useState<Workout | null>(null);
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
-  
+
   // Session state
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [sessionExerciseId, setSessionExerciseId] = useState<number | null>(null);
@@ -85,12 +105,12 @@ export default function WorkoutSessionScreen() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
-  
+
   // Rest timer
   const [restTimer, setRestTimer] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const [showRestModal, setShowRestModal] = useState(false);
-  
+
   // UI state
   const [loading, setLoading] = useState(true);
   const [showAchievementModal, setShowAchievementModal] = useState(false);
@@ -173,7 +193,12 @@ export default function WorkoutSessionScreen() {
 
   // NEW: Effect to create session exercise when session and exercise data are ready
   useEffect(() => {
-    if (sessionId && exercises.length > 0 && currentExerciseIndex < exercises.length && !sessionExerciseId) {
+    if (
+      sessionId &&
+      exercises.length > 0 &&
+      currentExerciseIndex < exercises.length &&
+      !sessionExerciseId
+    ) {
       createSessionExercise();
     }
   }, [sessionId, exercises, currentExerciseIndex, sessionExerciseId]);
@@ -195,10 +220,12 @@ export default function WorkoutSessionScreen() {
       // Load workout exercises with exercise details
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('workout_exercises')
-        .select(`
+        .select(
+          `
           *,
           exercise:exercises(*)
-        `)
+        `
+        )
         .eq('workout_id', workoutId)
         .order('order_index');
 
@@ -233,14 +260,14 @@ export default function WorkoutSessionScreen() {
 
   const updateSessionStats = () => {
     const totalSets = exercises.reduce((sum, ex) => sum + ex.target_sets, 0);
-    const completedSets = sets.filter(set => set.completed).length;
+    const completedSets = sets.filter((set) => set.completed).length;
     const totalVolume = sets.reduce((sum, set) => {
       if (set.completed && set.weight_kg && set.reps) {
-        return sum + (set.weight_kg * set.reps);
+        return sum + set.weight_kg * set.reps;
       }
       return sum;
     }, 0);
-    
+
     // Simple calorie estimation: 5 calories per minute + volume factor
     const estimatedCalories = Math.round((elapsedTime / 60) * 5 + totalVolume * 0.01);
 
@@ -313,7 +340,13 @@ export default function WorkoutSessionScreen() {
     }
   };
 
-  const logSet = async (setIndex: number, reps: number, weight: number, duration?: number, rpe?: number) => {
+  const logSet = async (
+    setIndex: number,
+    reps: number,
+    weight: number,
+    duration?: number,
+    rpe?: number
+  ) => {
     if (!sessionExerciseId) {
       Alert.alert('Error', 'Session not properly initialized. Please restart the workout.');
       return;
@@ -330,9 +363,7 @@ export default function WorkoutSessionScreen() {
         completed: true,
       };
 
-      const { error } = await supabase
-        .from('exercise_sets')
-        .insert(setData);
+      const { error } = await supabase.from('exercise_sets').insert(setData);
 
       if (error) throw error;
 
@@ -420,16 +451,16 @@ export default function WorkoutSessionScreen() {
 
       // Check for new personal records first
       const newlyAchievedRecords = await checkForNewRecords(sessionId);
-      
+
       // Then check for new achievements
       const newlyUnlocked = await checkForNewAchievements();
 
       let message = `Incredible work! You completed your workout in ${duration} minutes and burned approximately ${estimatedCalories} calories.`;
-      
+
       if (newlyAchievedRecords.length > 0) {
         message += ` You set ${newlyAchievedRecords.length} new personal record${newlyAchievedRecords.length > 1 ? 's' : ''}!`;
       }
-      
+
       if (newlyUnlocked.length > 0) {
         message += ` You unlocked ${newlyUnlocked.length} new achievement${newlyUnlocked.length > 1 ? 's' : ''}!`;
       }
@@ -471,10 +502,10 @@ export default function WorkoutSessionScreen() {
       'Are you sure you want to discard this workout? All progress will be lost.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Discard', 
-          style: 'destructive', 
-          onPress: () => router.replace('/(tabs)') 
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => router.replace('/(tabs)'),
         },
       ]
     );
@@ -483,7 +514,7 @@ export default function WorkoutSessionScreen() {
   const handleAchievementModalClose = () => {
     setShowAchievementModal(false);
     setCurrentAchievement(null);
-    
+
     // Show next achievement if there are more
     const remainingAchievements = newAchievements.slice(1);
     if (remainingAchievements.length > 0) {
@@ -494,7 +525,7 @@ export default function WorkoutSessionScreen() {
     } else {
       // All achievements shown, clear them
       clearNewAchievements();
-      
+
       // Check if there are personal records to show
       if (newRecords.length === 0) {
         router.replace('/(tabs)');
@@ -505,7 +536,7 @@ export default function WorkoutSessionScreen() {
   const handleRecordModalClose = () => {
     setShowRecordModal(false);
     setCurrentRecord(null);
-    
+
     // Show next record if there are more
     const remainingRecords = newRecords.slice(1);
     if (remainingRecords.length > 0) {
@@ -516,7 +547,7 @@ export default function WorkoutSessionScreen() {
     } else {
       // All records shown, clear them
       clearNewRecords();
-      
+
       // Check if there are achievements to show
       if (newAchievements.length === 0) {
         router.replace('/(tabs)');
@@ -534,7 +565,7 @@ export default function WorkoutSessionScreen() {
     if (exercises.length === 0) return 0;
     const totalExercises = exercises.length;
     const completedExercises = currentExerciseIndex;
-    const currentExerciseProgress = sets.filter(s => s.completed).length / sets.length;
+    const currentExerciseProgress = sets.filter((s) => s.completed).length / sets.length;
     return ((completedExercises + currentExerciseProgress) / totalExercises) * 100;
   };
 
@@ -553,7 +584,7 @@ export default function WorkoutSessionScreen() {
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <X size={24} color="#fff" />
           </TouchableOpacity>
-          
+
           <Text style={styles.workoutTitle}>{workoutName || workout?.name}</Text>
           <Text style={styles.workoutSubtitle}>
             {exercises.length} exercises • {workout?.estimated_duration_minutes} min
@@ -562,17 +593,36 @@ export default function WorkoutSessionScreen() {
 
         <ScrollView style={styles.content}>
           <View style={styles.previewStats}>
-            <View style={[styles.previewStatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.previewStatCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
               <Target size={24} color={colors.primary} />
-              <Text style={[styles.previewStatValue, { color: colors.text }]}>{exercises.length}</Text>
+              <Text style={[styles.previewStatValue, { color: colors.text }]}>
+                {exercises.length}
+              </Text>
               <Text style={[styles.previewStatLabel, { color: colors.textMuted }]}>Exercises</Text>
             </View>
-            <View style={[styles.previewStatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.previewStatCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
               <Clock size={24} color={colors.info} />
-              <Text style={[styles.previewStatValue, { color: colors.text }]}>{workout?.estimated_duration_minutes}</Text>
+              <Text style={[styles.previewStatValue, { color: colors.text }]}>
+                {workout?.estimated_duration_minutes}
+              </Text>
               <Text style={[styles.previewStatLabel, { color: colors.textMuted }]}>Minutes</Text>
             </View>
-            <View style={[styles.previewStatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.previewStatCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
               <Trophy size={24} color={colors.success} />
               <Text style={[styles.previewStatValue, { color: colors.text }]}>
                 {exercises.reduce((sum, ex) => sum + ex.target_sets, 0)}
@@ -584,7 +634,10 @@ export default function WorkoutSessionScreen() {
           <View style={styles.exercisesList}>
             <Text style={[styles.exercisesTitle, { color: colors.text }]}>Workout Overview</Text>
             {exercises.map((exercise, index) => (
-              <View key={exercise.id} style={[styles.exercisePreviewCard, { backgroundColor: cardBg, borderColor }]}>
+              <View
+                key={exercise.id}
+                style={[styles.exercisePreviewCard, { backgroundColor: cardBg, borderColor }]}
+              >
                 <View style={[styles.exerciseNumber, { backgroundColor: colors.primary }]}>
                   <Text style={styles.exerciseNumberText}>{index + 1}</Text>
                 </View>
@@ -619,36 +672,40 @@ export default function WorkoutSessionScreen() {
   const currentExercise = exercises[currentExerciseIndex];
 
   return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.activeHeader}>
-          <View style={styles.headerTop}>
-            <TouchableOpacity onPress={handleExitWorkout} style={styles.exitButton}>
-              <PauseCircle size={24} color={colors.primary} />
-            </TouchableOpacity>
-            <View style={styles.timerContainer}>
-              <Clock size={16} color={colors.primary} />
-              <Text style={[styles.timerText, { color: colors.text }]}>{formatTime(elapsedTime)}</Text>
-            </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.activeHeader}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={handleExitWorkout} style={styles.exitButton}>
+            <PauseCircle size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <View style={styles.timerContainer}>
+            <Clock size={16} color={colors.primary} />
+            <Text style={[styles.timerText, { color: colors.text }]}>
+              {formatTime(elapsedTime)}
+            </Text>
           </View>
-        
+        </View>
+
         <Text style={styles.exerciseTitle}>
           {currentExercise.exercise?.name || 'Unknown Exercise'}
         </Text>
         <Text style={styles.exerciseProgress}>
           Exercise {currentExerciseIndex + 1} of {exercises.length}
         </Text>
-        
+
         {/* Progress Bar */}
         <View style={styles.progressBarContainer}>
           <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-            <View 
+            <View
               style={[
-                styles.progressFill, 
-                { width: `${getProgressPercentage()}%`, backgroundColor: colors.primary }
-              ]} 
+                styles.progressFill,
+                { width: `${getProgressPercentage()}%`, backgroundColor: colors.primary },
+              ]}
             />
           </View>
-          <Text style={[styles.progressText, { color: colors.text }]}>{Math.round(getProgressPercentage())}% Complete</Text>
+          <Text style={[styles.progressText, { color: colors.text }]}>
+            {Math.round(getProgressPercentage())}% Complete
+          </Text>
         </View>
       </LinearGradient>
 
@@ -670,13 +727,9 @@ export default function WorkoutSessionScreen() {
         </View>
 
         <View style={styles.exerciseCard}>
-          <Text style={styles.exerciseDescription}>
-            {currentExercise.exercise?.description}
-          </Text>
+          <Text style={styles.exerciseDescription}>{currentExercise.exercise?.description}</Text>
           {currentExercise.exercise?.instructions && (
-            <Text style={styles.exerciseInstructions}>
-              {currentExercise.exercise.instructions}
-            </Text>
+            <Text style={styles.exerciseInstructions}>{currentExercise.exercise.instructions}</Text>
           )}
         </View>
 
@@ -688,7 +741,7 @@ export default function WorkoutSessionScreen() {
               <Text style={styles.addSetText}>Add Set</Text>
             </TouchableOpacity>
           </View>
-          
+
           {sets.map((set, index) => (
             <SetLogger
               key={index}
@@ -702,9 +755,9 @@ export default function WorkoutSessionScreen() {
 
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.nextButton, { opacity: sets.every(s => s.completed) ? 1 : 0.5 }]}
+            style={[styles.nextButton, { opacity: sets.every((s) => s.completed) ? 1 : 0.5 }]}
             onPress={nextExercise}
-            disabled={!sets.every(s => s.completed)}
+            disabled={!sets.every((s) => s.completed)}
           >
             <Text style={styles.nextButtonText}>
               {currentExerciseIndex === exercises.length - 1 ? 'Finish Workout' : 'Next Exercise'}
@@ -762,16 +815,16 @@ export default function WorkoutSessionScreen() {
             <Text style={styles.restTitle}>Rest Time</Text>
             <Text style={styles.restTimer}>{formatTime(restTimer)}</Text>
             <Text style={styles.restSubtitle}>Take a breather, you've earned it!</Text>
-            
+
             <View style={styles.restActions}>
               <TouchableOpacity style={styles.skipRestButton} onPress={skipRest}>
                 <SkipForward size={20} color="#fff" />
                 <Text style={styles.skipRestText}>Skip Rest</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.addTimeButton} 
-                onPress={() => setRestTimer(prev => prev + 30)}
+
+              <TouchableOpacity
+                style={styles.addTimeButton}
+                onPress={() => setRestTimer((prev) => prev + 30)}
               >
                 <Plus size={20} color="#4A90E2" />
                 <Text style={styles.addTimeText}>+30s</Text>
@@ -796,13 +849,7 @@ export default function WorkoutSessionScreen() {
       />
 
       {/* Set Completion Animation */}
-      <Animated.View 
-        style={[
-          styles.completionOverlay,
-          { opacity: fadeAnim }
-        ]}
-        pointerEvents="none"
-      >
+      <Animated.View style={[styles.completionOverlay, { opacity: fadeAnim }]} pointerEvents="none">
         <CheckCircle size={64} color="#27AE60" />
         <Text style={styles.completionText}>Set Complete!</Text>
       </Animated.View>
@@ -867,7 +914,8 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
         if (isNaN(durationNum) || durationNum <= 0) {
           newErrors.duration = 'Must be a positive number';
           isValid = false;
-        } else if (durationNum > 86400) { // 24 hours in seconds
+        } else if (durationNum > 86400) {
+          // 24 hours in seconds
           newErrors.duration = 'Must be less than 24 hours';
           isValid = false;
         }
@@ -895,21 +943,25 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
     const current = parseFloat(value) || 0;
     setter((current + step).toString());
     // Clear errors when user modifies input
-    setErrors(prev => ({ ...prev }));
+    setErrors((prev) => ({ ...prev }));
   };
 
   const decrementValue = (value: string, setter: (value: string) => void, step: number = 1) => {
     const current = parseFloat(value) || 0;
     setter(Math.max(0, current - step).toString());
     // Clear errors when user modifies input
-    setErrors(prev => ({ ...prev }));
+    setErrors((prev) => ({ ...prev }));
   };
 
-  const handleInputChange = (value: string, setter: (value: string) => void, field: keyof SetValidationErrors) => {
+  const handleInputChange = (
+    value: string,
+    setter: (value: string) => void,
+    field: keyof SetValidationErrors
+  ) => {
     setter(value);
     // Clear specific field error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
@@ -925,8 +977,8 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Reps</Text>
             <View style={styles.inputWithButtons}>
-              <TouchableOpacity 
-                style={styles.inputButton} 
+              <TouchableOpacity
+                style={styles.inputButton}
                 onPress={() => decrementValue(reps, setReps)}
               >
                 <Minus size={16} color="#999" />
@@ -940,8 +992,8 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
                 placeholderTextColor="#666"
                 editable={!set.completed}
               />
-              <TouchableOpacity 
-                style={styles.inputButton} 
+              <TouchableOpacity
+                style={styles.inputButton}
                 onPress={() => incrementValue(reps, setReps)}
               >
                 <Plus size={16} color="#999" />
@@ -955,8 +1007,8 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Weight (kg)</Text>
             <View style={styles.inputWithButtons}>
-              <TouchableOpacity 
-                style={styles.inputButton} 
+              <TouchableOpacity
+                style={styles.inputButton}
                 onPress={() => decrementValue(weight, setWeight, 2.5)}
               >
                 <Minus size={16} color="#999" />
@@ -970,8 +1022,8 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
                 placeholderTextColor="#666"
                 editable={!set.completed}
               />
-              <TouchableOpacity 
-                style={styles.inputButton} 
+              <TouchableOpacity
+                style={styles.inputButton}
                 onPress={() => incrementValue(weight, setWeight, 2.5)}
               >
                 <Plus size={16} color="#999" />
@@ -985,8 +1037,8 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Duration (s)</Text>
             <View style={styles.inputWithButtons}>
-              <TouchableOpacity 
-                style={styles.inputButton} 
+              <TouchableOpacity
+                style={styles.inputButton}
                 onPress={() => decrementValue(duration, setDuration, 15)}
               >
                 <Minus size={16} color="#999" />
@@ -1000,8 +1052,8 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
                 placeholderTextColor="#666"
                 editable={!set.completed}
               />
-              <TouchableOpacity 
-                style={styles.inputButton} 
+              <TouchableOpacity
+                style={styles.inputButton}
                 onPress={() => incrementValue(duration, setDuration, 15)}
               >
                 <Plus size={16} color="#999" />
@@ -1013,10 +1065,7 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
       </View>
 
       {/* RPE Section */}
-      <TouchableOpacity 
-        style={styles.rpeToggle} 
-        onPress={() => setShowRPE(!showRPE)}
-      >
+      <TouchableOpacity style={styles.rpeToggle} onPress={() => setShowRPE(!showRPE)}>
         <Text style={styles.rpeToggleText}>
           {showRPE ? 'Hide' : 'Add'} RPE (Rate of Perceived Exertion)
         </Text>
@@ -1029,16 +1078,15 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
               <TouchableOpacity
                 key={value}
-                style={[
-                  styles.rpeButton,
-                  rpe === value.toString() && styles.rpeButtonActive
-                ]}
+                style={[styles.rpeButton, rpe === value.toString() && styles.rpeButtonActive]}
                 onPress={() => setRpe(value.toString())}
               >
-                <Text style={[
-                  styles.rpeButtonText,
-                  rpe === value.toString() && styles.rpeButtonTextActive
-                ]}>
+                <Text
+                  style={[
+                    styles.rpeButtonText,
+                    rpe === value.toString() && styles.rpeButtonTextActive,
+                  ]}
+                >
                   {value}
                 </Text>
               </TouchableOpacity>

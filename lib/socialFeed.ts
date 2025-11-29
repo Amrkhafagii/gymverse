@@ -50,12 +50,14 @@ export const getSocialFeedWithStats = async (
   try {
     const { data: posts, error } = await supabase
       .from('social_posts')
-      .select(`
+      .select(
+        `
         *,
         profile:profiles(username, full_name, avatar_url),
         workout_session:workout_sessions(name, duration_minutes, calories_burned),
         achievement:achievements(name, description, icon)
-      `)
+      `
+      )
       .eq('is_public', true)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -74,7 +76,9 @@ export const getSocialFeedWithStats = async (
         if (likesError) throw likesError;
 
         const likesCount = likes?.length || 0;
-        const userHasLiked = userId ? likes?.some(like => like.user_id === userId) || false : false;
+        const userHasLiked = userId
+          ? likes?.some((like) => like.user_id === userId) || false
+          : false;
 
         // Get comments count
         const { data: comments, error: commentsError } = await supabase
@@ -127,12 +131,10 @@ export const togglePostLike = async (postId: number, userId: string): Promise<bo
       return false; // Post was unliked
     } else {
       // Like the post
-      const { error: insertError } = await supabase
-        .from('post_likes')
-        .insert({
-          post_id: postId,
-          user_id: userId,
-        });
+      const { error: insertError } = await supabase.from('post_likes').insert({
+        post_id: postId,
+        user_id: userId,
+      });
 
       if (insertError) throw insertError;
       return true; // Post was liked
@@ -158,10 +160,12 @@ export const addPostComment = async (
         user_id: userId,
         content,
       })
-      .select(`
+      .select(
+        `
         *,
         profile:profiles(username, full_name, avatar_url)
-      `)
+      `
+      )
       .single();
 
     if (error) throw error;
@@ -178,10 +182,12 @@ export const getPostComments = async (postId: number): Promise<PostComment[]> =>
   try {
     const { data, error } = await supabase
       .from('post_comments')
-      .select(`
+      .select(
+        `
         *,
         profile:profiles(username, full_name, avatar_url)
-      `)
+      `
+      )
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 
@@ -292,12 +298,14 @@ export const getUserPosts = async (userId: string): Promise<SocialFeedPost[]> =>
   try {
     const { data: posts, error } = await supabase
       .from('social_posts')
-      .select(`
+      .select(
+        `
         *,
         profile:profiles(username, full_name, avatar_url),
         workout_session:workout_sessions(name, duration_minutes, calories_burned),
         achievement:achievements(name, description, icon)
-      `)
+      `
+      )
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -320,7 +328,7 @@ export const getUserPosts = async (userId: string): Promise<SocialFeedPost[]> =>
           ...post,
           likes_count: likes?.length || 0,
           comments_count: comments?.length || 0,
-          user_has_liked: likes?.some(like => like.user_id === userId) || false,
+          user_has_liked: likes?.some((like) => like.user_id === userId) || false,
         } as SocialFeedPost;
       })
     );
@@ -337,12 +345,14 @@ export const searchPosts = async (query: string, userId?: string): Promise<Socia
   try {
     const { data: posts, error } = await supabase
       .from('social_posts')
-      .select(`
+      .select(
+        `
         *,
         profile:profiles(username, full_name, avatar_url),
         workout_session:workout_sessions(name, duration_minutes, calories_burned),
         achievement:achievements(name, description, icon)
-      `)
+      `
+      )
       .eq('is_public', true)
       .ilike('content', `%${query}%`)
       .order('created_at', { ascending: false })
@@ -367,7 +377,7 @@ export const searchPosts = async (query: string, userId?: string): Promise<Socia
           ...post,
           likes_count: likes?.length || 0,
           comments_count: comments?.length || 0,
-          user_has_liked: userId ? likes?.some(like => like.user_id === userId) || false : false,
+          user_has_liked: userId ? likes?.some((like) => like.user_id === userId) || false : false,
         } as SocialFeedPost;
       })
     );

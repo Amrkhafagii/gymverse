@@ -18,16 +18,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ToastProvider';
 
-const signUpSchema = z.object({
-  username: z.string().min(3, 'Username is required'),
-  fullName: z.string().max(100, 'Full name is too long').optional(),
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  path: ['confirmPassword'],
-  message: 'Passwords do not match',
-});
+const signUpSchema = z
+  .object({
+    username: z.string().min(3, 'Username is required'),
+    fullName: z.string().max(100, 'Full name is too long').optional(),
+    email: z.string().email('Enter a valid email'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords do not match',
+  });
 
 type SignUpForm = z.infer<typeof signUpSchema>;
 
@@ -38,7 +40,11 @@ export default function SignUpScreen() {
   const { signUp } = useAuth();
   const { showToast } = useToast();
 
-  const { control, handleSubmit, formState: { errors } } = useForm<SignUpForm>({
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignUpForm>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
       username: '',
@@ -72,11 +78,11 @@ export default function SignUpScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LinearGradient
-        colors={['#0a0a0a', '#1a1a1a', '#2a2a2a']}
-        style={styles.gradient}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <LinearGradient colors={['#0a0a0a', '#1a1a1a', '#2a2a2a']} style={styles.gradient}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.header}>
             <View style={styles.logoContainer}>
               <Dumbbell size={48} color="#FF6B35" />
@@ -103,7 +109,9 @@ export default function SignUpScreen() {
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
-                    {errors.username && <Text style={styles.errorText}>{errors.username.message}</Text>}
+                    {errors.username && (
+                      <Text style={styles.errorText}>{errors.username.message}</Text>
+                    )}
                   </View>
                 )}
               />
@@ -126,7 +134,9 @@ export default function SignUpScreen() {
                       autoCapitalize="words"
                       autoCorrect={false}
                     />
-                    {errors.fullName && <Text style={styles.errorText}>{errors.fullName.message}</Text>}
+                    {errors.fullName && (
+                      <Text style={styles.errorText}>{errors.fullName.message}</Text>
+                    )}
                   </View>
                 )}
               />
@@ -174,7 +184,9 @@ export default function SignUpScreen() {
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
-                    {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
+                    {errors.password && (
+                      <Text style={styles.errorText}>{errors.password.message}</Text>
+                    )}
                   </View>
                 )}
               />
@@ -182,11 +194,7 @@ export default function SignUpScreen() {
                 style={styles.eyeIcon}
                 onPress={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? (
-                  <EyeOff size={20} color="#999" />
-                ) : (
-                  <Eye size={20} color="#999" />
-                )}
+                {showPassword ? <EyeOff size={20} color="#999" /> : <Eye size={20} color="#999" />}
               </TouchableOpacity>
             </View>
 
@@ -208,7 +216,9 @@ export default function SignUpScreen() {
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
-                    {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>}
+                    {errors.confirmPassword && (
+                      <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>
+                    )}
                   </View>
                 )}
               />
@@ -229,10 +239,7 @@ export default function SignUpScreen() {
               onPress={handleSubmit(handleSignUp)}
               disabled={loading}
             >
-              <LinearGradient
-                colors={['#FF6B35', '#FF8C42']}
-                style={styles.buttonGradient}
-              >
+              <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.buttonGradient}>
                 <Text style={styles.signUpButtonText}>
                   {loading ? 'Creating Account...' : 'Sign Up'}
                 </Text>

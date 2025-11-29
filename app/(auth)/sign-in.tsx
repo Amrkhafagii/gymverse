@@ -31,7 +31,11 @@ export default function SignInScreen() {
   const { signIn } = useAuth();
   const { showToast } = useToast();
 
-  const { control, handleSubmit, formState: { errors } } = useForm<SignInForm>({
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignInForm>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
       email: '',
@@ -62,11 +66,11 @@ export default function SignInScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LinearGradient
-        colors={['#0a0a0a', '#1a1a1a', '#2a2a2a']}
-        style={styles.gradient}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <LinearGradient colors={['#0a0a0a', '#1a1a1a', '#2a2a2a']} style={styles.gradient}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.header}>
             <View style={styles.logoContainer}>
               <Dumbbell size={48} color="#FF6B35" />
@@ -113,7 +117,9 @@ export default function SignInScreen() {
                       autoCapitalize="none"
                       extraPaddingRight
                     />
-                    {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
+                    {errors.password && (
+                      <Text style={styles.errorText}>{errors.password.message}</Text>
+                    )}
                   </View>
                 )}
               />
@@ -121,11 +127,7 @@ export default function SignInScreen() {
                 style={styles.eyeIcon}
                 onPress={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? (
-                  <EyeOff size={20} color="#999" />
-                ) : (
-                  <Eye size={20} color="#999" />
-                )}
+                {showPassword ? <EyeOff size={20} color="#999" /> : <Eye size={20} color="#999" />}
               </TouchableOpacity>
             </View>
 
@@ -134,13 +136,8 @@ export default function SignInScreen() {
               onPress={handleSubmit(handleSignIn)}
               disabled={loading}
             >
-              <LinearGradient
-                colors={['#FF6B35', '#FF8C42']}
-                style={styles.buttonGradient}
-              >
-                <Text style={styles.signInButtonText}>
-                  {loading ? 'Signing In...' : 'Sign In'}
-                </Text>
+              <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.buttonGradient}>
+                <Text style={styles.signInButtonText}>{loading ? 'Signing In...' : 'Sign In'}</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -179,10 +176,7 @@ const InputField = ({
   extraPaddingRight?: boolean;
 }) => (
   <TextInput
-    style={[
-      styles.input,
-      extraPaddingRight && styles.passwordInput,
-    ]}
+    style={[styles.input, extraPaddingRight && styles.passwordInput]}
     placeholder={placeholder}
     placeholderTextColor="#999"
     value={value}

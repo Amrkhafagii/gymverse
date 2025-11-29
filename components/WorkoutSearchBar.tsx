@@ -8,10 +8,10 @@ interface WorkoutSearchBarProps {
   onFilterPress: () => void;
 }
 
-export default function WorkoutSearchBar({ 
-  searchQuery, 
-  onSearchChange, 
-  onFilterPress 
+export default function WorkoutSearchBar({
+  searchQuery,
+  onSearchChange,
+  onFilterPress,
 }: WorkoutSearchBarProps) {
   return (
     <View style={styles.searchContainer}>

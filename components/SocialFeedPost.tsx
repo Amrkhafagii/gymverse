@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
-import { Heart, MessageCircle, Share2, MoveHorizontal as MoreHorizontal, Trophy, Zap, Calendar, Clock, Target } from 'lucide-react-native';
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  MoveHorizontal as MoreHorizontal,
+  Trophy,
+  Zap,
+  Calendar,
+  Clock,
+  Target,
+} from 'lucide-react-native';
 import { SocialFeedPost } from '@/lib/socialFeed';
 
 interface SocialFeedPostProps {
@@ -25,14 +35,10 @@ export default function SocialFeedPostComponent({
 
   const handleMorePress = () => {
     if (post.user_id === currentUserId && onDelete) {
-      Alert.alert(
-        'Post Options',
-        'What would you like to do?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete Post', style: 'destructive', onPress: () => onDelete(post.id) },
-        ]
-      );
+      Alert.alert('Post Options', 'What would you like to do?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete Post', style: 'destructive', onPress: () => onDelete(post.id) },
+      ]);
     }
   };
 
@@ -43,13 +49,13 @@ export default function SocialFeedPostComponent({
 
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) return `${diffInHours}h ago`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays}d ago`;
-    
+
     return postDate.toLocaleDateString();
   };
 
@@ -83,19 +89,19 @@ export default function SocialFeedPostComponent({
     <View style={styles.postCard}>
       {/* Post Header */}
       <View style={styles.postHeader}>
-        <Image 
-          source={{ 
-            uri: post.profile.avatar_url || 'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2'
-          }} 
+        <Image
+          source={{
+            uri:
+              post.profile.avatar_url ||
+              'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
+          }}
           style={styles.userAvatar}
           contentFit="cover"
           cachePolicy="memory-disk"
         />
         <View style={styles.userInfo}>
           <View style={styles.userNameRow}>
-            <Text style={styles.userName}>
-              {post.profile.full_name || post.profile.username}
-            </Text>
+            <Text style={styles.userName}>{post.profile.full_name || post.profile.username}</Text>
             <View style={styles.postTypeBadge}>
               {getPostTypeIcon()}
               <Text style={styles.postTypeText}>{getPostTypeLabel()}</Text>
@@ -155,9 +161,7 @@ export default function SocialFeedPostComponent({
           </View>
           <View style={styles.achievementInfo}>
             <Text style={styles.achievementTitle}>{post.achievement.name}</Text>
-            <Text style={styles.achievementDescription}>
-              {post.achievement.description}
-            </Text>
+            <Text style={styles.achievementDescription}>{post.achievement.description}</Text>
           </View>
           <View style={styles.achievementBadge}>
             <Text style={styles.achievementBadgeText}>🏆</Text>
@@ -188,35 +192,23 @@ export default function SocialFeedPostComponent({
 
       {/* Post Actions */}
       <View style={styles.postActions}>
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => onLike(post.id)}
-        >
-          <Heart 
-            size={20} 
-            color={post.user_has_liked ? "#E74C3C" : "#999"} 
-            fill={post.user_has_liked ? "#E74C3C" : "none"}
+        <TouchableOpacity style={styles.actionButton} onPress={() => onLike(post.id)}>
+          <Heart
+            size={20}
+            color={post.user_has_liked ? '#E74C3C' : '#999'}
+            fill={post.user_has_liked ? '#E74C3C' : 'none'}
           />
-          <Text style={[
-            styles.actionText,
-            post.user_has_liked && styles.likedText
-          ]}>
+          <Text style={[styles.actionText, post.user_has_liked && styles.likedText]}>
             {post.likes_count}
           </Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => onComment(post.id)}
-        >
+
+        <TouchableOpacity style={styles.actionButton} onPress={() => onComment(post.id)}>
           <MessageCircle size={20} color="#999" />
           <Text style={styles.actionText}>{post.comments_count}</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => onShare(post.id)}
-        >
+
+        <TouchableOpacity style={styles.actionButton} onPress={() => onShare(post.id)}>
           <Share2 size={20} color="#999" />
           <Text style={styles.actionText}>Share</Text>
         </TouchableOpacity>

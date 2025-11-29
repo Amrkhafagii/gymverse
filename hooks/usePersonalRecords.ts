@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { 
-  PersonalRecordData, 
-  checkForPersonalRecords, 
+import {
+  PersonalRecordData,
+  checkForPersonalRecords,
   getUserPersonalRecordsWithDetails,
-  getPersonalRecordStats
+  getPersonalRecordStats,
 } from '@/lib/personalRecords';
 
 export function usePersonalRecords(userId: string | null) {
@@ -25,7 +25,7 @@ export function usePersonalRecords(userId: string | null) {
 
   const loadPersonalRecords = async () => {
     if (!userId) return;
-    
+
     try {
       const records = await getUserPersonalRecordsWithDetails(userId);
       setPersonalRecords(records);
@@ -38,7 +38,7 @@ export function usePersonalRecords(userId: string | null) {
 
   const loadRecordStats = async () => {
     if (!userId) return;
-    
+
     try {
       const stats = await getPersonalRecordStats(userId);
       setRecordStats(stats);
@@ -49,7 +49,7 @@ export function usePersonalRecords(userId: string | null) {
 
   const checkForNewRecords = async (sessionId: number) => {
     if (!userId) return [];
-    
+
     try {
       const newlyAchieved = await checkForPersonalRecords(userId, sessionId);
       if (newlyAchieved.length > 0) {
@@ -70,27 +70,27 @@ export function usePersonalRecords(userId: string | null) {
   };
 
   const getRecordsByExercise = (exerciseId: number) => {
-    return personalRecords.filter(record => record.exercise_id === exerciseId);
+    return personalRecords.filter((record) => record.exercise_id === exerciseId);
   };
 
   const getRecordsByType = (recordType: string) => {
-    return personalRecords.filter(record => record.record_type === recordType);
+    return personalRecords.filter((record) => record.record_type === recordType);
   };
 
   const getBestRecord = (exerciseId: number, recordType: string) => {
     const exerciseRecords = personalRecords.filter(
-      record => record.exercise_id === exerciseId && record.record_type === recordType
+      (record) => record.exercise_id === exerciseId && record.record_type === recordType
     );
-    
+
     if (exerciseRecords.length === 0) return null;
-    
+
     // For time records, lower is better; for others, higher is better
     if (recordType === 'best_time') {
-      return exerciseRecords.reduce((best, current) => 
+      return exerciseRecords.reduce((best, current) =>
         current.value < best.value ? current : best
       );
     } else {
-      return exerciseRecords.reduce((best, current) => 
+      return exerciseRecords.reduce((best, current) =>
         current.value > best.value ? current : best
       );
     }

@@ -188,7 +188,9 @@ export interface WorkoutStreak {
 
 // Auth helper functions
 const getCurrentUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   return user;
 };
 
@@ -221,17 +223,13 @@ const signOut = async () => {
 
 // Profile functions
 export const getProfile = async (userId: string): Promise<Profile | null> => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-  
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+
   if (error) {
     console.error('Error fetching profile:', error);
     return null;
   }
-  
+
   return data;
 };
 
@@ -242,22 +240,19 @@ export const updateProfile = async (userId: string, updates: Partial<Profile>) =
     .eq('id', userId)
     .select()
     .single();
-  
+
   return { data, error };
 };
 
 // Exercise functions
 export const getExercises = async (): Promise<Exercise[]> => {
-  const { data, error } = await supabase
-    .from('exercises')
-    .select('*')
-    .order('name');
-  
+  const { data, error } = await supabase.from('exercises').select('*').order('name');
+
   if (error) {
     console.error('Error fetching exercises:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
@@ -267,12 +262,12 @@ const getExercisesByMuscleGroup = async (muscleGroup: string): Promise<Exercise[
     .select('*')
     .contains('muscle_groups', [muscleGroup])
     .order('name');
-  
+
   if (error) {
     console.error('Error fetching exercises by muscle group:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
@@ -284,12 +279,12 @@ export const getWorkoutTemplates = async (): Promise<Workout[]> => {
     .eq('is_template', true)
     .eq('is_public', true)
     .order('name');
-  
+
   if (error) {
     console.error('Error fetching workout templates:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
@@ -299,21 +294,17 @@ export const getUserWorkouts = async (userId: string): Promise<Workout[]> => {
     .select('*')
     .eq('creator_id', userId)
     .order('created_at', { ascending: false });
-  
+
   if (error) {
     console.error('Error fetching user workouts:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
 export const createWorkout = async (workout: Omit<Workout, 'id' | 'created_at' | 'updated_at'>) => {
-  const { data, error } = await supabase
-    .from('workouts')
-    .insert(workout)
-    .select()
-    .single();
+  const { data, error } = await supabase.from('workouts').insert(workout).select().single();
 
   if (error) {
     logSupabaseError(error, 'create_workout');
@@ -329,7 +320,7 @@ const updateWorkout = async (workoutId: number, updates: Partial<Workout>) => {
     .eq('id', workoutId)
     .select()
     .single();
-  
+
   return { data, error };
 };
 
@@ -339,12 +330,14 @@ const deleteWorkout = async (workoutId: number, userId: string) => {
     .delete()
     .eq('id', workoutId)
     .eq('creator_id', userId);
-  
+
   return { error };
 };
 
 // Workout exercise functions
-export const createWorkoutExercise = async (workoutExercise: Omit<WorkoutExercise, 'id' | 'created_at'>) => {
+export const createWorkoutExercise = async (
+  workoutExercise: Omit<WorkoutExercise, 'id' | 'created_at'>
+) => {
   const { data, error } = await supabase
     .from('workout_exercises')
     .insert(workoutExercise)
@@ -365,45 +358,40 @@ const updateWorkoutExercise = async (exerciseId: number, updates: Partial<Workou
     .eq('id', exerciseId)
     .select()
     .single();
-  
+
   return { data, error };
 };
 
 const deleteWorkoutExercise = async (exerciseId: number) => {
-  const { error } = await supabase
-    .from('workout_exercises')
-    .delete()
-    .eq('id', exerciseId);
-  
+  const { error } = await supabase.from('workout_exercises').delete().eq('id', exerciseId);
+
   return { error };
 };
 
 const getWorkoutExercises = async (workoutId: number) => {
   const { data, error } = await supabase
     .from('workout_exercises')
-    .select(`
+    .select(
+      `
       *,
       exercise:exercises(*)
-    `)
+    `
+    )
     .eq('workout_id', workoutId)
     .order('order_index');
-  
+
   if (error) {
     console.error('Error fetching workout exercises:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
 // Workout session functions
 export const createWorkoutSession = async (session: Omit<WorkoutSession, 'id' | 'created_at'>) => {
-  const { data, error } = await supabase
-    .from('workout_sessions')
-    .insert(session)
-    .select()
-    .single();
-  
+  const { data, error } = await supabase.from('workout_sessions').insert(session).select().single();
+
   if (error) {
     logSupabaseError(error, 'create_workout_session');
   }
@@ -416,17 +404,22 @@ const getUserWorkoutSessions = async (userId: string): Promise<WorkoutSession[]>
     .select('*')
     .eq('user_id', userId)
     .order('started_at', { ascending: false });
-  
+
   if (error) {
     logSupabaseError(error, 'get_user_workout_sessions');
     console.error('Error fetching workout sessions:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
-export const completeWorkoutSession = async (sessionId: number, duration: number, calories?: number, rating?: number) => {
+export const completeWorkoutSession = async (
+  sessionId: number,
+  duration: number,
+  calories?: number,
+  rating?: number
+) => {
   const { data, error } = await supabase
     .from('workout_sessions')
     .update({
@@ -438,7 +431,7 @@ export const completeWorkoutSession = async (sessionId: number, duration: number
     .eq('id', sessionId)
     .select()
     .single();
-  
+
   if (error) {
     logSupabaseError(error, 'complete_workout_session');
   }
@@ -446,13 +439,15 @@ export const completeWorkoutSession = async (sessionId: number, duration: number
 };
 
 // Session exercise functions
-const createSessionExercise = async (sessionExercise: Omit<SessionExercise, 'id' | 'created_at'>) => {
+const createSessionExercise = async (
+  sessionExercise: Omit<SessionExercise, 'id' | 'created_at'>
+) => {
   const { data, error } = await supabase
     .from('session_exercises')
     .insert(sessionExercise)
     .select()
     .single();
-  
+
   return { data, error };
 };
 
@@ -463,7 +458,7 @@ const createExerciseSet = async (exerciseSet: Omit<ExerciseSet, 'id' | 'created_
     .insert(exerciseSet)
     .select()
     .single();
-  
+
   return { data, error };
 };
 
@@ -474,7 +469,7 @@ const updateExerciseSet = async (setId: number, updates: Partial<ExerciseSet>) =
     .eq('id', setId)
     .select()
     .single();
-  
+
   return { data, error };
 };
 
@@ -482,18 +477,20 @@ const updateExerciseSet = async (setId: number, updates: Partial<ExerciseSet>) =
 export const getUserPersonalRecords = async (userId: string): Promise<PersonalRecord[]> => {
   const { data, error } = await supabase
     .from('personal_records')
-    .select(`
+    .select(
+      `
       *,
       exercise:exercises(name, muscle_groups)
-    `)
+    `
+    )
     .eq('user_id', userId)
     .order('achieved_at', { ascending: false });
-  
+
   if (error) {
     console.error('Error fetching personal records:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
@@ -505,7 +502,7 @@ const createPersonalRecord = async (record: Omit<PersonalRecord, 'id' | 'created
     })
     .select()
     .single();
-  
+
   return { data, error };
 };
 
@@ -513,18 +510,20 @@ const createPersonalRecord = async (record: Omit<PersonalRecord, 'id' | 'created
 const getUserAchievements = async (userId: string) => {
   const { data, error } = await supabase
     .from('user_achievements')
-    .select(`
+    .select(
+      `
       *,
       achievement:achievements(*)
-    `)
+    `
+    )
     .eq('user_id', userId)
     .order('unlocked_at', { ascending: false });
-  
+
   if (error) {
     console.error('Error fetching user achievements:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
@@ -532,31 +531,31 @@ const getUserAchievements = async (userId: string) => {
 const getSocialFeed = async (limit: number = 20): Promise<SocialPost[]> => {
   const { data, error } = await supabase
     .from('social_posts')
-    .select(`
+    .select(
+      `
       *,
       profile:profiles(username, full_name, avatar_url),
       workout_session:workout_sessions(name, duration_minutes, calories_burned),
       achievement:achievements(name, description, icon)
-    `)
+    `
+    )
     .eq('is_public', true)
     .order('created_at', { ascending: false })
     .limit(limit);
-  
+
   if (error) {
     console.error('Error fetching social feed:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
-export const createSocialPost = async (post: Omit<SocialPost, 'id' | 'created_at' | 'updated_at'>) => {
-  const { data, error } = await supabase
-    .from('social_posts')
-    .insert(post)
-    .select()
-    .single();
-  
+export const createSocialPost = async (
+  post: Omit<SocialPost, 'id' | 'created_at' | 'updated_at'>
+) => {
+  const { data, error } = await supabase.from('social_posts').insert(post).select().single();
+
   if (error) {
     logSupabaseError(error, 'create_social_post');
   }
@@ -571,12 +570,12 @@ export const getUserStreak = async (userId: string): Promise<WorkoutStreak | nul
     .select('*')
     .eq('user_id', userId)
     .single();
-  
+
   if (error) {
     console.error('Error fetching user streak:', error);
     return null;
   }
-  
+
   return data;
 };
 
@@ -584,7 +583,7 @@ const updateWorkoutStreak = async (userId: string) => {
   const { data, error } = await supabase.rpc('update_workout_streak', {
     user_uuid: userId,
   });
-  
+
   return { data, error };
 };
 
@@ -599,39 +598,41 @@ export const getWorkoutAnalytics = async (userId: string, startDate?: string, en
   if (startDate) {
     query = query.gte('started_at', startDate);
   }
-  
+
   if (endDate) {
     query = query.lte('started_at', endDate);
   }
 
   const { data, error } = await query.order('started_at', { ascending: false });
-  
+
   if (error) {
     console.error('Error fetching workout analytics:', error);
     return [];
   }
-  
+
   return data || [];
 };
 
 export const getExerciseProgress = async (userId: string, exerciseId: number) => {
   const { data, error } = await supabase
     .from('exercise_sets')
-    .select(`
+    .select(
+      `
       *,
       session_exercise:session_exercises(
         session:workout_sessions(started_at, user_id)
       )
-    `)
+    `
+    )
     .eq('session_exercise.session.user_id', userId)
     .eq('session_exercise.exercise_id', exerciseId)
     .eq('completed', true)
     .order('created_at', { ascending: false });
-  
+
   if (error) {
     console.error('Error fetching exercise progress:', error);
     return [];
   }
-  
+
   return data || [];
 };

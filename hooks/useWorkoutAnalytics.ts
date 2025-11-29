@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { 
-  getWorkoutAnalytics, 
-  getUserStreak, 
+import {
+  getWorkoutAnalytics,
+  getUserStreak,
   getUserPersonalRecords,
   WorkoutSession,
-  WorkoutStreak 
+  WorkoutStreak,
 } from '@/lib/supabase';
 import { logSupabaseError } from '@/lib/supabase';
 
@@ -53,23 +53,23 @@ const defaultProgressData: ProgressData = {
 };
 
 const calculateWorkoutStats = (
-  sessions: WorkoutSession[], 
-  weekStart: Date, 
+  sessions: WorkoutSession[],
+  weekStart: Date,
   monthStart: Date
 ): WorkoutStats => {
   const totalWorkouts = sessions.length;
   const totalDuration = sessions.reduce((sum, session) => sum + (session.duration_minutes || 0), 0);
   const totalCalories = sessions.reduce((sum, session) => sum + (session.calories_burned || 0), 0);
-  
+
   const workoutsThisWeek = sessions.filter(
-    session => new Date(session.started_at) >= weekStart
-  ).length;
-  
-  const workoutsThisMonth = sessions.filter(
-    session => new Date(session.started_at) >= monthStart
+    (session) => new Date(session.started_at) >= weekStart
   ).length;
 
-  const durations = sessions.map(s => s.duration_minutes || 0).filter(d => d > 0);
+  const workoutsThisMonth = sessions.filter(
+    (session) => new Date(session.started_at) >= monthStart
+  ).length;
+
+  const durations = sessions.map((s) => s.duration_minutes || 0).filter((d) => d > 0);
   const longestSession = durations.length > 0 ? Math.max(...durations) : 0;
   const shortestSession = durations.length > 0 ? Math.min(...durations) : 0;
 
@@ -89,34 +89,34 @@ const calculateWorkoutStats = (
 const calculateWeeklyProgress = (sessions: WorkoutSession[]): number[] => {
   const progress = new Array(7).fill(0);
   const now = new Date();
-  
-  sessions.forEach(session => {
+
+  sessions.forEach((session) => {
     const sessionDate = new Date(session.started_at);
     const daysDiff = Math.floor((now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysDiff >= 0 && daysDiff < 7) {
       const dayIndex = 6 - daysDiff; // Reverse order so today is last
       progress[dayIndex] += session.duration_minutes || 0;
     }
   });
-  
+
   return progress;
 };
 
 const calculateMonthlyProgress = (sessions: WorkoutSession[]): number[] => {
   const progress = new Array(30).fill(0);
   const now = new Date();
-  
-  sessions.forEach(session => {
+
+  sessions.forEach((session) => {
     const sessionDate = new Date(session.started_at);
     const daysDiff = Math.floor((now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysDiff >= 0 && daysDiff < 30) {
       const dayIndex = 29 - daysDiff; // Reverse order so today is last
       progress[dayIndex] += session.duration_minutes || 0;
     }
   });
-  
+
   return progress;
 };
 
@@ -132,7 +132,7 @@ const fetchWorkoutAnalytics = async (userId: string): Promise<ProgressData> => {
       getUserPersonalRecords(userId),
     ]);
 
-    const completedSessions = workoutSessions.filter(session => session.completed_at);
+    const completedSessions = workoutSessions.filter((session) => session.completed_at);
     const stats = calculateWorkoutStats(completedSessions, sevenDaysAgo, thirtyDaysAgo);
     const weeklyProgress = calculateWeeklyProgress(completedSessions);
     const monthlyProgress = calculateMonthlyProgress(completedSessions);

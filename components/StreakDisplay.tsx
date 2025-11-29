@@ -24,7 +24,9 @@ export default function StreakDisplay({ streak, loading }: StreakDisplayProps) {
         <View style={styles.emptyState}>
           <Zap size={32} color="#666" />
           <Text style={styles.emptyTitle}>No Streak Yet</Text>
-          <Text style={styles.emptyText}>Complete your first workout to start building your streak!</Text>
+          <Text style={styles.emptyText}>
+            Complete your first workout to start building your streak!
+          </Text>
         </View>
       </View>
     );
@@ -37,19 +39,20 @@ export default function StreakDisplay({ streak, loading }: StreakDisplayProps) {
 
   const getStreakMessage = () => {
     if (streak.current_streak === 0) {
-      return "Time to get back on track!";
+      return 'Time to get back on track!';
     } else if (streak.current_streak === 1) {
-      return "Great start! Keep it going!";
+      return 'Great start! Keep it going!';
     } else if (streak.current_streak < 7) {
-      return "Building momentum!";
+      return 'Building momentum!';
     } else if (streak.current_streak < 30) {
       return "You're on fire! 🔥";
     } else {
-      return "Incredible dedication! 🏆";
+      return 'Incredible dedication! 🏆';
     }
   };
 
-  const isPersonalBest = streak.current_streak === streak.longest_streak && streak.current_streak > 0;
+  const isPersonalBest =
+    streak.current_streak === streak.longest_streak && streak.current_streak > 0;
 
   return (
     <LinearGradient

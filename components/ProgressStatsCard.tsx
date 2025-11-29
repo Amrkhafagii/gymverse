@@ -39,11 +39,7 @@ export default function ProgressStatsCard({
         <Text style={styles.value}>{value}</Text>
       </View>
       <Text style={styles.label}>{label}</Text>
-      {change && (
-        <Text style={[styles.change, { color: getChangeColor() }]}>
-          {change}
-        </Text>
-      )}
+      {change && <Text style={[styles.change, { color: getChangeColor() }]}>{change}</Text>}
     </View>
   );
 }

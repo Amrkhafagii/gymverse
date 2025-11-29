@@ -22,32 +22,33 @@ interface PersonalRecordUpdate {
 
 // Check for new personal records after a workout session
 export const checkForPersonalRecords = async (
-  userId: string, 
+  userId: string,
   sessionId: number
 ): Promise<PersonalRecordData[]> => {
   const newRecords: PersonalRecordData[] = [];
-  
+
   try {
     // Get all exercise sets from the completed session
     const { data: sessionSets, error: setsError } = await supabase
       .from('exercise_sets')
-      .select(`
+      .select(
+        `
         *,
         session_exercise:session_exercises(
           exercise_id,
           exercise:exercises(name, exercise_type)
         )
-      `)
+      `
+      )
       .eq('session_exercise.session_id', sessionId)
       .eq('completed', true);
 
     if (setsError) throw setsError;
 
     // Filter out sets with null session_exercise or exercise data
-    const validSets = (sessionSets || []).filter(set => 
-      set.session_exercise && 
-      set.session_exercise.exercise && 
-      set.session_exercise.exercise.name
+    const validSets = (sessionSets || []).filter(
+      (set) =>
+        set.session_exercise && set.session_exercise.exercise && set.session_exercise.exercise.name
     );
 
     if (validSets.length === 0) {
@@ -62,14 +63,14 @@ export const checkForPersonalRecords = async (
     for (const [exerciseId, sets] of exerciseGroups) {
       const exerciseName = sets[0].session_exercise.exercise.name;
       const exerciseType = sets[0].session_exercise.exercise.exercise_type;
-      
+
       // Check different record types based on exercise type
       if (exerciseType === 'strength') {
         // Check max weight record
         const maxWeightRecord = await checkMaxWeightRecord(
-          userId, 
-          parseInt(exerciseId), 
-          sets, 
+          userId,
+          parseInt(exerciseId),
+          sets,
           sessionId,
           exerciseName
         );
@@ -77,9 +78,9 @@ export const checkForPersonalRecords = async (
 
         // Check max reps record (at any weight)
         const maxRepsRecord = await checkMaxRepsRecord(
-          userId, 
-          parseInt(exerciseId), 
-          sets, 
+          userId,
+          parseInt(exerciseId),
+          sets,
           sessionId,
           exerciseName
         );
@@ -89,9 +90,9 @@ export const checkForPersonalRecords = async (
       if (exerciseType === 'cardio') {
         // Check best time record
         const bestTimeRecord = await checkBestTimeRecord(
-          userId, 
-          parseInt(exerciseId), 
-          sets, 
+          userId,
+          parseInt(exerciseId),
+          sets,
           sessionId,
           exerciseName
         );
@@ -99,9 +100,9 @@ export const checkForPersonalRecords = async (
 
         // Check max distance record
         const maxDistanceRecord = await checkMaxDistanceRecord(
-          userId, 
-          parseInt(exerciseId), 
-          sets, 
+          userId,
+          parseInt(exerciseId),
+          sets,
           sessionId,
           exerciseName
         );
@@ -118,8 +119,8 @@ export const checkForPersonalRecords = async (
 // Group exercise sets by exercise ID
 const groupSetsByExercise = (sets: any[]): Map<string, any[]> => {
   const groups = new Map<string, any[]>();
-  
-  sets.forEach(set => {
+
+  sets.forEach((set) => {
     // Add defensive null check for session_exercise
     if (!set.session_exercise || !set.session_exercise.exercise_id) {
       console.warn('Skipping set with invalid session_exercise data:', set);
@@ -132,7 +133,7 @@ const groupSetsByExercise = (sets: any[]): Map<string, any[]> => {
     }
     groups.get(exerciseId)!.push(set);
   });
-  
+
   return groups;
 };
 
@@ -146,8 +147,8 @@ const checkMaxWeightRecord = async (
 ): Promise<PersonalRecordData | null> => {
   try {
     // Find the maximum weight lifted in this session
-    const maxWeight = Math.max(...sets.map(set => set.weight_kg || 0));
-    
+    const maxWeight = Math.max(...sets.map((set) => set.weight_kg || 0));
+
     if (maxWeight <= 0) return null;
 
     // Get current max weight record
@@ -162,7 +163,7 @@ const checkMaxWeightRecord = async (
     if (error && error.code !== 'PGRST116') throw error;
 
     const previousValue = currentRecord?.value || 0;
-    
+
     // Check if this is a new record
     if (maxWeight > previousValue) {
       // Create or update the record
@@ -176,11 +177,9 @@ const checkMaxWeightRecord = async (
         achieved_at: new Date().toISOString(),
       };
 
-      const { error: upsertError } = await supabase
-        .from('personal_records')
-        .upsert(recordData, {
-          onConflict: 'user_id,exercise_id,record_type',
-        });
+      const { error: upsertError } = await supabase.from('personal_records').upsert(recordData, {
+        onConflict: 'user_id,exercise_id,record_type',
+      });
 
       if (upsertError) throw upsertError;
 
@@ -213,8 +212,8 @@ const checkMaxRepsRecord = async (
 ): Promise<PersonalRecordData | null> => {
   try {
     // Find the maximum reps in a single set
-    const maxReps = Math.max(...sets.map(set => set.reps || 0));
-    
+    const maxReps = Math.max(...sets.map((set) => set.reps || 0));
+
     if (maxReps <= 0) return null;
 
     // Get current max reps record
@@ -229,7 +228,7 @@ const checkMaxRepsRecord = async (
     if (error && error.code !== 'PGRST116') throw error;
 
     const previousValue = currentRecord?.value || 0;
-    
+
     // Check if this is a new record
     if (maxReps > previousValue) {
       // Create or update the record
@@ -243,11 +242,9 @@ const checkMaxRepsRecord = async (
         achieved_at: new Date().toISOString(),
       };
 
-      const { error: upsertError } = await supabase
-        .from('personal_records')
-        .upsert(recordData, {
-          onConflict: 'user_id,exercise_id,record_type',
-        });
+      const { error: upsertError } = await supabase.from('personal_records').upsert(recordData, {
+        onConflict: 'user_id,exercise_id,record_type',
+      });
 
       if (upsertError) throw upsertError;
 
@@ -280,9 +277,9 @@ const checkBestTimeRecord = async (
 ): Promise<PersonalRecordData | null> => {
   try {
     // Find the minimum time (best time) in this session
-    const validTimes = sets.map(set => set.duration_seconds).filter(time => time > 0);
+    const validTimes = sets.map((set) => set.duration_seconds).filter((time) => time > 0);
     if (validTimes.length === 0) return null;
-    
+
     const bestTime = Math.min(...validTimes);
 
     // Get current best time record
@@ -297,7 +294,7 @@ const checkBestTimeRecord = async (
     if (error && error.code !== 'PGRST116') throw error;
 
     const previousValue = currentRecord?.value || Infinity;
-    
+
     // Check if this is a new record (lower time is better)
     if (bestTime < previousValue) {
       // Create or update the record
@@ -311,11 +308,9 @@ const checkBestTimeRecord = async (
         achieved_at: new Date().toISOString(),
       };
 
-      const { error: upsertError } = await supabase
-        .from('personal_records')
-        .upsert(recordData, {
-          onConflict: 'user_id,exercise_id,record_type',
-        });
+      const { error: upsertError } = await supabase.from('personal_records').upsert(recordData, {
+        onConflict: 'user_id,exercise_id,record_type',
+      });
 
       if (upsertError) throw upsertError;
 
@@ -348,8 +343,8 @@ const checkMaxDistanceRecord = async (
 ): Promise<PersonalRecordData | null> => {
   try {
     // Find the maximum distance in this session
-    const maxDistance = Math.max(...sets.map(set => set.distance_meters || 0));
-    
+    const maxDistance = Math.max(...sets.map((set) => set.distance_meters || 0));
+
     if (maxDistance <= 0) return null;
 
     // Get current max distance record
@@ -364,7 +359,7 @@ const checkMaxDistanceRecord = async (
     if (error && error.code !== 'PGRST116') throw error;
 
     const previousValue = currentRecord?.value || 0;
-    
+
     // Check if this is a new record
     if (maxDistance > previousValue) {
       // Create or update the record
@@ -378,11 +373,9 @@ const checkMaxDistanceRecord = async (
         achieved_at: new Date().toISOString(),
       };
 
-      const { error: upsertError } = await supabase
-        .from('personal_records')
-        .upsert(recordData, {
-          onConflict: 'user_id,exercise_id,record_type',
-        });
+      const { error: upsertError } = await supabase.from('personal_records').upsert(recordData, {
+        onConflict: 'user_id,exercise_id,record_type',
+      });
 
       if (upsertError) throw upsertError;
 
@@ -410,10 +403,12 @@ export const getUserPersonalRecordsWithDetails = async (userId: string): Promise
   try {
     const { data, error } = await supabase
       .from('personal_records')
-      .select(`
+      .select(
+        `
         *,
         exercise:exercises(name, muscle_groups, exercise_type)
-      `)
+      `
+      )
       .eq('user_id', userId)
       .order('achieved_at', { ascending: false });
 
@@ -427,7 +422,7 @@ export const getUserPersonalRecordsWithDetails = async (userId: string): Promise
 
 // Get personal records for a specific exercise
 export const getExercisePersonalRecords = async (
-  userId: string, 
+  userId: string,
   exerciseId: number
 ): Promise<PersonalRecord[]> => {
   try {
@@ -448,8 +443,8 @@ export const getExercisePersonalRecords = async (
 
 // Format personal record value for display
 export const formatPersonalRecordValue = (
-  value: number, 
-  recordType: string, 
+  value: number,
+  recordType: string,
   unit: string
 ): string => {
   switch (recordType) {
@@ -496,19 +491,22 @@ export const getPersonalRecordStats = async (userId: string) => {
 
     const records = data || [];
     const totalRecords = records.length;
-    
+
     // Count records by type
-    const recordsByType = records.reduce((acc, record) => {
-      acc[record.record_type] = (acc[record.record_type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const recordsByType = records.reduce(
+      (acc, record) => {
+        acc[record.record_type] = (acc[record.record_type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     // Count recent records (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     const recentRecords = records.filter(
-      record => new Date(record.achieved_at) >= thirtyDaysAgo
+      (record) => new Date(record.achieved_at) >= thirtyDaysAgo
     ).length;
 
     return {

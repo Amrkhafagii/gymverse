@@ -15,31 +15,30 @@ interface ProfilePreferencesSectionProps {
   onPreferencePress: (index: number) => void;
 }
 
-export default function ProfilePreferencesSection({ 
-  preferences, 
-  onPreferencePress 
+export default function ProfilePreferencesSection({
+  preferences,
+  onPreferencePress,
 }: ProfilePreferencesSectionProps) {
   return (
     <View style={styles.preferencesContainer}>
       <Text style={styles.sectionTitle}>Preferences</Text>
       {preferences.map((preference, index) => {
         const IconComponent = preference.icon;
-        
+
         return (
-          <TouchableOpacity 
-            key={index} 
-            style={[
-              styles.preferenceItem,
-              preference.action && styles.preferenceItemAction
-            ]}
+          <TouchableOpacity
+            key={index}
+            style={[styles.preferenceItem, preference.action && styles.preferenceItemAction]}
             onPress={() => onPreferencePress(index)}
           >
             <View style={styles.preferenceContent}>
               {IconComponent && (
-                <View style={[
-                  styles.preferenceIcon,
-                  { backgroundColor: `${preference.color || '#666'}20` }
-                ]}>
+                <View
+                  style={[
+                    styles.preferenceIcon,
+                    { backgroundColor: `${preference.color || '#666'}20` },
+                  ]}
+                >
                   <IconComponent size={20} color={preference.color || '#666'} />
                 </View>
               )}
@@ -48,9 +47,7 @@ export default function ProfilePreferencesSection({
                 <Text style={styles.preferenceValue}>{preference.value}</Text>
               </View>
             </View>
-            {preference.action && (
-              <ChevronRight size={20} color="#666" />
-            )}
+            {preference.action && <ChevronRight size={20} color="#666" />}
           </TouchableOpacity>
         );
       })}

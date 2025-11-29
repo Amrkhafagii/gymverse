@@ -45,7 +45,7 @@ export default function ProgressChart({
         <Text style={styles.title}>{title}</Text>
         {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       </View>
-      
+
       <View style={[styles.chart, { height }]}>
         <View style={styles.barsContainer}>
           {data.map((value, index) => (
@@ -61,18 +61,14 @@ export default function ProgressChart({
                   ]}
                 />
               </View>
-              {showLabels && (
-                <Text style={styles.barLabel}>{formatLabel(index)}</Text>
-              )}
+              {showLabels && <Text style={styles.barLabel}>{formatLabel(index)}</Text>}
             </View>
           ))}
         </View>
       </View>
-      
+
       <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Max: {Math.max(...data)} min
-        </Text>
+        <Text style={styles.footerText}>Max: {Math.max(...data)} min</Text>
         <Text style={styles.footerText}>
           Avg: {data.length > 0 ? Math.round(data.reduce((a, b) => a + b, 0) / data.length) : 0} min
         </Text>

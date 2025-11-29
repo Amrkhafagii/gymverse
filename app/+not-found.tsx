@@ -7,9 +7,7 @@ export default function NotFoundScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
-      <LinearGradient
-        colors={['#0a0a0a', '#1a1a1a']}
-        style={styles.container}>
+      <LinearGradient colors={['#0a0a0a', '#1a1a1a']} style={styles.container}>
         <Text style={styles.title}>404</Text>
         <Text style={styles.text}>This screen doesn't exist.</Text>
         <Link href="/" style={styles.link}>

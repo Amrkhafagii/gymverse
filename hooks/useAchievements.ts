@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Achievement } from '@/lib/supabase';
-import { 
-  checkAllAchievements, 
-  getUserAchievements, 
+import {
+  checkAllAchievements,
+  getUserAchievements,
   getUserAchievementProgress,
   UserAchievement,
-  AchievementProgress
+  AchievementProgress,
 } from '@/lib/achievements';
 
 export function useAchievements(userId: string | null) {
@@ -26,7 +26,7 @@ export function useAchievements(userId: string | null) {
 
   const loadUserAchievements = async () => {
     if (!userId) return;
-    
+
     try {
       setError(null);
       const achievements = await getUserAchievements(userId);
@@ -39,7 +39,7 @@ export function useAchievements(userId: string | null) {
 
   const loadAchievementProgress = async () => {
     if (!userId) return;
-    
+
     try {
       setError(null);
       const progress = await getUserAchievementProgress(userId);
@@ -54,7 +54,7 @@ export function useAchievements(userId: string | null) {
 
   const checkForNewAchievements = async () => {
     if (!userId) return [];
-    
+
     try {
       const newlyUnlocked = await checkAllAchievements(userId);
       if (newlyUnlocked.length > 0) {
@@ -90,8 +90,10 @@ export function useAchievements(userId: string | null) {
     if (category === 'all') {
       return achievementProgress;
     }
-    return achievementProgress.filter(progress => {
-      const achievement = userAchievements.find(ua => ua.achievement_id === progress.achievement_id)?.achievement;
+    return achievementProgress.filter((progress) => {
+      const achievement = userAchievements.find(
+        (ua) => ua.achievement_id === progress.achievement_id
+      )?.achievement;
       return achievement?.category === category;
     });
   };
@@ -104,9 +106,9 @@ export function useAchievements(userId: string | null) {
 
   const getNextAchievement = () => {
     const inProgress = achievementProgress
-      .filter(p => !p.unlocked && p.percentage > 0)
+      .filter((p) => !p.unlocked && p.percentage > 0)
       .sort((a, b) => b.percentage - a.percentage);
-    
+
     return inProgress[0] || null;
   };
 

@@ -1,7 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Trophy, Star, CircleCheck as CheckCircle, Lock, Zap, Target, Award, Medal, Users, Calendar } from 'lucide-react-native';
+import {
+  Trophy,
+  Star,
+  CircleCheck as CheckCircle,
+  Lock,
+  Zap,
+  Target,
+  Award,
+  Medal,
+  Users,
+  Calendar,
+} from 'lucide-react-native';
 import { Achievement } from '@/lib/supabase';
 import { AchievementProgress } from '@/lib/achievements';
 
@@ -11,10 +22,10 @@ interface AchievementProgressCardProps {
   onPress?: () => void;
 }
 
-export default function AchievementProgressCard({ 
-  achievement, 
-  progress, 
-  onPress 
+export default function AchievementProgressCard({
+  achievement,
+  progress,
+  onPress,
 }: AchievementProgressCardProps) {
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -62,8 +73,8 @@ export default function AchievementProgressCard({
   const CardComponent = onPress ? TouchableOpacity : View;
 
   return (
-    <CardComponent 
-      style={[styles.container, progress.unlocked && styles.unlockedContainer]} 
+    <CardComponent
+      style={[styles.container, progress.unlocked && styles.unlockedContainer]}
       onPress={onPress}
     >
       {progress.unlocked && (
@@ -72,35 +83,27 @@ export default function AchievementProgressCard({
           style={styles.unlockedGradient}
         />
       )}
-      
+
       <View style={styles.header}>
-        <View style={[
-          styles.iconContainer, 
-          { 
-            backgroundColor: progress.unlocked ? categoryColor : '#333',
-            borderColor: progress.unlocked ? categoryColor : '#555',
-          }
-        ]}>
-          <IconComponent 
-            size={24} 
-            color={progress.unlocked ? '#fff' : '#999'} 
-          />
+        <View
+          style={[
+            styles.iconContainer,
+            {
+              backgroundColor: progress.unlocked ? categoryColor : '#333',
+              borderColor: progress.unlocked ? categoryColor : '#555',
+            },
+          ]}
+        >
+          <IconComponent size={24} color={progress.unlocked ? '#fff' : '#999'} />
         </View>
-        
+
         <View style={styles.titleContainer}>
           <View style={styles.titleRow}>
-            <Text style={[
-              styles.title, 
-              progress.unlocked && styles.unlockedTitle
-            ]}>
+            <Text style={[styles.title, progress.unlocked && styles.unlockedTitle]}>
               {achievement.name}
             </Text>
-            {progress.unlocked && (
-              <CheckCircle size={20} color={categoryColor} />
-            )}
-            {!progress.unlocked && progress.percentage < 10 && (
-              <Lock size={16} color="#666" />
-            )}
+            {progress.unlocked && <CheckCircle size={20} color={categoryColor} />}
+            {!progress.unlocked && progress.percentage < 10 && <Lock size={16} color="#666" />}
           </View>
           <Text style={styles.description}>{achievement.description}</Text>
         </View>
@@ -110,9 +113,7 @@ export default function AchievementProgressCard({
         <View style={styles.progressContainer}>
           <View style={styles.progressHeader}>
             <Text style={styles.progressLabel}>Progress</Text>
-            <Text style={styles.progressPercentage}>
-              {Math.round(progress.percentage)}%
-            </Text>
+            <Text style={styles.progressPercentage}>{Math.round(progress.percentage)}%</Text>
           </View>
           <View style={styles.progressBar}>
             <View
@@ -134,9 +135,7 @@ export default function AchievementProgressCard({
       {progress.unlocked && (
         <View style={styles.unlockedBadge}>
           <CheckCircle size={16} color={categoryColor} />
-          <Text style={[styles.unlockedText, { color: categoryColor }]}>
-            Unlocked!
-          </Text>
+          <Text style={[styles.unlockedText, { color: categoryColor }]}>Unlocked!</Text>
         </View>
       )}
 

@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  Animated,
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Trophy, X, TrendingUp, Calendar } from 'lucide-react-native';
 import { PersonalRecordData, formatPersonalRecordValue } from '@/lib/personalRecords';
@@ -17,7 +10,11 @@ interface PersonalRecordModalProps {
   onClose: () => void;
 }
 
-export default function PersonalRecordModal({ visible, record, onClose }: PersonalRecordModalProps) {
+export default function PersonalRecordModal({
+  visible,
+  record,
+  onClose,
+}: PersonalRecordModalProps) {
   const scaleValue = new Animated.Value(0);
 
   React.useEffect(() => {
@@ -69,12 +66,7 @@ export default function PersonalRecordModal({ visible, record, onClose }: Person
   const recordTitle = getRecordTypeTitle(record.record_type);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Animated.View
           style={[
@@ -84,10 +76,7 @@ export default function PersonalRecordModal({ visible, record, onClose }: Person
             },
           ]}
         >
-          <LinearGradient
-            colors={[recordColor, `${recordColor}CC`]}
-            style={styles.modalContent}
-          >
+          <LinearGradient colors={[recordColor, `${recordColor}CC`]} style={styles.modalContent}>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <X size={24} color="#fff" />
             </TouchableOpacity>
@@ -114,8 +103,8 @@ export default function PersonalRecordModal({ visible, record, onClose }: Person
                   <Text style={styles.improvementText}>
                     <Text>+</Text>
                     {formatPersonalRecordValue(
-                      record.improvement || 0, 
-                      record.record_type, 
+                      record.improvement || 0,
+                      record.record_type,
                       record.unit
                     )}
                     <Text> improvement</Text>

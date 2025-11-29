@@ -1,5 +1,14 @@
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Target, Zap, Users, Trophy, Medal, Calendar, Calculator, MoonStar } from 'lucide-react-native';
+import {
+  Target,
+  Zap,
+  Users,
+  Trophy,
+  Medal,
+  Calendar,
+  Calculator,
+  MoonStar,
+} from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,28 +60,28 @@ export default function ProfileScreen() {
   // Dynamic preferences based on profile data
   const preferences = [
     { label: 'Workout Reminders', value: 'Daily at 6:00 PM' },
-    { 
-      label: 'Units', 
-      value: profile?.preferred_units === 'imperial' ? 'Imperial (lbs)' : 'Metric (kg)' 
+    {
+      label: 'Units',
+      value: profile?.preferred_units === 'imperial' ? 'Imperial (lbs)' : 'Metric (kg)',
     },
-    { 
-      label: 'Privacy', 
-      value: profile?.is_public ? 'Public Profile' : 'Private Profile' 
+    {
+      label: 'Privacy',
+      value: profile?.is_public ? 'Public Profile' : 'Private Profile',
     },
     { label: 'Notifications', value: 'Enabled' },
-    { 
-      label: 'Theme', 
+    {
+      label: 'Theme',
       value: mode === 'dark' ? 'Dark' : 'Light',
       action: toggle,
       icon: MoonStar,
       color: '#4A90E2',
     },
-    { 
-      label: 'TDEE Calculator', 
+    {
+      label: 'TDEE Calculator',
       value: 'Calculate daily calories',
       action: () => setShowTDEECalculator(true),
       icon: Calculator,
-      color: '#FF6B35'
+      color: '#FF6B35',
     },
   ];
 
@@ -114,7 +123,9 @@ export default function ProfileScreen() {
   const displayName = profile?.full_name || profile?.username || 'User';
   const displayHandle = profile?.username ? `@${profile.username}` : '@user';
   const displayBio = profile?.bio || 'No bio available. Edit your profile to add one!';
-  const displayAvatar = profile?.avatar_url || 'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2';
+  const displayAvatar =
+    profile?.avatar_url ||
+    'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2';
 
   return (
     <View style={styles.container}>
@@ -133,14 +144,14 @@ export default function ProfileScreen() {
 
         <ProfileAchievementsSection achievements={achievements} />
 
-        <ProfileRecentWorkoutsSection 
+        <ProfileRecentWorkoutsSection
           recentWorkouts={recentWorkouts}
           onSeeAllPress={handleSeeAllWorkoutsPress}
         />
 
         <ProfilePersonalRecordsSection personalRecords={personalRecords} />
 
-        <ProfilePreferencesSection 
+        <ProfilePreferencesSection
           preferences={preferences}
           onPreferencePress={handlePreferencePress}
         />
@@ -148,10 +159,7 @@ export default function ProfileScreen() {
         <ProfileLogoutButton onLogoutPress={handleLogoutPress} />
       </ScrollView>
 
-      <TDEECalculator
-        visible={showTDEECalculator}
-        onClose={() => setShowTDEECalculator(false)}
-      />
+      <TDEECalculator visible={showTDEECalculator} onClose={() => setShowTDEECalculator(false)} />
     </View>
   );
 }

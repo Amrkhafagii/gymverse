@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -19,15 +12,8 @@ import PersonalRecordCard from '@/components/PersonalRecordCard';
 export default function ExerciseProgressScreen() {
   const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>();
   const { user } = useAuth();
-  const {
-    exercise,
-    progressData,
-    personalRecords,
-    stats,
-    loading,
-    error,
-    refreshProgress,
-  } = useExerciseProgress(user?.id || null, exerciseId ? parseInt(exerciseId) : null);
+  const { exercise, progressData, personalRecords, stats, loading, error, refreshProgress } =
+    useExerciseProgress(user?.id || null, exerciseId ? parseInt(exerciseId) : null);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -85,23 +71,23 @@ export default function ExerciseProgressScreen() {
   };
 
   return (
-    <ScrollView 
-      style={styles.container} 
+    <ScrollView
+      style={styles.container}
       showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
       <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.header}>
         <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
-        
+
         <View style={styles.exerciseHeader}>
           <Text style={styles.exerciseTitle}>{exercise.name}</Text>
           <View style={styles.exerciseMeta}>
             <View style={styles.metaItem}>
-              <Text style={[styles.metaText, { color: getDifficultyColor(exercise.difficulty_level) }]}>
+              <Text
+                style={[styles.metaText, { color: getDifficultyColor(exercise.difficulty_level) }]}
+              >
                 {exercise.difficulty_level}
               </Text>
             </View>
@@ -213,11 +199,7 @@ export default function ExerciseProgressScreen() {
         <View style={styles.recordsContainer}>
           <Text style={styles.sectionTitle}>Personal Records</Text>
           {personalRecords.map((record, index) => (
-            <PersonalRecordCard
-              key={record.id}
-              record={record}
-              showExerciseName={false}
-            />
+            <PersonalRecordCard key={record.id} record={record} showExerciseName={false} />
           ))}
         </View>
       )}
@@ -259,18 +241,18 @@ export default function ExerciseProgressScreen() {
       )}
 
       {/* Empty State */}
-      {progressData.weightProgress.length === 0 && 
-       progressData.repsProgress.length === 0 && 
-       progressData.volumeProgress.length === 0 && 
-       progressData.durationProgress.length === 0 && (
-        <View style={styles.emptyState}>
-          <TrendingUp size={48} color="#666" />
-          <Text style={styles.emptyTitle}>No Progress Data Yet</Text>
-          <Text style={styles.emptyText}>
-            Complete workouts with this exercise to see your progress charts and statistics.
-          </Text>
-        </View>
-      )}
+      {progressData.weightProgress.length === 0 &&
+        progressData.repsProgress.length === 0 &&
+        progressData.volumeProgress.length === 0 &&
+        progressData.durationProgress.length === 0 && (
+          <View style={styles.emptyState}>
+            <TrendingUp size={48} color="#666" />
+            <Text style={styles.emptyTitle}>No Progress Data Yet</Text>
+            <Text style={styles.emptyText}>
+              Complete workouts with this exercise to see your progress charts and statistics.
+            </Text>
+          </View>
+        )}
 
       <View style={styles.bottomSpacer} />
     </ScrollView>

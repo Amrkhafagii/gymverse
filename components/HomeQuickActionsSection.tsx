@@ -43,15 +43,16 @@ export default function HomeQuickActionsSection({ quickActions }: HomeQuickActio
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.quickActionsGrid}>
         {quickActions.map((action, index) => (
-          <TouchableOpacity 
-            key={index} 
+          <TouchableOpacity
+            key={index}
             style={styles.quickActionCard}
             onPress={() => handleQuickAction(action.label)}
             activeOpacity={0.8}
           >
             <LinearGradient
               colors={[action.color, `${action.color}CC`]}
-              style={styles.quickActionGradient}>
+              style={styles.quickActionGradient}
+            >
               <action.icon size={28} color="#fff" />
               <Text style={styles.quickActionLabel}>{action.label}</Text>
             </LinearGradient>
