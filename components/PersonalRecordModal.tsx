@@ -28,6 +28,7 @@ export default function PersonalRecordModal({
     } else {
       scaleValue.setValue(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   if (!record) return null;

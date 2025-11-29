@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import {
@@ -8,11 +8,11 @@ import {
   MoveHorizontal as MoreHorizontal,
   Trophy,
   Zap,
-  Calendar,
   Clock,
-  Target,
 } from 'lucide-react-native';
 import { SocialFeedPost } from '@/lib/socialFeed';
+
+const imagePlaceholder = { blurhash: 'L5H2EC=PM+yV0g-mq.wG9c010J}I' };
 
 interface SocialFeedPostProps {
   post: SocialFeedPost;
@@ -31,8 +31,6 @@ export default function SocialFeedPostComponent({
   onShare,
   onDelete,
 }: SocialFeedPostProps) {
-  const [showMenu, setShowMenu] = useState(false);
-
   const handleMorePress = () => {
     if (post.user_id === currentUserId && onDelete) {
       Alert.alert('Post Options', 'What would you like to do?', [
@@ -98,6 +96,7 @@ export default function SocialFeedPostComponent({
           style={styles.userAvatar}
           contentFit="cover"
           cachePolicy="memory-disk"
+          placeholder={imagePlaceholder}
         />
         <View style={styles.userInfo}>
           <View style={styles.userNameRow}>
@@ -185,7 +184,14 @@ export default function SocialFeedPostComponent({
       {post.media_urls && post.media_urls.length > 0 && (
         <View style={styles.mediaContainer}>
           {post.media_urls.slice(0, 4).map((url, index) => (
-            <Image key={index} source={{ uri: url }} style={styles.mediaImage} />
+            <Image
+              key={index}
+              source={{ uri: url }}
+              style={styles.mediaImage}
+              cachePolicy="memory-disk"
+              placeholder={imagePlaceholder}
+              contentFit="cover"
+            />
           ))}
         </View>
       )}

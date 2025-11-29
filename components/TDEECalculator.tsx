@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -134,14 +134,11 @@ export default function TDEECalculator({ visible, onClose }: TDEECalculatorProps
 
   const calculateTDEE = (): TDEEResults => {
     let weight = parseFloat(formData.weight);
-    let height = parseFloat(formData.height);
-    const age = parseInt(formData.age);
     const bodyFat = parseFloat(formData.bodyFat);
 
     // Convert to metric if needed
     if (!formData.isMetric) {
       weight = weight * 0.453592; // lbs to kg
-      height = height * 2.54; // inches to cm
     }
 
     // Calculate Lean Body Mass

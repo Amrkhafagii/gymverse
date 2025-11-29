@@ -4,29 +4,18 @@ import {
   Text,
   RefreshControl,
   TouchableOpacity,
-  FlatList,
-  ListRenderItemInfo,
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
-import {
-  Plus,
-  Filter,
-  Search,
-  Dumbbell,
-  Clock,
-  Target,
-  TrendingUp,
-  Users,
-} from 'lucide-react-native';
-import { supabase, Workout } from '@/lib/supabase';
+import { Plus, Dumbbell, Clock, Target, Users } from 'lucide-react-native';
+import { Workout } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import WorkoutSearchBar from '@/components/WorkoutSearchBar';
 import WorkoutQuickStartSection from '@/components/WorkoutQuickStartSection';
 import WorkoutTemplatesSection from '@/components/WorkoutTemplatesSection';
-import WorkoutCategoryCard from '@/components/WorkoutCategoryCard';
 import { ScreenState } from '@/components/ScreenState';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useWorkoutsData } from '@/hooks/useWorkoutsData';
@@ -52,14 +41,7 @@ export default function WorkoutsScreen() {
 
   const [workoutCategories, setWorkoutCategories] = useState<WorkoutCategory[]>([]);
 
-  useEffect(() => {
-    filterWorkouts();
-  }, [workoutTemplates, searchQuery, selectedFilter]);
-  useEffect(() => {
-    generateWorkoutCategories(workoutTemplates);
-  }, [workoutTemplates]);
-
-  const generateWorkoutCategories = (templates: Workout[]) => {
+  const generateWorkoutCategories = useCallback((templates: Workout[]) => {
     const categoryMap = new Map<string, WorkoutCategory>();
 
     templates.forEach((template) => {
@@ -124,7 +106,7 @@ export default function WorkoutsScreen() {
     } else {
       setWorkoutCategories(Array.from(categoryMap.values()));
     }
-  };
+  }, []);
 
   const formatCategoryName = (type: string): string => {
     switch (type) {
@@ -152,7 +134,7 @@ export default function WorkoutsScreen() {
     }
   };
 
-  const filterWorkouts = () => {
+  const filterWorkouts = useCallback(() => {
     let filtered = workoutTemplates;
 
     if (searchQuery.trim()) {
@@ -170,7 +152,14 @@ export default function WorkoutsScreen() {
     }
 
     setFilteredTemplates(filtered);
-  };
+  }, [searchQuery, selectedFilter, workoutTemplates]);
+
+  useEffect(() => {
+    filterWorkouts();
+  }, [filterWorkouts]);
+  useEffect(() => {
+    generateWorkoutCategories(workoutTemplates);
+  }, [generateWorkoutCategories, workoutTemplates]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -239,12 +228,25 @@ export default function WorkoutsScreen() {
 
   const listData = useMemo(() => filteredTemplates, [filteredTemplates]);
 
+  const skeletonItems = Array.from({ length: 4 }).map((_, i) => ({ id: `skeleton-${i}` }));
+
   return (
-    <FlatList
+    <FlashList
       style={[styles.container, { backgroundColor: colors.background }]}
-      data={listData}
-      renderItem={renderTemplateSection}
-      keyExtractor={(item) => item.id.toString()}
+      data={loading ? skeletonItems : listData}
+      renderItem={(info) =>
+        loading ? (
+          <View style={styles.skeletonCard}>
+            <View style={styles.skeletonLineShort} />
+            <View style={styles.skeletonLine} />
+            <View style={styles.skeletonLine} />
+          </View>
+        ) : (
+          renderTemplateSection(info as any)
+        )
+      }
+      estimatedItemSize={240}
+      keyExtractor={(item: any) => item.id.toString()}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       ListHeaderComponent={
@@ -557,6 +559,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginHorizontal: -4,
+  },
+  skeletonCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: '#222',
+    gap: 10,
+  },
+  skeletonLine: {
+    height: 12,
+    borderRadius: 8,
+    backgroundColor: '#2a2a2a',
+  },
+  skeletonLineShort: {
+    height: 12,
+    width: '40%',
+    borderRadius: 8,
+    backgroundColor: '#2a2a2a',
   },
   emptyState: {
     padding: 20,

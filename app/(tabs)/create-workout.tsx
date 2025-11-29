@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,16 +13,18 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Save, Plus, X, Trash2, GripVertical, Clock, Target } from 'lucide-react-native';
+import { ArrowLeft, Save, Plus, Clock, Target } from 'lucide-react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, Exercise, createWorkout, createWorkoutExercise } from '@/lib/supabase';
+import { supabase, Exercise } from '@/lib/supabase';
 import ExerciseSelector from '@/components/ExerciseSelector';
 import WorkoutExerciseCard from '@/components/WorkoutExerciseCard';
 import SegmentedControl from '@/components/SegmentedControl';
 import { useToast } from '@/components/ToastProvider';
+import { FormErrorText } from '@/components/FormErrorText';
+import { ErrorBanner } from '@/components/ErrorBanner';
 
 interface WorkoutExercise {
   exercise: Exercise;
@@ -44,8 +46,8 @@ export default function CreateWorkoutScreen() {
 
   // Workout form state
   const formSchema = z.object({
-    name: z.string().min(1, 'Workout name is required').max(100, 'Max 100 characters'),
-    description: z.string().max(500, 'Max 500 characters').optional(),
+    name: z.string().trim().min(1, 'Workout name is required').max(100, 'Max 100 characters'),
+    description: z.string().trim().max(500, 'Max 500 characters').optional(),
     estimatedDuration: z
       .string()
       .optional()
@@ -287,14 +289,7 @@ export default function CreateWorkoutScreen() {
       </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => setError(null)}>
-              <X size={20} color="#E74C3C" />
-            </TouchableOpacity>
-          </View>
-        )}
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
 
         {/* Basic Information */}
         <View style={styles.section}>
@@ -317,7 +312,7 @@ export default function CreateWorkoutScreen() {
                     autoCapitalize="words"
                     maxLength={100}
                   />
-                  {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
+                  <FormErrorText message={errors.name?.message} />
                   <Text style={styles.characterCount}>{(value || '').length}/100</Text>
                 </>
               )}
@@ -343,9 +338,7 @@ export default function CreateWorkoutScreen() {
                     textAlignVertical="top"
                     maxLength={500}
                   />
-                  {errors.description && (
-                    <Text style={styles.errorText}>{errors.description.message}</Text>
-                  )}
+                  <FormErrorText message={errors.description?.message} />
                   <Text style={styles.characterCount}>{(value || '').length}/500</Text>
                 </>
               )}
@@ -372,9 +365,7 @@ export default function CreateWorkoutScreen() {
                       placeholderTextColor="#999"
                       keyboardType="numeric"
                     />
-                    {errors.estimatedDuration && (
-                      <Text style={styles.errorText}>{errors.estimatedDuration.message}</Text>
-                    )}
+                  <FormErrorText message={errors.estimatedDuration?.message} />
                   </>
                 )}
               />
@@ -608,17 +599,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 20,
     marginBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#E74C3C',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#E74C3C',
-    fontFamily: 'Inter-Regular',
-    flex: 1,
   },
   section: {
     marginTop: 30,

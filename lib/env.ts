@@ -10,3 +10,9 @@ export const getRequiredEnv = (name: string): string => {
   }
   return value;
 };
+
+export const validateEnv = () => {
+  const required = ['EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'] as const;
+  required.forEach((key) => getRequiredEnv(key));
+  return true;
+};

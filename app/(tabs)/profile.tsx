@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import {
   Target,
   Zap,
@@ -24,7 +24,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { routes } from '@/utils/routes';
 
 export default function ProfileScreen() {
-  const { user, profile, signOut } = useAuth();
+  const { profile, signOut } = useAuth();
   const [showTDEECalculator, setShowTDEECalculator] = useState(false);
   const { mode, toggle } = useTheme();
 

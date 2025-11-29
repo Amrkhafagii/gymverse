@@ -24,6 +24,7 @@ export default function AchievementModal({ visible, achievement, onClose }: Achi
     } else {
       scaleValue.setValue(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   if (!achievement) return null;

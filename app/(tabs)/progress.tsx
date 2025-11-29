@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TrendingUp, Dumbbell, Zap, Target, Clock, Trophy } from 'lucide-react-native';
+import { TrendingUp, Dumbbell, Zap, Target, Clock } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkoutAnalytics } from '@/hooks/useWorkoutAnalytics';
 import { usePersonalRecords } from '@/hooks/usePersonalRecords';

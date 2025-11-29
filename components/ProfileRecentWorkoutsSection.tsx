@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Clock, Target } from 'lucide-react-native';
 
 interface RecentWorkout {
   name: string;

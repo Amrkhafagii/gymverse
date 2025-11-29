@@ -1,5 +1,4 @@
 import { QueryClient } from '@tanstack/react-query';
-import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -20,11 +19,5 @@ export const createQueryClient = () => {
     storage: AsyncStorage,
   });
 
-  persistQueryClient({
-    queryClient,
-    persister,
-    maxAge: 24 * 60 * 60 * 1000, // 24h cache
-  });
-
-  return queryClient;
+  return { queryClient, persister };
 };

@@ -75,7 +75,7 @@ export default function WorkoutExerciseCard({
 
       onUpdate(updates);
       setIsEditing(false);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Please check your input values');
     }
   };

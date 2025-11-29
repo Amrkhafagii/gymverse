@@ -15,15 +15,18 @@ import { QueryProvider } from '@/providers/QueryProvider';
 import { ToastProvider } from '@/components/ToastProvider';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { initSentry } from '@/sentry.client';
+import { useInitSentry, withSentry } from '@/sentry.client';
+import { validateEnv } from '@/lib/env';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   useFrameworkReady();
+  useInitSentry();
+  validateEnv();
   const { isOnline } = useNetworkStatus();
-  initSentry();
 
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': Inter_400Regular,
@@ -47,16 +50,20 @@ export default function RootLayout() {
       <ThemeProvider>
         <ToastProvider>
           <AuthProvider>
-            {!isOnline && <OfflineBanner />}
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar style="light" />
+            <ErrorBoundary>
+              {!isOnline && <OfflineBanner />}
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+              <StatusBar style="light" />
+            </ErrorBoundary>
           </AuthProvider>
         </ToastProvider>
       </ThemeProvider>
     </QueryProvider>
   );
 }
+
+export default withSentry(RootLayout);

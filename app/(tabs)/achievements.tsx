@@ -5,10 +5,8 @@ import {
   Star,
   Target,
   Award,
-  Filter,
   Crown,
   Zap,
-  Calendar,
   Users,
   Medal,
 } from 'lucide-react-native';
@@ -20,7 +18,6 @@ import AchievementCategoryFilter from '@/components/AchievementCategoryFilter';
 import { Achievement } from '@/lib/supabase';
 import { ScreenState } from '@/components/ScreenState';
 import { useTheme } from '@/theme/ThemeProvider';
-import { colors as tokens } from '@/theme/tokens';
 
 export default function AchievementsScreen() {
   const { user } = useAuth();
@@ -90,7 +87,7 @@ export default function AchievementsScreen() {
       : 0;
 
   const displayItems = useMemo(() => {
-    const items: Array<{ type: 'header'; label: string } | { type: 'card'; data: any }> = [];
+    const items: ({ type: 'header'; label: string } | { type: 'card'; data: any })[] = [];
     if (unlockedProgress.length > 0) {
       items.push({ type: 'header', label: `Unlocked (${unlockedProgress.length})` });
       unlockedProgress.forEach((p) => items.push({ type: 'card', data: p }));

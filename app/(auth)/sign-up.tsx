@@ -17,14 +17,15 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ToastProvider';
+import { FormErrorText } from '@/components/FormErrorText';
 
 const signUpSchema = z
   .object({
-    username: z.string().min(3, 'Username is required'),
-    fullName: z.string().max(100, 'Full name is too long').optional(),
-    email: z.string().email('Enter a valid email'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
-    confirmPassword: z.string(),
+    username: z.string().trim().min(3, 'Username is required'),
+    fullName: z.string().trim().max(100, 'Full name is too long').optional(),
+    email: z.string().trim().email('Enter a valid email'),
+    password: z.string().trim().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string().trim(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     path: ['confirmPassword'],
@@ -66,7 +67,7 @@ export default function SignUpScreen() {
         showToast('Account created! Check your email to verify.', 'success');
         router.replace('/(auth)/sign-in');
       }
-    } catch (error) {
+    } catch {
       showToast('An unexpected error occurred', 'error');
     } finally {
       setLoading(false);
@@ -109,9 +110,7 @@ export default function SignUpScreen() {
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
-                    {errors.username && (
-                      <Text style={styles.errorText}>{errors.username.message}</Text>
-                    )}
+                    <FormErrorText message={errors.username?.message} />
                   </View>
                 )}
               />
@@ -134,9 +133,7 @@ export default function SignUpScreen() {
                       autoCapitalize="words"
                       autoCorrect={false}
                     />
-                    {errors.fullName && (
-                      <Text style={styles.errorText}>{errors.fullName.message}</Text>
-                    )}
+                    <FormErrorText message={errors.fullName?.message} />
                   </View>
                 )}
               />
@@ -160,7 +157,7 @@ export default function SignUpScreen() {
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
-                    {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+                    <FormErrorText message={errors.email?.message} />
                   </View>
                 )}
               />
@@ -184,9 +181,7 @@ export default function SignUpScreen() {
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
-                    {errors.password && (
-                      <Text style={styles.errorText}>{errors.password.message}</Text>
-                    )}
+                    <FormErrorText message={errors.password?.message} />
                   </View>
                 )}
               />
@@ -216,9 +211,7 @@ export default function SignUpScreen() {
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
-                    {errors.confirmPassword && (
-                      <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>
-                    )}
+                    <FormErrorText message={errors.confirmPassword?.message} />
                   </View>
                 )}
               />
@@ -319,12 +312,6 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     paddingRight: 40,
-  },
-  errorText: {
-    color: '#E74C3C',
-    fontSize: 12,
-    marginTop: 4,
-    fontFamily: 'Inter-Regular',
   },
   eyeIcon: {
     position: 'absolute',

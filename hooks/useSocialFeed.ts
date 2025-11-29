@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   SocialFeedPost,
   PostComment,
@@ -17,7 +18,7 @@ import {
 
 export function useSocialFeed(userId?: string) {
   const queryClient = useQueryClient();
-  const feedKey = ['social-feed', userId ?? 'public'];
+  const feedKey = queryKeys.social.feed(userId);
 
   const { data, isLoading, isFetching, isRefetching, error, refetch } = useQuery<SocialFeedPost[]>({
     queryKey: feedKey,

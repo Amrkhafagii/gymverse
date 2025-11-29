@@ -6,11 +6,10 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
-  FlatList,
-  ListRenderItemInfo,
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { FlashList, ListRenderItemInfo } from '@shopify/flash-list';
 import {
   Plus,
   Search,
@@ -38,7 +37,6 @@ export default function SocialScreen() {
     posts,
     loading,
     refreshing,
-    error,
     refreshFeed,
     toggleLike,
     createWorkoutPost,
@@ -120,7 +118,7 @@ export default function SocialScreen() {
   const handleLike = async (postId: number) => {
     try {
       await toggleLike(postId);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to update like. Please try again.');
     }
   };
@@ -143,7 +141,7 @@ export default function SocialScreen() {
         onPress: async () => {
           try {
             await deletePost(postId);
-          } catch (error) {
+          } catch {
             Alert.alert('Error', 'Failed to delete post. Please try again.');
           }
         },
@@ -171,7 +169,7 @@ export default function SocialScreen() {
           break;
       }
       setShowCreatePost(false);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to create post. Please try again.');
     }
   };
@@ -194,10 +192,24 @@ export default function SocialScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <FlatList
-        data={filteredPosts}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id.toString()}
+      <FlashList
+        data={loading ? Array.from({ length: 6 }).map((_, i) => ({ id: `skeleton-${i}` })) : filteredPosts}
+        renderItem={(info) =>
+          loading ? (
+            <View style={styles.skeletonCard}>
+              <View style={styles.skeletonAvatar} />
+              <View style={styles.skeletonContent}>
+                <View style={styles.skeletonLineShort} />
+                <View style={styles.skeletonLine} />
+                <View style={styles.skeletonLine} />
+              </View>
+            </View>
+          ) : (
+            renderPost(info as ListRenderItemInfo<(typeof posts)[number]>)
+          )
+        }
+        estimatedItemSize={320}
+        keyExtractor={(item: any) => item.id.toString()}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshFeed} />}
         ListHeaderComponent={
@@ -428,6 +440,38 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 80,
+  },
+  skeletonCard: {
+    flexDirection: 'row',
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
+    borderColor: '#222',
+    gap: 12,
+  },
+  skeletonAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2a2a2a',
+  },
+  skeletonContent: {
+    flex: 1,
+    gap: 8,
+  },
+  skeletonLine: {
+    height: 10,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+  },
+  skeletonLineShort: {
+    height: 10,
+    width: '60%',
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
   },
   feedSpacer: {
     height: 8,

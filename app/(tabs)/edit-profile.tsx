@@ -13,27 +13,19 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import {
-  ArrowLeft,
-  Save,
-  X,
-  Calendar,
-  Ruler,
-  Weight,
-  Activity,
-  Globe,
-  Lock,
-} from 'lucide-react-native';
+import { ArrowLeft, Save, Calendar, Ruler, Weight, Activity, Globe, Lock } from 'lucide-react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile } from '@/lib/supabase';
 import { useToast } from '@/components/ToastProvider';
+import { FormErrorText } from '@/components/FormErrorText';
+import { ErrorBanner } from '@/components/ErrorBanner';
 
 const profileSchema = z.object({
-  fullName: z.string().max(100, 'Full name must be less than 100 characters').optional(),
-  bio: z.string().max(500, 'Bio must be less than 500 characters').optional(),
+  fullName: z.string().trim().max(100, 'Full name must be less than 100 characters').optional(),
+  bio: z.string().trim().max(500, 'Bio must be less than 500 characters').optional(),
   dateOfBirth: z
     .string()
     .optional()
@@ -79,7 +71,6 @@ export default function EditProfileScreen() {
 
   const {
     control,
-    setValue,
     watch,
     reset,
     formState: { errors, isDirty },
@@ -214,14 +205,7 @@ export default function EditProfileScreen() {
       </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => setError(null)}>
-              <X size={20} color="#E74C3C" />
-            </TouchableOpacity>
-          </View>
-        )}
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
 
         {/* Basic Information */}
         <View style={styles.section}>
@@ -244,9 +228,7 @@ export default function EditProfileScreen() {
                     autoCapitalize="words"
                     maxLength={100}
                   />
-                  {errors.fullName && (
-                    <Text style={styles.errorText}>{errors.fullName.message}</Text>
-                  )}
+                  <FormErrorText message={errors.fullName?.message} />
                 </>
               )}
             />
@@ -272,7 +254,7 @@ export default function EditProfileScreen() {
                     maxLength={500}
                   />
                   <Text style={styles.characterCount}>{(value || '').length}/500</Text>
-                  {errors.bio && <Text style={styles.errorText}>{errors.bio.message}</Text>}
+                  <FormErrorText message={errors.bio?.message} />
                 </>
               )}
             />
@@ -302,9 +284,7 @@ export default function EditProfileScreen() {
                 {formatDateForDisplay(watch('dateOfBirth') || '')}
               </Text>
             )}
-            {errors.dateOfBirth && (
-              <Text style={styles.errorText}>{errors.dateOfBirth.message}</Text>
-            )}
+            <FormErrorText message={errors.dateOfBirth?.message} />
           </View>
         </View>
 
@@ -351,9 +331,7 @@ export default function EditProfileScreen() {
                       placeholderTextColor="#999"
                       keyboardType="numeric"
                     />
-                    {errors.heightCm && (
-                      <Text style={styles.errorText}>{errors.heightCm.message}</Text>
-                    )}
+                    <FormErrorText message={errors.heightCm?.message} />
                   </>
                 )}
               />
@@ -394,9 +372,7 @@ export default function EditProfileScreen() {
                       placeholderTextColor="#999"
                       keyboardType="numeric"
                     />
-                    {errors.weightKg && (
-                      <Text style={styles.errorText}>{errors.weightKg.message}</Text>
-                    )}
+                    <FormErrorText message={errors.weightKg?.message} />
                   </>
                 )}
               />
@@ -559,24 +535,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-  },
-  errorContainer: {
-    backgroundColor: '#E74C3C20',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 20,
-    marginBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#E74C3C',
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#E74C3C',
-    fontFamily: 'Inter-Regular',
-    marginTop: 4,
   },
   section: {
     marginTop: 30,

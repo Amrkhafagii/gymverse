@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { X, Search, Filter } from 'lucide-react-native';
+import { X, Search } from 'lucide-react-native';
 import { Exercise, getExercises } from '@/lib/supabase';
 
 interface ExerciseSelectorProps {
@@ -54,7 +54,7 @@ export default function ExerciseSelector({
 
   useEffect(() => {
     filterExercises();
-  }, [exercises, searchQuery, selectedMuscleGroup, selectedType, excludeExerciseIds]);
+  }, [filterExercises]);
 
   const loadExercises = async () => {
     try {
@@ -68,7 +68,7 @@ export default function ExerciseSelector({
     }
   };
 
-  const filterExercises = () => {
+  const filterExercises = useCallback(() => {
     let filtered = exercises.filter((exercise) => !excludeExerciseIds.includes(exercise.id));
 
     // Filter by search query
@@ -96,7 +96,7 @@ export default function ExerciseSelector({
     }
 
     setFilteredExercises(filtered);
-  };
+  }, [excludeExerciseIds, exercises, searchQuery, selectedMuscleGroup, selectedType]);
 
   const handleSelectExercise = (exercise: Exercise) => {
     onSelectExercise(exercise);

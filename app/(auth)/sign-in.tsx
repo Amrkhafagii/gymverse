@@ -17,10 +17,11 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ToastProvider';
+import { FormErrorText } from '@/components/FormErrorText';
 
 const signInSchema = z.object({
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().trim().email('Enter a valid email'),
+  password: z.string().trim().min(6, 'Password must be at least 6 characters'),
 });
 
 type SignInForm = z.infer<typeof signInSchema>;
@@ -54,7 +55,7 @@ export default function SignInScreen() {
       } else {
         router.replace('/(tabs)');
       }
-    } catch (error) {
+    } catch {
       showToast('An unexpected error occurred', 'error');
     } finally {
       setLoading(false);
@@ -95,7 +96,7 @@ export default function SignInScreen() {
                       keyboardType="email-address"
                       autoCapitalize="none"
                     />
-                    {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+                    <FormErrorText message={errors.email?.message} />
                   </View>
                 )}
               />
@@ -117,9 +118,7 @@ export default function SignInScreen() {
                       autoCapitalize="none"
                       extraPaddingRight
                     />
-                    {errors.password && (
-                      <Text style={styles.errorText}>{errors.password.message}</Text>
-                    )}
+                    <FormErrorText message={errors.password?.message} />
                   </View>
                 )}
               />
@@ -252,12 +251,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     padding: 4,
-  },
-  errorText: {
-    color: '#E74C3C',
-    fontSize: 12,
-    marginTop: 4,
-    fontFamily: 'Inter-Regular',
   },
   signInButton: {
     borderRadius: 12,

@@ -7,6 +7,7 @@ import {
   WorkoutStreak,
 } from '@/lib/supabase';
 import { logSupabaseError } from '@/lib/supabase';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface WorkoutStats {
   totalWorkouts: number;
@@ -155,7 +156,7 @@ const fetchWorkoutAnalytics = async (userId: string): Promise<ProgressData> => {
 
 export function useWorkoutAnalytics(userId: string | null) {
   const { data, isFetching, isLoading, error, refetch } = useQuery({
-    queryKey: ['workout-analytics', userId],
+    queryKey: queryKeys.analytics.stats(userId),
     queryFn: () => fetchWorkoutAnalytics(userId as string),
     enabled: Boolean(userId),
   });

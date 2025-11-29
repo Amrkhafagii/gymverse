@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Dumbbell, Zap, Trophy, Clock } from 'lucide-react-native';
 
 interface StatItem {
   label: string;

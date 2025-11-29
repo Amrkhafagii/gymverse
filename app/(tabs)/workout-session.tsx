@@ -15,8 +15,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   Play,
-  Pause,
-  Square,
   Plus,
   Minus,
   Clock,
@@ -25,9 +23,7 @@ import {
   X,
   Timer,
   SkipForward,
-  RotateCcw,
   Trophy,
-  Star,
   CirclePause as PauseCircle,
   CircleStop as StopCircle,
   TriangleAlert as AlertTriangle,
@@ -153,7 +149,7 @@ export default function WorkoutSessionScreen() {
             if (Platform.OS !== 'web') {
               try {
                 // Vibration would go here for native platforms
-              } catch (error) {
+              } catch {
                 console.log('Vibration not supported');
               }
             }
@@ -184,11 +180,13 @@ export default function WorkoutSessionScreen() {
 
   useEffect(() => {
     loadWorkoutData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workoutId]);
 
   // Update session stats when sets change
   useEffect(() => {
     updateSessionStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sets, exercises]);
 
   // NEW: Effect to create session exercise when session and exercise data are ready
@@ -201,6 +199,7 @@ export default function WorkoutSessionScreen() {
     ) {
       createSessionExercise();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, exercises, currentExerciseIndex, sessionExerciseId]);
 
   const loadWorkoutData = async () => {
