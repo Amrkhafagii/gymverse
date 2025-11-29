@@ -13,7 +13,16 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Save, Calendar, Ruler, Weight, Activity, Globe, Lock } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Save,
+  Calendar,
+  Ruler,
+  Weight,
+  Activity,
+  Globe,
+  Lock,
+} from 'lucide-react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';

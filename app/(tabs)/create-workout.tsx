@@ -365,7 +365,7 @@ export default function CreateWorkoutScreen() {
                       placeholderTextColor="#999"
                       keyboardType="numeric"
                     />
-                  <FormErrorText message={errors.estimatedDuration?.message} />
+                    <FormErrorText message={errors.estimatedDuration?.message} />
                   </>
                 )}
               />

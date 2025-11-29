@@ -20,11 +20,7 @@ export {
   type WorkoutSession,
   type WorkoutSessionInsert,
 } from './workouts';
-export {
-  createSocialPost,
-  type SocialPost,
-  type SocialPostInsert,
-} from './social';
+export { createSocialPost, type SocialPost, type SocialPostInsert } from './social';
 export {
   getUserPersonalRecords,
   getWorkoutAnalytics,

@@ -1,15 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, FlatList } from 'react-native';
-import {
-  Trophy,
-  Star,
-  Target,
-  Award,
-  Crown,
-  Zap,
-  Users,
-  Medal,
-} from 'lucide-react-native';
+import { Trophy, Star, Target, Award, Crown, Zap, Users, Medal } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAchievements } from '@/hooks/useAchievements';
 import AchievementProgressCard from '@/components/AchievementProgressCard';

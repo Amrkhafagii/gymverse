@@ -69,11 +69,7 @@ export const createWorkoutExercise = async (workoutExercise: WorkoutExerciseInse
 };
 
 export const createWorkoutSession = async (session: WorkoutSessionInsert) => {
-  const { data, error } = await supabase
-    .from('workout_sessions')
-    .insert(session)
-    .select()
-    .single();
+  const { data, error } = await supabase.from('workout_sessions').insert(session).select().single();
 
   return { data, error: handleSupabaseError(error, 'create_workout_session') };
 };

@@ -41,11 +41,7 @@ export const getUserStreak = async (userId: string): Promise<WorkoutStreak | nul
   return data;
 };
 
-export const getWorkoutAnalytics = async (
-  userId: string,
-  startDate?: string,
-  endDate?: string
-) => {
+export const getWorkoutAnalytics = async (userId: string, startDate?: string, endDate?: string) => {
   let query = supabase
     .from('workout_sessions')
     .select('*')

@@ -1,11 +1,4 @@
-import {
-  View,
-  StyleSheet,
-  Text,
-  RefreshControl,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, StyleSheet, Text, RefreshControl, TouchableOpacity, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { FlashList } from '@shopify/flash-list';

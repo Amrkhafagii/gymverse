@@ -9,12 +9,7 @@ export function useProfile(targetUserId?: string | null) {
   const queryClient = useQueryClient();
   const userId = targetUserId ?? user?.id ?? null;
 
-  const {
-    data,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useQuery<Profile | null>({
+  const { data, isLoading, isFetching, refetch } = useQuery<Profile | null>({
     queryKey: queryKeys.auth.profile(userId),
     queryFn: async () => {
       if (!userId) return null;

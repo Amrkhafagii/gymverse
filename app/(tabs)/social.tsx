@@ -193,7 +193,11 @@ export default function SocialScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlashList
-        data={loading ? Array.from({ length: 6 }).map((_, i) => ({ id: `skeleton-${i}` })) : filteredPosts}
+        data={
+          loading
+            ? Array.from({ length: 6 }).map((_, i) => ({ id: `skeleton-${i}` }))
+            : filteredPosts
+        }
         renderItem={(info) =>
           loading ? (
             <View style={styles.skeletonCard}>
