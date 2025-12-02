@@ -94,7 +94,9 @@ export default function SocialScreen() {
       const [{ data: sessions }, { data: streaks }] = await Promise.all([
         supabase
           .from('workout_sessions')
-          .select('user_id, duration_minutes, calories_burned, profiles(username, full_name, avatar_url)')
+          .select(
+            'user_id, duration_minutes, calories_burned, profiles(username, full_name, avatar_url)'
+          )
           .not('user_id', 'is', null),
         supabase.from('workout_streaks').select('user_id, current_streak'),
       ]);

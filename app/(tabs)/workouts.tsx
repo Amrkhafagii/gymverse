@@ -256,192 +256,192 @@ export default function WorkoutsScreen() {
   return (
     <>
       <FlashList
-      style={[styles.container, { backgroundColor: colors.background }]}
-      data={loading ? skeletonItems : listData}
-      renderItem={(info) =>
-        loading ? (
-          <View style={styles.skeletonCard}>
-            <View style={styles.skeletonLineShort} />
-            <View style={styles.skeletonLine} />
-            <View style={styles.skeletonLine} />
-          </View>
-        ) : (
-          renderTemplateSection(info as any)
-        )
-      }
-      estimatedItemSize={240}
-      keyExtractor={(item: any) => item.id.toString()}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-      ListHeaderComponent={
-        <>
-          <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
-            <View style={styles.headerTop}>
-              <Text style={styles.headerTitle}>Workouts</Text>
-              <TouchableOpacity style={styles.createButton} onPress={handleCreateWorkout}>
-                <Plus size={24} color={colors.primary} />
-              </TouchableOpacity>
+        style={[styles.container, { backgroundColor: colors.background }]}
+        data={loading ? skeletonItems : listData}
+        renderItem={(info) =>
+          loading ? (
+            <View style={styles.skeletonCard}>
+              <View style={styles.skeletonLineShort} />
+              <View style={styles.skeletonLine} />
+              <View style={styles.skeletonLine} />
             </View>
-            <Text style={styles.headerSubtitle}>Build your perfect routine</Text>
-          </LinearGradient>
-
-          <WorkoutSearchBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onFilterPress={handleFilterPress}
-          />
-
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Dumbbell size={20} color="#FF6B35" />
-              <Text style={styles.statValue}>{workoutTemplates.length}</Text>
-              <Text style={styles.statLabel}>Templates</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Users size={20} color="#4A90E2" />
-              <Text style={styles.statValue}>{userWorkouts.length}</Text>
-              <Text style={styles.statLabel}>My Workouts</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Target size={20} color="#27AE60" />
-              <Text style={styles.statValue}>{workoutCategories.length}</Text>
-              <Text style={styles.statLabel}>Categories</Text>
-            </View>
-          </View>
-
-          {workoutCategories.length > 0 ? (
-            <WorkoutQuickStartSection
-              workoutCategories={workoutCategories}
-              onCategoryPress={handleCategoryPress}
-              selectedCategory={selectedFilter}
-            />
           ) : (
-            <View style={styles.emptyCategories}>
-              <Text style={styles.emptyCategoriesTitle}>No categories yet</Text>
-              <Text style={styles.emptyCategoriesSubtitle}>
-                Add or import workouts to see quick-start categories.
-              </Text>
-            </View>
-          )}
+            renderTemplateSection(info as any)
+          )
+        }
+        estimatedItemSize={240}
+        keyExtractor={(item: any) => item.id.toString()}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        ListHeaderComponent={
+          <>
+            <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
+              <View style={styles.headerTop}>
+                <Text style={styles.headerTitle}>Workouts</Text>
+                <TouchableOpacity style={styles.createButton} onPress={handleCreateWorkout}>
+                  <Plus size={24} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.headerSubtitle}>Build your perfect routine</Text>
+            </LinearGradient>
 
-          <View style={styles.filterContainer}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <TouchableOpacity
-                style={[styles.filterChip, selectedFilter === 'all' && styles.filterChipActive]}
-                onPress={() => setSelectedFilter('all')}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedFilter === 'all' && styles.filterChipTextActive,
-                  ]}
-                >
-                  All
+            <WorkoutSearchBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onFilterPress={handleFilterPress}
+            />
+
+            <View style={styles.statsContainer}>
+              <View style={styles.statCard}>
+                <Dumbbell size={20} color="#FF6B35" />
+                <Text style={styles.statValue}>{workoutTemplates.length}</Text>
+                <Text style={styles.statLabel}>Templates</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Users size={20} color="#4A90E2" />
+                <Text style={styles.statValue}>{userWorkouts.length}</Text>
+                <Text style={styles.statLabel}>My Workouts</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Target size={20} color="#27AE60" />
+                <Text style={styles.statValue}>{workoutCategories.length}</Text>
+                <Text style={styles.statLabel}>Categories</Text>
+              </View>
+            </View>
+
+            {workoutCategories.length > 0 ? (
+              <WorkoutQuickStartSection
+                workoutCategories={workoutCategories}
+                onCategoryPress={handleCategoryPress}
+                selectedCategory={selectedFilter}
+              />
+            ) : (
+              <View style={styles.emptyCategories}>
+                <Text style={styles.emptyCategoriesTitle}>No categories yet</Text>
+                <Text style={styles.emptyCategoriesSubtitle}>
+                  Add or import workouts to see quick-start categories.
                 </Text>
-              </TouchableOpacity>
-              {workoutCategories.map((category) => (
+              </View>
+            )}
+
+            <View style={styles.filterContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <TouchableOpacity
-                  key={category.type}
-                  style={[
-                    styles.filterChip,
-                    selectedFilter === category.type && styles.filterChipActive,
-                  ]}
-                  onPress={() => setSelectedFilter(category.type)}
+                  style={[styles.filterChip, selectedFilter === 'all' && styles.filterChipActive]}
+                  onPress={() => setSelectedFilter('all')}
                 >
                   <Text
                     style={[
                       styles.filterChipText,
-                      selectedFilter === category.type && styles.filterChipTextActive,
+                      selectedFilter === 'all' && styles.filterChipTextActive,
                     ]}
                   >
-                    {category.name}
+                    All
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <View style={styles.activeFilters}>
-              {selectedDifficulty !== 'all' && (
-                <Text style={styles.activeFilterPill}>Difficulty: {selectedDifficulty}</Text>
-              )}
-              {selectedEquipment !== 'all' && (
-                <Text style={styles.activeFilterPill}>Equipment: {selectedEquipment}</Text>
-              )}
-              {selectedDuration !== 'all' && (
-                <Text style={styles.activeFilterPill}>
-                  Duration: {durationOptions.find((d) => d.id === selectedDuration)?.label}
-                </Text>
-              )}
-            </View>
-          </View>
-
-          {loading && <ScreenState variant="loading" title="Loading workouts..." />}
-          {!loading && filteredTemplates.length === 0 && (
-            <ScreenState
-              variant="empty"
-              title="No workouts found"
-              message="Try adjusting filters or search."
-            />
-          )}
-        </>
-      }
-      ListFooterComponent={
-        <>
-          {user && userWorkouts.length > 0 && (
-            <View style={styles.userWorkoutsSection}>
-              <Text style={styles.sectionTitle}>My Workouts</Text>
-              {userWorkouts.map((workout) => (
-                <TouchableOpacity
-                  key={workout.id}
-                  style={styles.workoutCard}
-                  onPress={() => handleWorkoutPress(workout)}
-                >
-                  <View style={styles.workoutInfo}>
-                    <Text style={styles.workoutName}>{workout.name}</Text>
-                    <Text style={styles.workoutDescription}>{workout.description}</Text>
-                    <View style={styles.workoutStats}>
-                      <View style={styles.statItem}>
-                        <Clock size={16} color="#999" />
-                        <Text style={styles.statText}>
-                          {workout.estimated_duration_minutes} min
-                        </Text>
-                      </View>
-                      <View style={styles.statItem}>
-                        <Target size={16} color={getDifficultyColor(workout.difficulty_level)} />
-                        <Text
-                          style={[
-                            styles.statText,
-                            { color: getDifficultyColor(workout.difficulty_level) },
-                          ]}
-                        >
-                          {workout.difficulty_level}
-                        </Text>
-                      </View>
-                      <View style={styles.statItem}>
-                        <Text
-                          style={[
-                            styles.workoutTypeText,
-                            { color: getWorkoutTypeColor(workout.workout_type) },
-                          ]}
-                        >
-                          {workout.workout_type}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
+                {workoutCategories.map((category) => (
                   <TouchableOpacity
-                    style={styles.startButton}
+                    key={category.type}
+                    style={[
+                      styles.filterChip,
+                      selectedFilter === category.type && styles.filterChipActive,
+                    ]}
+                    onPress={() => setSelectedFilter(category.type)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        selectedFilter === category.type && styles.filterChipTextActive,
+                      ]}
+                    >
+                      {category.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={styles.activeFilters}>
+                {selectedDifficulty !== 'all' && (
+                  <Text style={styles.activeFilterPill}>Difficulty: {selectedDifficulty}</Text>
+                )}
+                {selectedEquipment !== 'all' && (
+                  <Text style={styles.activeFilterPill}>Equipment: {selectedEquipment}</Text>
+                )}
+                {selectedDuration !== 'all' && (
+                  <Text style={styles.activeFilterPill}>
+                    Duration: {durationOptions.find((d) => d.id === selectedDuration)?.label}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {loading && <ScreenState variant="loading" title="Loading workouts..." />}
+            {!loading && filteredTemplates.length === 0 && (
+              <ScreenState
+                variant="empty"
+                title="No workouts found"
+                message="Try adjusting filters or search."
+              />
+            )}
+          </>
+        }
+        ListFooterComponent={
+          <>
+            {user && userWorkouts.length > 0 && (
+              <View style={styles.userWorkoutsSection}>
+                <Text style={styles.sectionTitle}>My Workouts</Text>
+                {userWorkouts.map((workout) => (
+                  <TouchableOpacity
+                    key={workout.id}
+                    style={styles.workoutCard}
                     onPress={() => handleWorkoutPress(workout)}
                   >
-                    <Text style={styles.startButtonText}>Start</Text>
+                    <View style={styles.workoutInfo}>
+                      <Text style={styles.workoutName}>{workout.name}</Text>
+                      <Text style={styles.workoutDescription}>{workout.description}</Text>
+                      <View style={styles.workoutStats}>
+                        <View style={styles.statItem}>
+                          <Clock size={16} color="#999" />
+                          <Text style={styles.statText}>
+                            {workout.estimated_duration_minutes} min
+                          </Text>
+                        </View>
+                        <View style={styles.statItem}>
+                          <Target size={16} color={getDifficultyColor(workout.difficulty_level)} />
+                          <Text
+                            style={[
+                              styles.statText,
+                              { color: getDifficultyColor(workout.difficulty_level) },
+                            ]}
+                          >
+                            {workout.difficulty_level}
+                          </Text>
+                        </View>
+                        <View style={styles.statItem}>
+                          <Text
+                            style={[
+                              styles.workoutTypeText,
+                              { color: getWorkoutTypeColor(workout.workout_type) },
+                            ]}
+                          >
+                            {workout.workout_type}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.startButton}
+                      onPress={() => handleWorkoutPress(workout)}
+                    >
+                      <Text style={styles.startButtonText}>Start</Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-          <View style={styles.bottomSpacer} />
-        </>
-      }
-    />
+                ))}
+              </View>
+            )}
+            <View style={styles.bottomSpacer} />
+          </>
+        }
+      />
       <Modal visible={isFilterModalVisible} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalContent}>
@@ -490,10 +490,7 @@ export default function WorkoutsScreen() {
               <Text style={styles.modalSectionTitle}>Duration</Text>
               <View style={styles.optionRow}>
                 <TouchableOpacity
-                  style={[
-                    styles.optionChip,
-                    selectedDuration === 'all' && styles.optionChipActive,
-                  ]}
+                  style={[styles.optionChip, selectedDuration === 'all' && styles.optionChipActive]}
                   onPress={() => setSelectedDuration('all')}
                 >
                   <Text
