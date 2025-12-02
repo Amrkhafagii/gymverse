@@ -1,7 +1,15 @@
-import { View, StyleSheet, Text, RefreshControl, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  RefreshControl,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, ListRenderItemInfo } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { Plus, Dumbbell, Clock, Target, Users } from 'lucide-react-native';
 import { Workout } from '@/lib/supabase';
@@ -31,6 +39,10 @@ export default function WorkoutsScreen() {
   const [filteredTemplates, setFilteredTemplates] = useState<Workout[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [selectedEquipment, setSelectedEquipment] = useState<string>('all');
+  const [selectedDuration, setSelectedDuration] = useState<string>('all');
+  const [isFilterModalVisible, setFilterModalVisible] = useState(false);
 
   const [workoutCategories, setWorkoutCategories] = useState<WorkoutCategory[]>([]);
 
@@ -38,7 +50,7 @@ export default function WorkoutsScreen() {
     const categoryMap = new Map<string, WorkoutCategory>();
 
     templates.forEach((template) => {
-      const type = template.workout_type;
+      const type = template.workout_type || 'other';
       const key = type;
 
       if (!categoryMap.has(key)) {
@@ -60,45 +72,7 @@ export default function WorkoutsScreen() {
       category.duration = `${avgDuration} min`;
     });
 
-    if (categoryMap.size === 0) {
-      const defaultCategories: WorkoutCategory[] = [
-        {
-          name: 'Strength',
-          exercises: 0,
-          duration: '45 min',
-          color: '#FF6B35',
-          type: 'strength',
-          difficulty: 'intermediate',
-        },
-        {
-          name: 'Cardio',
-          exercises: 0,
-          duration: '30 min',
-          color: '#E74C3C',
-          type: 'cardio',
-          difficulty: 'beginner',
-        },
-        {
-          name: 'HIIT',
-          exercises: 0,
-          duration: '25 min',
-          color: '#9B59B6',
-          type: 'hiit',
-          difficulty: 'intermediate',
-        },
-        {
-          name: 'Flexibility',
-          exercises: 0,
-          duration: '20 min',
-          color: '#27AE60',
-          type: 'flexibility',
-          difficulty: 'beginner',
-        },
-      ];
-      setWorkoutCategories(defaultCategories);
-    } else {
-      setWorkoutCategories(Array.from(categoryMap.values()));
-    }
+    setWorkoutCategories(Array.from(categoryMap.values()));
   }, []);
 
   const formatCategoryName = (type: string): string => {
@@ -135,17 +109,45 @@ export default function WorkoutsScreen() {
         (workout) =>
           workout.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           workout.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          workout.workout_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          workout.difficulty_level.toLowerCase().includes(searchQuery.toLowerCase())
+          workout.workout_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          workout.difficulty_level?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     if (selectedFilter !== 'all') {
-      filtered = filtered.filter((workout) => workout.workout_type === selectedFilter);
+      filtered = filtered.filter((workout) => (workout.workout_type || '') === selectedFilter);
+    }
+
+    if (selectedDifficulty !== 'all') {
+      filtered = filtered.filter(
+        (workout) => (workout.difficulty_level || '').toLowerCase() === selectedDifficulty
+      );
+    }
+
+    if (selectedEquipment !== 'all') {
+      filtered = filtered.filter((workout) => {
+        const equipmentList = (workout as Workout & { equipment?: string[] }).equipment;
+        return Array.isArray(equipmentList)
+          ? equipmentList.map((item) => item.toLowerCase()).includes(selectedEquipment)
+          : false;
+      });
+    }
+
+    if (selectedDuration !== 'all') {
+      filtered = filtered.filter((workout) =>
+        matchesDuration(workout.estimated_duration_minutes || 0, selectedDuration)
+      );
     }
 
     setFilteredTemplates(filtered);
-  }, [searchQuery, selectedFilter, workoutTemplates]);
+  }, [
+    searchQuery,
+    selectedFilter,
+    workoutTemplates,
+    selectedDifficulty,
+    selectedEquipment,
+    selectedDuration,
+  ]);
 
   useEffect(() => {
     filterWorkouts();
@@ -161,7 +163,7 @@ export default function WorkoutsScreen() {
   };
 
   const handleFilterPress = () => {
-    console.log('Filter pressed - implement filter modal');
+    setFilterModalVisible(true);
   };
 
   const handleCategoryPress = (category: WorkoutCategory) => {
@@ -223,8 +225,37 @@ export default function WorkoutsScreen() {
 
   const skeletonItems = Array.from({ length: 4 }).map((_, i) => ({ id: `skeleton-${i}` }));
 
+  const difficultyOptions = useMemo(() => {
+    const unique = new Set<string>();
+    workoutTemplates.forEach((w) => w.difficulty_level && unique.add(w.difficulty_level));
+    return Array.from(unique);
+  }, [workoutTemplates]);
+
+  const typeOptions = useMemo(() => {
+    const unique = new Set<string>();
+    workoutTemplates.forEach((w) => w.workout_type && unique.add(w.workout_type));
+    return Array.from(unique);
+  }, [workoutTemplates]);
+
+  const equipmentOptions = useMemo(() => {
+    const unique = new Set<string>();
+    workoutTemplates.forEach((w) => {
+      const equipmentList = (w as Workout & { equipment?: string[] }).equipment;
+      equipmentList?.forEach((item) => unique.add(item));
+    });
+    return Array.from(unique);
+  }, [workoutTemplates]);
+
+  const durationOptions = [
+    { id: 'lt30', label: '< 30 min' },
+    { id: '30-45', label: '30-45 min' },
+    { id: '45-60', label: '45-60 min' },
+    { id: 'gt60', label: '60+ min' },
+  ];
+
   return (
-    <FlashList
+    <>
+      <FlashList
       style={[styles.container, { backgroundColor: colors.background }]}
       data={loading ? skeletonItems : listData}
       renderItem={(info) =>
@@ -278,11 +309,20 @@ export default function WorkoutsScreen() {
             </View>
           </View>
 
-          <WorkoutQuickStartSection
-            workoutCategories={workoutCategories}
-            onCategoryPress={handleCategoryPress}
-            selectedCategory={selectedFilter}
-          />
+          {workoutCategories.length > 0 ? (
+            <WorkoutQuickStartSection
+              workoutCategories={workoutCategories}
+              onCategoryPress={handleCategoryPress}
+              selectedCategory={selectedFilter}
+            />
+          ) : (
+            <View style={styles.emptyCategories}>
+              <Text style={styles.emptyCategoriesTitle}>No categories yet</Text>
+              <Text style={styles.emptyCategoriesSubtitle}>
+                Add or import workouts to see quick-start categories.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.filterContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -319,6 +359,19 @@ export default function WorkoutsScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+            <View style={styles.activeFilters}>
+              {selectedDifficulty !== 'all' && (
+                <Text style={styles.activeFilterPill}>Difficulty: {selectedDifficulty}</Text>
+              )}
+              {selectedEquipment !== 'all' && (
+                <Text style={styles.activeFilterPill}>Equipment: {selectedEquipment}</Text>
+              )}
+              {selectedDuration !== 'all' && (
+                <Text style={styles.activeFilterPill}>
+                  Duration: {durationOptions.find((d) => d.id === selectedDuration)?.label}
+                </Text>
+              )}
+            </View>
           </View>
 
           {loading && <ScreenState variant="loading" title="Loading workouts..." />}
@@ -389,8 +442,157 @@ export default function WorkoutsScreen() {
         </>
       }
     />
+      <Modal visible={isFilterModalVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filters</Text>
+              <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                <Text style={styles.modalClose}>Close</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Type</Text>
+              <View style={styles.optionRow}>
+                <FilterOptions
+                  options={typeOptions}
+                  selected={selectedFilter}
+                  onSelect={setSelectedFilter}
+                  fallbackLabel="All"
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Difficulty</Text>
+              <View style={styles.optionRow}>
+                <FilterOptions
+                  options={difficultyOptions}
+                  selected={selectedDifficulty}
+                  onSelect={setSelectedDifficulty}
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Equipment</Text>
+              <View style={styles.optionRow}>
+                <FilterOptions
+                  options={equipmentOptions}
+                  selected={selectedEquipment}
+                  onSelect={setSelectedEquipment}
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Duration</Text>
+              <View style={styles.optionRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.optionChip,
+                    selectedDuration === 'all' && styles.optionChipActive,
+                  ]}
+                  onPress={() => setSelectedDuration('all')}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      selectedDuration === 'all' && styles.optionTextActive,
+                    ]}
+                  >
+                    All
+                  </Text>
+                </TouchableOpacity>
+                {durationOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.optionChip,
+                      selectedDuration === option.id && styles.optionChipActive,
+                    ]}
+                    onPress={() => setSelectedDuration(option.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.optionText,
+                        selectedDuration === option.id && styles.optionTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={() => {
+                setFilterModalVisible(false);
+                filterWorkouts();
+              }}
+            >
+              <Text style={styles.applyButtonText}>Apply filters</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
+
+const matchesDuration = (duration: number, filter: string) => {
+  switch (filter) {
+    case 'lt30':
+      return duration > 0 && duration < 30;
+    case '30-45':
+      return duration >= 30 && duration <= 45;
+    case '45-60':
+      return duration > 45 && duration <= 60;
+    case 'gt60':
+      return duration > 60;
+    default:
+      return true;
+  }
+};
+
+const FilterOptions = ({
+  options,
+  selected,
+  onSelect,
+  fallbackLabel = 'All',
+}: {
+  options: string[];
+  selected: string;
+  onSelect: (value: string) => void;
+  fallbackLabel?: string;
+}) => (
+  <>
+    <TouchableOpacity
+      style={[styles.optionChip, selected === 'all' && styles.optionChipActive]}
+      onPress={() => onSelect('all')}
+    >
+      <Text style={[styles.optionText, selected === 'all' && styles.optionTextActive]}>
+        {fallbackLabel}
+      </Text>
+    </TouchableOpacity>
+    {options.map((option) => (
+      <TouchableOpacity
+        key={option}
+        style={[styles.optionChip, selected === option.toLowerCase() && styles.optionChipActive]}
+        onPress={() => onSelect(option.toLowerCase())}
+      >
+        <Text
+          style={[styles.optionText, selected === option.toLowerCase() && styles.optionTextActive]}
+        >
+          {option}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -455,6 +657,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 20,
   },
+  activeFilters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  activeFilterPill: {
+    backgroundColor: '#1f2933',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    color: '#fff',
+    borderWidth: 1,
+    borderColor: '#333',
+    fontFamily: 'Inter-Medium',
+    fontSize: 12,
+  },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -477,6 +696,26 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: '#fff',
+  },
+  emptyCategories: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+    marginTop: 16,
+  },
+  emptyCategoriesTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 4,
+  },
+  emptyCategoriesSubtitle: {
+    color: '#aaa',
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
   },
   userWorkoutsSection: {
     paddingHorizontal: 20,
@@ -614,5 +853,79 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 60,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#0f1115',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+  },
+  modalClose: {
+    color: '#FF6B35',
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 14,
+  },
+  modalSection: {
+    marginTop: 12,
+  },
+  modalSectionTitle: {
+    color: '#ccc',
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    marginBottom: 8,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  optionChipActive: {
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
+  },
+  optionText: {
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+  },
+  optionTextActive: {
+    color: '#fff',
+  },
+  applyButton: {
+    marginTop: 20,
+    backgroundColor: '#FF6B35',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 16,
   },
 });

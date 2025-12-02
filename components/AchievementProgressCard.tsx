@@ -72,6 +72,26 @@ export default function AchievementProgressCard({
 
   const CardComponent = onPress ? TouchableOpacity : View;
 
+  const renderCriteria = () => {
+    const criteria = (achievement.criteria as any) || {};
+    switch (criteria.type) {
+      case 'workout_count':
+        return `Complete ${criteria.target} workouts`;
+      case 'streak':
+        return `Maintain a ${criteria.target}-day streak`;
+      case 'personal_records':
+        return `Set ${criteria.target} personal records`;
+      case 'weekly_workouts':
+        return `Finish ${criteria.target} workouts in a week`;
+      case 'monthly_workouts':
+        return `Finish ${criteria.target} workouts in a month`;
+      case 'cardio_workouts':
+        return `Complete ${criteria.target} cardio workouts`;
+      default:
+        return 'Keep progressing to unlock this achievement';
+    }
+  };
+
   return (
     <CardComponent
       style={[styles.container, progress.unlocked && styles.unlockedContainer]}
@@ -106,6 +126,7 @@ export default function AchievementProgressCard({
             {!progress.unlocked && progress.percentage < 10 && <Lock size={16} color="#666" />}
           </View>
           <Text style={styles.description}>{achievement.description}</Text>
+          {!progress.unlocked && <Text style={styles.criteria}>{renderCriteria()}</Text>}
         </View>
       </View>
 
@@ -214,6 +235,12 @@ const styles = StyleSheet.create({
     color: '#999',
     fontFamily: 'Inter-Regular',
     lineHeight: 20,
+  },
+  criteria: {
+    fontSize: 13,
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+    marginTop: 6,
   },
   progressContainer: {
     marginBottom: 16,

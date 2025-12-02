@@ -55,16 +55,11 @@ export default function AchievementsScreen() {
   };
 
   const getAchievementData = (progress: any): Achievement | null => {
+    if (progress.achievement) return progress.achievement;
     const userAchievement = userAchievements.find(
       (ua) => ua.achievement_id === progress.achievement_id
     );
-    if (userAchievement) {
-      return userAchievement.achievement;
-    }
-
-    // For achievements not yet unlocked, we need to fetch from the progress data
-    // This would require modifying the hook to include achievement details
-    return null;
+    return userAchievement?.achievement ?? null;
   };
 
   const filteredProgress = getAchievementsByCategory();

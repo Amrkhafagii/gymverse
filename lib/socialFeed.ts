@@ -45,61 +45,20 @@ interface PostLike {
 // Get social feed with realtime data
 export const getSocialFeedWithStats = async (
   userId?: string,
-  limit: number = 20
+  limit: number = 20,
+  offset: number = 0
 ): Promise<SocialFeedPost[]> => {
   try {
     const { data: posts, error } = await supabase
       .from('social_posts')
-      .select(
-        `
-        *,
-        profile:profiles(username, full_name, avatar_url),
-        workout_session:workout_sessions(name, duration_minutes, calories_burned),
-        achievement:achievements(name, description, icon)
-      `
-      )
+      .select(postSelectFields())
       .eq('is_public', true)
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
-    // Get likes and comments counts for each post
-    const postsWithStats = await Promise.all(
-      (posts || []).map(async (post) => {
-        // Get likes count and check if current user liked
-        const { data: likes, error: likesError } = await supabase
-          .from('post_likes')
-          .select('user_id')
-          .eq('post_id', post.id);
-
-        if (likesError) throw likesError;
-
-        const likesCount = likes?.length || 0;
-        const userHasLiked = userId
-          ? likes?.some((like) => like.user_id === userId) || false
-          : false;
-
-        // Get comments count
-        const { data: comments, error: commentsError } = await supabase
-          .from('post_comments')
-          .select('id')
-          .eq('post_id', post.id);
-
-        if (commentsError) throw commentsError;
-
-        const commentsCount = comments?.length || 0;
-
-        return {
-          ...post,
-          likes_count: likesCount,
-          comments_count: commentsCount,
-          user_has_liked: userHasLiked,
-        } as SocialFeedPost;
-      })
-    );
-
-    return postsWithStats;
+    return mapPostsWithStats(posts || [], userId);
   } catch (error) {
     logSupabaseError(error, 'fetch_social_feed');
     console.error('Error fetching social feed:', error);
@@ -294,46 +253,22 @@ export const deletePost = async (postId: number, userId: string): Promise<boolea
 };
 
 // Get user's own posts
-export const getUserPosts = async (userId: string): Promise<SocialFeedPost[]> => {
+export const getUserPosts = async (
+  userId: string,
+  limit: number = 50,
+  offset: number = 0
+): Promise<SocialFeedPost[]> => {
   try {
     const { data: posts, error } = await supabase
       .from('social_posts')
-      .select(
-        `
-        *,
-        profile:profiles(username, full_name, avatar_url),
-        workout_session:workout_sessions(name, duration_minutes, calories_burned),
-        achievement:achievements(name, description, icon)
-      `
-      )
+      .select(postSelectFields())
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
-    // Get likes and comments counts for each post
-    const postsWithStats = await Promise.all(
-      (posts || []).map(async (post) => {
-        const { data: likes } = await supabase
-          .from('post_likes')
-          .select('user_id')
-          .eq('post_id', post.id);
-
-        const { data: comments } = await supabase
-          .from('post_comments')
-          .select('id')
-          .eq('post_id', post.id);
-
-        return {
-          ...post,
-          likes_count: likes?.length || 0,
-          comments_count: comments?.length || 0,
-          user_has_liked: likes?.some((like) => like.user_id === userId) || false,
-        } as SocialFeedPost;
-      })
-    );
-
-    return postsWithStats;
+    return mapPostsWithStats(posts || [], userId);
   } catch (error) {
     console.error('Error fetching user posts:', error);
     return [];
@@ -341,50 +276,57 @@ export const getUserPosts = async (userId: string): Promise<SocialFeedPost[]> =>
 };
 
 // Search posts by content
-export const searchPosts = async (query: string, userId?: string): Promise<SocialFeedPost[]> => {
+export const searchPosts = async (
+  query: string,
+  userId?: string,
+  limit: number = 50,
+  offset: number = 0
+): Promise<SocialFeedPost[]> => {
   try {
     const { data: posts, error } = await supabase
       .from('social_posts')
-      .select(
-        `
-        *,
-        profile:profiles(username, full_name, avatar_url),
-        workout_session:workout_sessions(name, duration_minutes, calories_burned),
-        achievement:achievements(name, description, icon)
-      `
-      )
+      .select(postSelectFields())
       .eq('is_public', true)
       .ilike('content', `%${query}%`)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
-    // Get likes and comments counts for each post
-    const postsWithStats = await Promise.all(
-      (posts || []).map(async (post) => {
-        const { data: likes } = await supabase
-          .from('post_likes')
-          .select('user_id')
-          .eq('post_id', post.id);
-
-        const { data: comments } = await supabase
-          .from('post_comments')
-          .select('id')
-          .eq('post_id', post.id);
-
-        return {
-          ...post,
-          likes_count: likes?.length || 0,
-          comments_count: comments?.length || 0,
-          user_has_liked: userId ? likes?.some((like) => like.user_id === userId) || false : false,
-        } as SocialFeedPost;
-      })
-    );
-
-    return postsWithStats;
+    return mapPostsWithStats(posts || [], userId);
   } catch (error) {
     console.error('Error searching posts:', error);
     return [];
   }
+};
+
+// Shared select and mapping helpers
+const postSelectFields = () => `
+  *,
+  profile:profiles(username, full_name, avatar_url),
+  workout_session:workout_sessions(name, duration_minutes, calories_burned),
+  achievement:achievements(name, description, icon),
+  post_likes(user_id),
+  post_comments(id)
+`;
+
+const mapPostsWithStats = (posts: any[], userId?: string): SocialFeedPost[] => {
+  return posts.map((post) => {
+    const likes = Array.isArray(post.post_likes) ? post.post_likes : [];
+    const comments = Array.isArray(post.post_comments) ? post.post_comments : [];
+
+    const likesCount = likes.length;
+    const commentsCount = comments.length;
+
+    const userHasLiked = likes.some((like: any) => like.user_id === userId);
+
+    const { post_likes: _likes, post_comments: _comments, ...rest } = post;
+
+    return {
+      ...rest,
+      likes_count: likesCount,
+      comments_count: commentsCount,
+      user_has_liked: userId ? userHasLiked : false,
+    } as SocialFeedPost;
+  });
 };

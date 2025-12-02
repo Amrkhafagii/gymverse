@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Alert,
   ScrollView,
+  Share,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FlashList, ListRenderItemInfo } from '@shopify/flash-list';
@@ -14,11 +15,9 @@ import {
   Plus,
   Search,
   Trophy,
-  Users,
   TrendingUp,
   Heart,
   MessageCircle,
-  Share2,
   Filter,
 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +29,7 @@ import SocialLeaderboard from '@/components/SocialLeaderboard';
 import SocialStatsCard from '@/components/SocialStatsCard';
 import { ScreenState } from '@/components/ScreenState';
 import { useTheme } from '@/theme/ThemeProvider';
+import { supabase } from '@/lib/supabase';
 
 export default function SocialScreen() {
   const { user } = useAuth();
@@ -50,70 +50,163 @@ export default function SocialScreen() {
   const [showComments, setShowComments] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [leaderboard, setLeaderboard] = useState<
+    {
+      id: string;
+      name: string;
+      username?: string | null;
+      avatar?: string | null;
+      points: number;
+      workouts: number;
+      streak?: number | null;
+    }[]
+  >([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<'none' | 'trending' | 'liked' | 'discussed'>(
+    'none'
+  );
+  const [metricPosts, setMetricPosts] = useState<typeof posts | null>(null);
+  const [metricLoading, setMetricLoading] = useState(false);
 
-  // Mock leaderboard data - in production, this would come from the database
-  const leaderboard = [
-    {
-      id: '1',
-      name: 'Alex Thompson',
-      username: 'alex_fit',
-      points: 2450,
-      rank: 1,
-      avatar:
-        'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
-      streak: 28,
-      workouts: 156,
-    },
-    {
-      id: '2',
-      name: 'Sarah Johnson',
-      username: 'sarah_strong',
-      points: 2380,
-      rank: 2,
-      avatar:
-        'https://images.pexels.com/photos/3823488/pexels-photo-3823488.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
-      streak: 21,
-      workouts: 142,
-    },
-    {
-      id: '3',
-      name: 'Mike Chen',
-      username: 'mike_muscle',
-      points: 2290,
-      rank: 3,
-      avatar:
-        'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
-      streak: 15,
-      workouts: 128,
-    },
-    {
-      id: user?.id || '4',
-      name: 'You',
-      username: 'your_username',
-      points: 2180,
-      rank: 4,
-      avatar:
-        'https://images.pexels.com/photos/3768916/pexels-photo-3768916.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2',
-      streak: 12,
-      workouts: 98,
-    },
-  ];
-
-  // Mock social stats
-  const socialStats = [
-    { label: 'Following', value: '127', icon: Users, color: '#4A90E2' },
-    { label: 'Followers', value: '89', icon: Heart, color: '#E74C3C' },
-    { label: 'Posts', value: '34', icon: MessageCircle, color: '#27AE60' },
-    { label: 'Likes', value: '456', icon: Heart, color: '#FF6B35' },
-  ];
+  const socialStats = useMemo(() => {
+    const totalPosts = posts.length;
+    const totalLikes = posts.reduce((sum, p) => sum + (p.likes_count || 0), 0);
+    const totalComments = posts.reduce((sum, p) => sum + (p.comments_count || 0), 0);
+    const likedPosts = posts.filter((p) => p.user_has_liked).length;
+    return [
+      { label: 'Posts', value: `${totalPosts}`, icon: MessageCircle, color: '#27AE60' },
+      { label: 'Likes', value: `${totalLikes}`, icon: Heart, color: '#FF6B35' },
+      { label: 'Comments', value: `${totalComments}`, icon: MessageCircle, color: '#4A90E2' },
+      { label: 'Liked', value: `${likedPosts}`, icon: Heart, color: '#E74C3C' },
+    ];
+  }, [posts]);
 
   const filterOptions = [
     { id: 'all', name: 'All Posts', icon: TrendingUp },
     { id: 'workout', name: 'Workouts', icon: Trophy },
     { id: 'achievement', name: 'Achievements', icon: Trophy },
     { id: 'progress', name: 'Progress', icon: TrendingUp },
-    { id: 'following', name: 'Following', icon: Users },
   ];
+
+  const fetchLeaderboard = useCallback(async () => {
+    setLeaderboardLoading(true);
+    try {
+      const [{ data: sessions }, { data: streaks }] = await Promise.all([
+        supabase
+          .from('workout_sessions')
+          .select('user_id, duration_minutes, calories_burned, profiles(username, full_name, avatar_url)')
+          .not('user_id', 'is', null),
+        supabase.from('workout_streaks').select('user_id, current_streak'),
+      ]);
+
+      const streakMap = new Map<string, number>();
+      (streaks || []).forEach((row) => {
+        if (row.user_id) streakMap.set(row.user_id, row.current_streak || 0);
+      });
+
+      const byUser = new Map<
+        string,
+        {
+          id: string;
+          name: string;
+          username?: string | null;
+          avatar?: string | null;
+          workouts: number;
+          minutes: number;
+          points: number;
+          streak?: number | null;
+        }
+      >();
+
+      (sessions || []).forEach((session) => {
+        const userId = session.user_id;
+        if (!userId) return;
+        const profile = (session as any).profiles;
+        const existing = byUser.get(userId) ?? {
+          id: userId,
+          name: profile?.full_name || profile?.username || 'Athlete',
+          username: profile?.username,
+          avatar: profile?.avatar_url,
+          workouts: 0,
+          minutes: 0,
+          points: 0,
+          streak: streakMap.get(userId) ?? null,
+        };
+        existing.workouts += 1;
+        existing.minutes += session.duration_minutes || 0;
+        existing.points = existing.workouts * 10 + Math.round(existing.minutes / 5);
+        byUser.set(userId, existing);
+      });
+
+      const leaderboardData = Array.from(byUser.values()).sort((a, b) => b.points - a.points);
+      setLeaderboard(leaderboardData.slice(0, 10));
+    } catch (err) {
+      console.error('Error loading leaderboard', err);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
+
+  const fetchPostsByMetric = useCallback(
+    async (metric: 'likes' | 'comments') => {
+      setMetricLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('social_posts')
+          .select(
+            `
+            *,
+            profile:profiles(username, full_name, avatar_url),
+            workout_session:workout_sessions(name, duration_minutes, calories_burned),
+            achievement:achievements(name, description, icon),
+            post_likes(count),
+            post_comments(count)
+          `
+          )
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (error) throw error;
+
+        const enriched =
+          data
+            ?.map((post: any) => ({
+              ...post,
+              likes_count: post.post_likes?.[0]?.count || 0,
+              comments_count: post.post_comments?.[0]?.count || 0,
+              user_has_liked: post.post_likes?.some((l: any) => l.user_id === user?.id) || false,
+            }))
+            ?.sort((a: any, b: any) =>
+              metric === 'likes'
+                ? (b.likes_count || 0) - (a.likes_count || 0)
+                : (b.comments_count || 0) - (a.comments_count || 0)
+            ) ?? [];
+
+        setMetricPosts(enriched);
+      } catch (err) {
+        console.error('Error fetching metric posts', err);
+        setMetricPosts(null);
+      } finally {
+        setMetricLoading(false);
+      }
+    },
+    [user?.id]
+  );
+
+  useEffect(() => {
+    if (quickFilter === 'liked' || quickFilter === 'trending') {
+      fetchPostsByMetric('likes');
+    } else if (quickFilter === 'discussed') {
+      fetchPostsByMetric('comments');
+    } else {
+      setMetricPosts(null);
+    }
+  }, [quickFilter, fetchPostsByMetric]);
 
   const handleLike = async (postId: number) => {
     try {
@@ -128,8 +221,16 @@ export default function SocialScreen() {
     setShowComments(true);
   };
 
-  const handleShare = (postId: number) => {
-    Alert.alert('Share Post', 'Share functionality coming soon!');
+  const handleShare = async (postId: number) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    try {
+      await Share.share({
+        message: `${post.profile?.username || 'Friend'} shared: ${post.content}`,
+      });
+    } catch {
+      Alert.alert('Error', 'Unable to share right now.');
+    }
   };
 
   const handleDeletePost = async (postId: number) => {
@@ -174,11 +275,12 @@ export default function SocialScreen() {
     }
   };
 
-  const filteredPosts = useMemo(
-    () =>
-      selectedFilter === 'all' ? posts : posts.filter((post) => post.post_type === selectedFilter),
-    [posts, selectedFilter]
-  );
+  const filteredPosts = useMemo(() => {
+    const source = metricPosts ?? posts;
+    return selectedFilter === 'all'
+      ? source
+      : source.filter((post) => post.post_type === selectedFilter);
+  }, [posts, selectedFilter, metricPosts]);
 
   const renderPost = ({ item }: ListRenderItemInfo<(typeof posts)[number]>) => (
     <SocialFeedPost
@@ -286,27 +388,53 @@ export default function SocialScreen() {
               showsHorizontalScrollIndicator={false}
               style={styles.quickFilters}
             >
-              <TouchableOpacity style={styles.quickFilterButton}>
+              <TouchableOpacity
+                style={[
+                  styles.quickFilterButton,
+                  quickFilter === 'none' && styles.quickFilterButtonActive,
+                ]}
+                onPress={() => setQuickFilter('none')}
+              >
+                <Filter size={16} color="#fff" />
+                <Text style={styles.quickFilterText}>Recent</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.quickFilterButton,
+                  quickFilter === 'trending' && styles.quickFilterButtonActive,
+                ]}
+                onPress={() => setQuickFilter('trending')}
+              >
                 <Filter size={16} color="#fff" />
                 <Text style={styles.quickFilterText}>Trending</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.quickFilterButton}>
+              <TouchableOpacity
+                style={[
+                  styles.quickFilterButton,
+                  quickFilter === 'liked' && styles.quickFilterButtonActive,
+                ]}
+                onPress={() => setQuickFilter('liked')}
+              >
                 <Heart size={16} color="#fff" />
                 <Text style={styles.quickFilterText}>Most Liked</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.quickFilterButton}>
+              <TouchableOpacity
+                style={[
+                  styles.quickFilterButton,
+                  quickFilter === 'discussed' && styles.quickFilterButtonActive,
+                ]}
+                onPress={() => setQuickFilter('discussed')}
+              >
                 <MessageCircle size={16} color="#fff" />
                 <Text style={styles.quickFilterText}>Most Discussed</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickFilterButton}>
-                <Share2 size={16} color="#fff" />
-                <Text style={styles.quickFilterText}>Shared</Text>
               </TouchableOpacity>
             </ScrollView>
 
             {/* Social Feed States */}
-            {loading && <ScreenState variant="loading" title="Loading feed..." />}
-            {!loading && filteredPosts.length === 0 && (
+            {(loading || metricLoading || leaderboardLoading) && (
+              <ScreenState variant="loading" title="Loading feed..." />
+            )}
+            {!loading && !metricLoading && !leaderboardLoading && filteredPosts.length === 0 && (
               <ScreenState
                 variant="empty"
                 title="No posts yet"
@@ -432,6 +560,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
     marginRight: 10,
+  },
+  quickFilterButtonActive: {
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
   },
   quickFilterText: {
     color: '#fff',

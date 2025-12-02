@@ -90,12 +90,7 @@ export function useAchievements(userId: string | null) {
     if (category === 'all') {
       return achievementProgress;
     }
-    return achievementProgress.filter((progress) => {
-      const achievement = userAchievements.find(
-        (ua) => ua.achievement_id === progress.achievement_id
-      )?.achievement;
-      return achievement?.category === category;
-    });
+    return achievementProgress.filter((progress) => progress.achievement?.category === category);
   };
 
   const getCompletionPercentage = () => {

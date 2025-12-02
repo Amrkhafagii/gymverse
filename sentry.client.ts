@@ -33,6 +33,7 @@ const initSentryOnce = () => {
     dist: Constants.nativeBuildVersion ?? Constants.expoConfig?.extra?.eas?.buildNumber,
     environment: getEnvironment(),
     tracesSampleRate: 0.2,
+    enableInExpoDevelopment: true,
     enableAutoPerformanceTracing: true,
     enableNativeFramesTracking: true,
     integrations: [
