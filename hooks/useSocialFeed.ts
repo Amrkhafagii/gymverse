@@ -238,11 +238,15 @@ export function useSocialFeed(userId?: string) {
   };
 
   // Create a new achievement post
-  const handleCreateAchievementPost = async (content: string, achievementId: number) => {
+  const handleCreateAchievementPost = async (
+    content: string,
+    achievementId: number,
+    coachingPathId?: string | null
+  ) => {
     if (!userId) return null;
 
     try {
-      const post = await createAchievementPost(userId, content, achievementId);
+      const post = await createAchievementPost(userId, content, achievementId, coachingPathId);
       if (post) {
         // The realtime subscription will handle adding it to the feed
         return post;
@@ -254,11 +258,15 @@ export function useSocialFeed(userId?: string) {
   };
 
   // Create a new progress post
-  const handleCreateProgressPost = async (content: string, mediaUrls?: string[]) => {
+  const handleCreateProgressPost = async (
+    content: string,
+    mediaUrls?: string[],
+    coachingPathId?: string | null
+  ) => {
     if (!userId) return null;
 
     try {
-      const post = await createProgressPost(userId, content, mediaUrls);
+      const post = await createProgressPost(userId, content, mediaUrls, coachingPathId);
       if (post) {
         // The realtime subscription will handle adding it to the feed
         return post;

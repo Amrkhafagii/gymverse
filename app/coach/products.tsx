@@ -22,6 +22,7 @@ type ProductForm = {
   type: Product['type'];
   price: string;
   is_active: boolean;
+  feature_key?: string;
 };
 
 const PRODUCT_TYPES: Product['type'][] = ['template', 'path_pack', 'addon'];
@@ -38,6 +39,7 @@ export default function CoachProductsScreen() {
     type: 'template',
     price: '0',
     is_active: true,
+    feature_key: '',
   });
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export default function CoachProductsScreen() {
       price: '0',
       is_active: true,
       id: undefined,
+      feature_key: '',
     });
   };
 
@@ -79,6 +82,7 @@ export default function CoachProductsScreen() {
       type: p.type,
       price: (p.price_cents / 100).toString(),
       is_active: p.is_active,
+      feature_key: p.feature_key || '',
     });
   };
 
@@ -96,6 +100,12 @@ export default function CoachProductsScreen() {
       Alert.alert('Invalid', 'Please enter a title and positive price.');
       return;
     }
+    // Feature key is required for add-ons/path packs; warn on duplicates
+    if ((form.type === 'addon' || form.type === 'path_pack') && !form.feature_key?.trim()) {
+      Alert.alert('Feature key required', 'Add-ons and path packs need a unique feature key.');
+      return;
+    }
+
     setSaving(true);
     const payload = {
       title: form.title.trim(),
@@ -104,6 +114,7 @@ export default function CoachProductsScreen() {
       price_cents: Math.round(priceNumber * 100),
       is_active: form.is_active,
       coach_id: user.id,
+      feature_key: form.feature_key?.trim() || null,
     };
 
     if (form.id) {
@@ -164,6 +175,22 @@ export default function CoachProductsScreen() {
           value={form.title}
           onChangeText={(text) => setForm((f) => ({ ...f, title: text }))}
         />
+        {(form.type === 'addon' || form.type === 'path_pack') && (
+          <>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+              placeholder="Feature key (e.g., ai_plan, goal_pack_5k)"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              value={form.feature_key}
+              onChangeText={(text) => setForm((f) => ({ ...f, feature_key: text }))}
+            />
+            <Text style={{ color: colors.textMuted, marginBottom: 8, fontSize: 12 }}>
+              Feature keys map to entitlements (one per product). Keep them unique; users get access
+              by feature_key after payment approval.
+            </Text>
+          </>
+        )}
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text }]}
           placeholder="Description"
@@ -241,6 +268,9 @@ export default function CoachProductsScreen() {
               {p.type.replace('_', ' ')}
             </Text>
             <Text style={{ color: colors.primary }}>${(p.price_cents / 100).toFixed(2)}</Text>
+            {p.feature_key ? (
+              <Text style={{ color: colors.textMuted }}>Feature key: {p.feature_key}</Text>
+            ) : null}
             <Text style={{ color: colors.textMuted }}>
               Status: {p.is_active ? 'Active' : 'Inactive'}
             </Text>

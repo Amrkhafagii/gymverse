@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -22,15 +22,25 @@ import {
   Image as ImageIcon,
   Smile,
 } from 'lucide-react-native';
+import { WorkoutSession } from '@/lib/supabase';
 
 interface CreatePostModalProps {
   visible: boolean;
   onClose: () => void;
   onCreatePost: (
     content: string,
-    type: 'general' | 'workout' | 'achievement' | 'progress'
+    type: 'general' | 'workout' | 'achievement' | 'progress',
+    workoutSessionId?: number,
+    achievementId?: number
   ) => Promise<void>;
   coachingGoal?: string | null;
+  workoutSessions?: Pick<WorkoutSession, 'id' | 'duration_minutes' | 'started_at'>[];
+  achievements?: {
+    id: number;
+    name: string;
+    description?: string | null;
+    points?: number | null;
+  }[];
 }
 
 export default function CreatePostModal({
@@ -38,6 +48,8 @@ export default function CreatePostModal({
   onClose,
   onCreatePost,
   coachingGoal,
+  workoutSessions = [],
+  achievements = [],
 }: CreatePostModalProps) {
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState<'general' | 'workout' | 'achievement' | 'progress'>(
@@ -45,6 +57,17 @@ export default function CreatePostModal({
   );
   const [submitting, setSubmitting] = useState(false);
   const [tagPath, setTagPath] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | undefined>();
+  const [selectedAchievementId, setSelectedAchievementId] = useState<number | undefined>();
+
+  useEffect(() => {
+    if (postType === 'workout' && workoutSessions.length > 0) {
+      setSelectedSessionId(workoutSessions[0].id);
+    }
+    if (postType === 'achievement' && achievements.length > 0) {
+      setSelectedAchievementId(achievements[0].id as number);
+    }
+  }, [postType, workoutSessions, achievements]);
 
   const postTypes = [
     {
@@ -84,6 +107,15 @@ export default function CreatePostModal({
     progress: 'What progress have you made? Share your journey!',
   };
 
+  const sessionLabel = (session: WorkoutSession) => {
+    const duration = session.duration_minutes ? `${session.duration_minutes} min • ` : '';
+    const started = session.started_at ? new Date(session.started_at).toLocaleDateString() : '';
+    return `${duration}${started || 'Session'} #${session.id}`;
+  };
+
+  const achievementLabel = (achievement: { name: string; points?: number | null }) =>
+    `${achievement.name}${achievement.points ? ` (${achievement.points} pts)` : ''}`;
+
   const handleSubmit = async () => {
     if (!content.trim()) {
       Alert.alert('Error', 'Please enter some content for your post');
@@ -98,12 +130,23 @@ export default function CreatePostModal({
     const contentWithTag =
       tagPath && coachingGoal ? `${content.trim()}\n#OnPath: ${coachingGoal}` : content.trim();
 
+    if (postType === 'workout' && workoutSessions.length > 0 && !selectedSessionId) {
+      Alert.alert('Pick a session', 'Select a workout session to attach.');
+      return;
+    }
+    if (postType === 'achievement' && achievements.length > 0 && !selectedAchievementId) {
+      Alert.alert('Pick an achievement', 'Select an achievement to celebrate.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await onCreatePost(contentWithTag, postType);
+      await onCreatePost(contentWithTag, postType, selectedSessionId, selectedAchievementId);
       setContent('');
       setPostType('general');
       setTagPath(false);
+      setSelectedSessionId(undefined);
+      setSelectedAchievementId(undefined);
       onClose();
     } catch (error) {
       console.error('Error creating post:', error);
@@ -230,6 +273,76 @@ export default function CreatePostModal({
               </View>
             </View>
           </View>
+
+          {postType === 'workout' && (
+            <View style={styles.selectorContainer}>
+              <Text style={styles.sectionTitle}>Attach workout session</Text>
+              {workoutSessions.length === 0 ? (
+                <Text style={styles.emptyText}>No recent sessions found.</Text>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {workoutSessions.map((session) => (
+                    <TouchableOpacity
+                      key={session.id}
+                      style={[
+                        styles.selectorChip,
+                        selectedSessionId === session.id && styles.selectorChipActive,
+                      ]}
+                      onPress={() => setSelectedSessionId(session.id)}
+                    >
+                      <Dumbbell
+                        size={16}
+                        color={selectedSessionId === session.id ? '#000' : '#FF6B35'}
+                      />
+                      <Text
+                        style={[
+                          styles.selectorText,
+                          selectedSessionId === session.id && styles.selectorTextActive,
+                        ]}
+                      >
+                        {sessionLabel(session)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          )}
+
+          {postType === 'achievement' && (
+            <View style={styles.selectorContainer}>
+              <Text style={styles.sectionTitle}>Pick achievement</Text>
+              {achievements.length === 0 ? (
+                <Text style={styles.emptyText}>No achievements unlocked yet.</Text>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {achievements.map((achievement) => (
+                    <TouchableOpacity
+                      key={achievement.id}
+                      style={[
+                        styles.selectorChip,
+                        selectedAchievementId === achievement.id && styles.selectorChipActive,
+                      ]}
+                      onPress={() => setSelectedAchievementId(achievement.id as number)}
+                    >
+                      <Trophy
+                        size={16}
+                        color={selectedAchievementId === achievement.id ? '#000' : '#FFD700'}
+                      />
+                      <Text
+                        style={[
+                          styles.selectorText,
+                          selectedAchievementId === achievement.id && styles.selectorTextActive,
+                        ]}
+                      >
+                        {achievementLabel(achievement)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          )}
 
           {coachingGoal ? (
             <TouchableOpacity
@@ -457,6 +570,37 @@ const styles = StyleSheet.create({
   inputActionButton: {
     padding: 8,
     marginLeft: 8,
+  },
+  selectorContainer: {
+    marginBottom: 20,
+    gap: 8,
+  },
+  selectorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+    backgroundColor: '#1a1a1a',
+    marginRight: 8,
+    gap: 8,
+  },
+  selectorChipActive: {
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
+  },
+  selectorText: {
+    color: '#ccc',
+    fontFamily: 'Inter-Medium',
+  },
+  selectorTextActive: {
+    color: '#000',
+  },
+  emptyText: {
+    color: '#999',
+    fontFamily: 'Inter-Medium',
   },
   tipContainer: {
     backgroundColor: '#1a1a1a',

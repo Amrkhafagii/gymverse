@@ -189,6 +189,55 @@ export type Database = {
           },
         ];
       };
+      entitlements: {
+        Row: {
+          created_at: string;
+          granted_at: string;
+          id: string;
+          product_id: string | null;
+          source_payment_id: string | null;
+          user_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          granted_at?: string;
+          id?: string;
+          product_id?: string | null;
+          source_payment_id?: string | null;
+          user_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          granted_at?: string;
+          id?: string;
+          product_id?: string | null;
+          source_payment_id?: string | null;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'entitlements_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'entitlements_source_payment_id_fkey';
+            columns: ['source_payment_id'];
+            isOneToOne: false;
+            referencedRelation: 'payments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'entitlements_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       exercise_sets: {
         Row: {
           completed: boolean | null;
@@ -317,6 +366,86 @@ export type Database = {
           {
             foreignKeyName: 'friendships_requester_id_fkey';
             columns: ['requester_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      payments: {
+        Row: {
+          amount_client_paid_cents: number;
+          approved_at: string | null;
+          approved_by: string | null;
+          coach_id: string | null;
+          coach_net_cents: number;
+          created_at: string;
+          id: string;
+          notes: string | null;
+          platform_fee_cents: number;
+          product_id: string | null;
+          receipt_url: string | null;
+          status: string;
+          updated_at: string;
+          user_id: string | null;
+        };
+        Insert: {
+          amount_client_paid_cents: number;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          coach_id?: string | null;
+          coach_net_cents?: number;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          platform_fee_cents?: number;
+          product_id?: string | null;
+          receipt_url?: string | null;
+          status?: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Update: {
+          amount_client_paid_cents?: number;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          coach_id?: string | null;
+          coach_net_cents?: number;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          platform_fee_cents?: number;
+          product_id?: string | null;
+          receipt_url?: string | null;
+          status?: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'payments_approved_by_fkey';
+            columns: ['approved_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'payments_coach_id_fkey';
+            columns: ['coach_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'payments_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'payments_user_id_fkey';
+            columns: ['user_id'];
             isOneToOne: false;
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
@@ -453,6 +582,56 @@ export type Database = {
           {
             foreignKeyName: 'post_likes_user_id_fkey';
             columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      products: {
+        Row: {
+          coach_id: string | null;
+          created_at: string;
+          currency: string;
+          description: string | null;
+          feature_key: string | null;
+          id: string;
+          is_active: boolean;
+          price_cents: number;
+          title: string;
+          type: string;
+          updated_at: string;
+        };
+        Insert: {
+          coach_id?: string | null;
+          created_at?: string;
+          currency?: string;
+          description?: string | null;
+          feature_key?: string | null;
+          id?: string;
+          is_active?: boolean;
+          price_cents: number;
+          title: string;
+          type: string;
+          updated_at?: string;
+        };
+        Update: {
+          coach_id?: string | null;
+          created_at?: string;
+          currency?: string;
+          description?: string | null;
+          feature_key?: string | null;
+          id?: string;
+          is_active?: boolean;
+          price_cents?: number;
+          title?: string;
+          type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'products_coach_id_fkey';
+            columns: ['coach_id'];
             isOneToOne: false;
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
@@ -884,6 +1063,11 @@ export type Database = {
         Args: { p_path_id: string; p_session_id: string };
         Returns: Json;
       };
+      has_entitlement: {
+        Args: { p_feature_key?: string; p_product_id?: string; p_user: string };
+        Returns: boolean;
+      };
+      is_admin: { Args: never; Returns: boolean };
       recalculate_path: { Args: { p_path_id: string }; Returns: undefined };
       update_workout_streak: { Args: { user_uuid: string }; Returns: undefined };
     };

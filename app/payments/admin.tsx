@@ -19,6 +19,7 @@ import {
   getReceiptSignedUrl,
   type Payment,
 } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export default function AdminPaymentsScreen() {
   const { user } = useAuth();
@@ -27,6 +28,7 @@ export default function AdminPaymentsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [rejectionNotes, setRejectionNotes] = useState<Record<string, string>>({});
+  const [refreshingEntitlements, setRefreshingEntitlements] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -73,9 +75,39 @@ export default function AdminPaymentsScreen() {
     }
   };
 
+  const refreshEntitlements = async () => {
+    if (!user) return;
+    setRefreshingEntitlements(true);
+    try {
+      const { error } = await supabase.rpc('refresh_entitlements_for_user', {
+        p_user_id: user.id,
+      });
+      if (error) {
+        console.error('refresh_entitlements_for_user', error);
+        Alert.alert('Error', 'Failed to refresh entitlements');
+      } else {
+        Alert.alert('Entitlements refreshed', 'Latest access has been pulled for this user.');
+      }
+    } finally {
+      setRefreshingEntitlements(false);
+    }
+  };
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background, padding: 16 }}>
       <Text style={[styles.title, { color: colors.text }]}>Admin Payments</Text>
+      <Text style={{ color: colors.textMuted, marginBottom: 8 }}>
+        Admin-only: approvals grant entitlements. Use an admin JWT (app_metadata.role = 'admin').
+      </Text>
+      <TouchableOpacity
+        style={[styles.btn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={refreshEntitlements}
+        disabled={refreshingEntitlements}
+      >
+        <Text style={{ color: colors.text }}>
+          {refreshingEntitlements ? 'Refreshing…' : 'Refresh entitlements (admin)'}
+        </Text>
+      </TouchableOpacity>
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       {!loading && payments.length === 0 ? (

@@ -6,6 +6,7 @@ import {
   Trophy,
   Medal,
   Calendar,
+  Dumbbell,
   Calculator,
   MoonStar,
   ShieldCheck,
@@ -24,40 +25,60 @@ import ProfileLogoutButton from '@/components/ProfileLogoutButton';
 import TDEECalculator from '@/components/TDEECalculator';
 import { useTheme } from '@/theme/ThemeProvider';
 import { routes } from '@/utils/routes';
+import { useWorkoutAnalytics } from '@/hooks/useWorkoutAnalytics';
+import { usePersonalRecords } from '@/hooks/usePersonalRecords';
+import { useAchievements } from '@/hooks/useAchievements';
 
 export default function ProfileScreen() {
   const { profile, signOut, user } = useAuth();
   const [showTDEECalculator, setShowTDEECalculator] = useState(false);
   const { mode, toggle } = useTheme();
+  const { stats, streak, workoutSessions } = useWorkoutAnalytics(user?.id || null);
+  const { personalRecords, recordStats } = usePersonalRecords(user?.id || null);
+  const { userAchievements, getUnlockedCount } = useAchievements(user?.id || null);
 
-  const stats = [
-    { label: 'Workouts', value: '127', icon: Target },
-    { label: 'Streak', value: '14', icon: Zap },
-    { label: 'Friends', value: '48', icon: Users },
-    { label: 'Achievements', value: '23', icon: Trophy },
+  const totalWorkouts = stats.totalWorkouts || 0;
+  const currentStreak = streak?.current_streak || 0;
+  const unlockedAchievements = getUnlockedCount();
+  const totalPRs = recordStats.totalRecords || personalRecords.length || 0;
+
+  const statCards = [
+    { label: 'Workouts', value: `${totalWorkouts}`, icon: Target },
+    { label: 'Streak', value: `${currentStreak}`, icon: Zap },
+    { label: 'PRs', value: `${totalPRs}`, icon: Medal },
+    { label: 'Achievements', value: `${unlockedAchievements}`, icon: Trophy },
   ];
 
-  const achievements = [
-    { title: 'First Workout', icon: Medal, color: '#4A90E2' },
-    { title: 'Week Warrior', icon: Calendar, color: '#27AE60' },
-    { title: 'Consistency King', icon: Zap, color: '#FF6B35' },
-    { title: 'Heavy Lifter', icon: Trophy, color: '#9B59B6' },
-    { title: 'Social Butterfly', icon: Users, color: '#E74C3C' },
-    { title: 'Goal Crusher', icon: Target, color: '#F39C12' },
-  ];
+  const achievementIconByCategory: Record<string, any> = {
+    workout: Target,
+    strength: Dumbbell,
+    consistency: Calendar,
+    endurance: Zap,
+    social: Users,
+  };
+  const achievementColors = ['#4A90E2', '#FF6B35', '#27AE60', '#9B59B6', '#F39C12', '#E74C3C'];
+  const achievementItems = (userAchievements || []).slice(0, 6).map((ua, idx) => ({
+    title: ua.achievement?.name || 'Achievement',
+    icon: achievementIconByCategory[ua.achievement?.category || 'workout'] || Trophy,
+    color: achievementColors[idx % achievementColors.length],
+  }));
 
-  const recentWorkouts = [
-    { name: 'Push Day', date: 'Today', duration: '45 min', calories: 245 },
-    { name: 'Full Body', date: 'Yesterday', duration: '52 min', calories: 312 },
-    { name: 'Leg Day', date: '2 days ago', duration: '48 min', calories: 298 },
-  ];
+  const recentWorkouts = workoutSessions
+    .slice()
+    .sort((a, b) => (b.started_at || '').localeCompare(a.started_at || ''))
+    .slice(0, 3)
+    .map((session) => ({
+      name: session.workout_id ? `Workout ${session.workout_id}` : `Session ${session.id}`,
+      date: session.started_at ? new Date(session.started_at).toLocaleDateString() : 'Recently',
+      duration: `${session.duration_minutes || 0} min`,
+      calories: Math.round(session.calories_burned || 0),
+    }));
 
-  const personalRecords = [
-    { exercise: 'Bench Press', weight: '185 lbs' },
-    { exercise: 'Deadlift', weight: '225 lbs' },
-    { exercise: 'Squat', weight: '200 lbs' },
-    { exercise: 'OHP', weight: '95 lbs' },
-  ];
+  const personalRecordItems = personalRecords.slice(0, 4).map((record) => ({
+    exercise:
+      record.exercise?.name || record.exercise_name || record.exercise_id?.toString() || 'Exercise',
+    weight: `${record.value ?? 0} ${record.unit || ''}`.trim(),
+  }));
 
   // Dynamic preferences based on profile data
   const preferences = [
@@ -169,16 +190,16 @@ export default function ProfileScreen() {
           onShareProfilePress={handleShareProfilePress}
         />
 
-        <ProfileStatsGrid stats={stats} />
+        <ProfileStatsGrid stats={statCards} />
 
-        <ProfileAchievementsSection achievements={achievements} />
+        <ProfileAchievementsSection achievements={achievementItems} />
 
         <ProfileRecentWorkoutsSection
           recentWorkouts={recentWorkouts}
           onSeeAllPress={handleSeeAllWorkoutsPress}
         />
 
-        <ProfilePersonalRecordsSection personalRecords={personalRecords} />
+        <ProfilePersonalRecordsSection personalRecords={personalRecordItems} />
 
         <ProfilePreferencesSection
           preferences={preferences}

@@ -41,6 +41,11 @@ Mobile fitness companion built with Expo + Supabase. Helps people plan workouts,
 - To add a migration, use the Supabase CLI (`supabase migration new <name>`), then apply and commit the generated SQL.
 - To refresh client types after schema updates, run the typegen command above. This keeps `types/supabase.ts` in sync with the latest migrations.
 
+## Admin gating for payments/entitlements
+- Receipt approvals and granting entitlements rely on an **admin** JWT (`app_metadata.role = 'admin'`). Use an admin session for the `/payments/admin` screen to approve/reject receipts and create entitlements.
+- Coaches see only their sales; users see only their own submissions.
+- After approval, the client must refresh entitlements (the app does this on auth change; use the admin “Refresh entitlements” toggle to force a refresh in-session).
+
 ## KPI placeholders (to align with product goals)
 - Activation: % of new users who start a workout within 24h of signup.
 - Engagement: weekly active users; average workouts per user per week.

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -28,6 +29,7 @@ interface AuthContextType {
   ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshEntitlements: () => Promise<void>;
   hasEntitlement: (featureKeyOrProductId: string) => boolean;
 }
 
@@ -108,6 +110,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshEntitlements = async () => {
+    if (user) {
+      await loadEntitlements(user.id);
+    }
+  };
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && user) {
+        loadEntitlements(user.id);
+      }
+    });
+    return () => sub.remove();
+  }, [user]);
+
   const hasEntitlement = (featureKeyOrProductId: string) =>
     entitlements.some(
       (e) =>
@@ -142,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     refreshProfile,
+    refreshEntitlements,
     hasEntitlement,
   };
 

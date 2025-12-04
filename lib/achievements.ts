@@ -228,7 +228,9 @@ const checkCardioAchievements = async (userId: string): Promise<Achievement[]> =
       .from('workout_sessions')
       .select(
         `
-        *,
+        id,
+        user_id,
+        completed_at,
         workout:workouts(workout_type)
       `
       )
@@ -428,9 +430,28 @@ export const getUserAchievementProgress = async (
     // Get user statistics
     const { data: workoutSessions } = await supabase
       .from('workout_sessions')
-      .select('*')
+      .select(
+        `
+        *,
+        workout:workouts(workout_type)
+      `
+      )
       .eq('user_id', userId)
       .not('completed_at', 'is', null);
+
+    const { data: cardioSessions } = await supabase
+      .from('workout_sessions')
+      .select(
+        `
+        id,
+        user_id,
+        completed_at,
+        workout:workouts(workout_type)
+      `
+      )
+      .eq('user_id', userId)
+      .not('completed_at', 'is', null)
+      .eq('workout.workout_type', 'cardio');
 
     const { data: streakData } = await supabase
       .from('workout_streaks')
@@ -446,6 +467,7 @@ export const getUserAchievementProgress = async (
     const totalWorkouts = workoutSessions?.length || 0;
     const currentStreak = streakData?.current_streak || 0;
     const totalPRs = personalRecords?.length || 0;
+    const cardioCount = cardioSessions?.length || 0;
 
     // Calculate progress for each achievement
     for (const achievement of achievements || []) {
@@ -480,8 +502,7 @@ export const getUserAchievementProgress = async (
               .length || 0;
           break;
         case 'cardio_workouts':
-          // This would require joining with workouts table to check workout_type
-          currentValue = 0; // Simplified for now
+          currentValue = cardioCount;
           break;
         default:
           currentValue = 0;

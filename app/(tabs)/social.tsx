@@ -32,6 +32,7 @@ import { ScreenState } from '@/components/ScreenState';
 import { useTheme } from '@/theme/ThemeProvider';
 import { supabase } from '@/lib/supabase';
 import { useCoachingPaths } from '@/hooks/useCoachingPaths';
+import { getUserAchievements } from '@/lib/achievements';
 
 export default function SocialScreen() {
   const { user } = useAuth();
@@ -71,6 +72,12 @@ export default function SocialScreen() {
   );
   const [metricPosts, setMetricPosts] = useState<typeof posts | null>(null);
   const [metricLoading, setMetricLoading] = useState(false);
+  const [workoutSessions, setWorkoutSessions] = useState<
+    { id: number; duration_minutes?: number | null; started_at?: string | null }[]
+  >([]);
+  const [achievements, setAchievements] = useState<
+    { id: number; name: string; description?: string | null; points?: number | null }[]
+  >([]);
 
   const socialStats = useMemo(() => {
     const totalPosts = posts.length;
@@ -159,6 +166,46 @@ export default function SocialScreen() {
   useEffect(() => {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
+
+  // Load recent sessions & unlocked achievements for selectors
+  useEffect(() => {
+    if (!user?.id) {
+      setWorkoutSessions([]);
+      setAchievements([]);
+      return;
+    }
+
+    const loadSessions = async () => {
+      const { data, error } = await supabase
+        .from('workout_sessions')
+        .select('id, duration_minutes, started_at')
+        .eq('user_id', user.id)
+        .not('completed_at', 'is', null)
+        .order('started_at', { ascending: false })
+        .limit(20);
+      if (!error && data) {
+        setWorkoutSessions(data as any);
+      }
+    };
+
+    const loadAchievements = async () => {
+      const unlocked = await getUserAchievements(user.id);
+      setAchievements(
+        (unlocked || [])
+          .map((ua) => ua.achievement)
+          .filter(Boolean)
+          .map((a) => ({
+            id: a!.id,
+            name: a!.name,
+            description: a!.description,
+            points: a!.points ?? null,
+          }))
+      );
+    };
+
+    loadSessions();
+    loadAchievements();
+  }, [user?.id]);
 
   const fetchPostsByMetric = useCallback(
     async (metric: 'likes' | 'comments') => {
@@ -263,23 +310,42 @@ export default function SocialScreen() {
     content: string,
     type: 'general' | 'workout' | 'achievement' | 'progress',
     workoutSessionId?: number,
-    coachingPathId?: string
+    coachingPathId?: string,
+    achievementId?: number
   ) => {
     try {
+      if (type === 'achievement' && !achievementId && achievements.length === 0) {
+        Alert.alert('No achievements', 'Unlock an achievement first, then share it.');
+        return;
+      }
       switch (type) {
         case 'workout':
-          await createWorkoutPost(content, workoutSessionId, coachingPathId ?? null);
+          if (!workoutSessionId && workoutSessions.length === 0) {
+            Alert.alert('No workouts yet', 'Log a workout to share it.');
+            return;
+          }
+          await createWorkoutPost(
+            content,
+            workoutSessionId || workoutSessions[0]?.id,
+            coachingPathId ?? null
+          );
           break;
         case 'achievement':
-          await createAchievementPost(content, 1);
+          await createAchievementPost(
+            content,
+            achievementId || achievements[0]?.id,
+            coachingPathId ?? null
+          );
           break;
         case 'progress':
-          await createProgressPost(content);
+        case 'general':
+          await createProgressPost(content, undefined, coachingPathId ?? null);
           break;
         default:
-          await createProgressPost(content);
+          await createProgressPost(content, undefined, coachingPathId ?? null);
           break;
       }
+      await refreshFeed();
       setShowCreatePost(false);
     } catch {
       Alert.alert('Error', 'Failed to create post. Please try again.');
@@ -471,10 +537,12 @@ export default function SocialScreen() {
       <CreatePostModal
         visible={showCreatePost}
         onClose={() => setShowCreatePost(false)}
-        onCreatePost={(content, type) =>
-          handleCreatePost(content, type, undefined, activePath?.id ?? undefined)
+        onCreatePost={(content, type, sessionId, achievementId) =>
+          handleCreatePost(content, type, sessionId, activePath?.id ?? undefined, achievementId)
         }
         coachingGoal={activePath?.goal_type}
+        workoutSessions={workoutSessions}
+        achievements={achievements}
       />
 
       <PostCommentsModal

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -20,7 +21,7 @@ type ProductFilter = 'all' | 'template' | 'path_pack' | 'addon';
 
 export default function MarketplaceScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { user, refreshEntitlements } = useAuth();
   const { showToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -121,6 +122,7 @@ export default function MarketplaceScreen() {
       if (data) {
         setUserPayments((prev) => [data as Payment, ...prev]);
       }
+      await refreshEntitlements();
       showToast('Payment submitted. Pending approval.', 'success');
     } catch (err) {
       console.error('Error creating payment', err);
@@ -131,125 +133,131 @@ export default function MarketplaceScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
-        <Text style={styles.title}>Marketplace</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          Buy premium plans, templates, and add-ons.
-        </Text>
-      </LinearGradient>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView>
+        <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
+          <Text style={styles.title}>Marketplace</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            Buy premium plans, templates, and add-ons.
+          </Text>
+        </LinearGradient>
 
-      <View style={styles.filters}>
-        {(['all', 'template', 'path_pack', 'addon'] as ProductFilter[]).map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[styles.filterChip, selectedFilter === filter && styles.filterChipActive]}
-            onPress={() => setSelectedFilter(filter)}
-          >
-            <Text style={[styles.filterText, selectedFilter === filter && styles.filterTextActive]}>
-              {filter === 'all' ? 'All' : filter.replace('_', ' ').toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.list}>
-        {loading ? (
-          <Text style={{ color: colors.text }}>Loading products...</Text>
-        ) : filtered.length === 0 ? (
-          <Text style={{ color: colors.textMuted }}>No products available.</Text>
-        ) : (
-          filtered.map((product) => (
+        <View style={styles.filters}>
+          {(['all', 'template', 'path_pack', 'addon'] as ProductFilter[]).map((filter) => (
             <TouchableOpacity
-              key={product.id}
-              style={[styles.card, { borderColor: colors.border }]}
-              onPress={() => handleProductPress(product)}
+              key={filter}
+              style={[styles.filterChip, selectedFilter === filter && styles.filterChipActive]}
+              onPress={() => setSelectedFilter(filter)}
             >
-              <View style={styles.cardHeader}>
-                <View>
-                  <Text style={[styles.productTitle, { color: colors.text }]}>{product.title}</Text>
-                  <Text style={[styles.productType, { color: colors.textMuted }]}>
-                    {product.type.replace('_', ' ')}
-                  </Text>
-                </View>
-                <Text style={[styles.price, { color: colors.primary }]}>
-                  ${(product.price_cents / 100).toFixed(2)}
-                </Text>
-              </View>
-              {ownedProducts.has(product.id) ? (
-                <Text style={[styles.statusPill, styles.statusApproved]}>Owned</Text>
-              ) : paymentStatusByProduct[product.id] ? (
-                <Text
-                  style={[
-                    styles.statusPill,
-                    paymentStatusByProduct[product.id].status === 'pending'
-                      ? styles.statusPending
-                      : paymentStatusByProduct[product.id].status === 'approved'
-                        ? styles.statusApproved
-                        : styles.statusRejected,
-                  ]}
-                >
-                  {paymentStatusByProduct[product.id].status === 'pending'
-                    ? 'Awaiting approval'
-                    : paymentStatusByProduct[product.id].status === 'approved'
-                      ? 'Owned'
-                      : 'Rejected'}
-                </Text>
-              ) : null}
-              {product.description ? (
-                <Text style={[styles.description, { color: colors.textMuted }]}>
-                  {product.description}
-                </Text>
-              ) : null}
-              {product.coach ? (
-                <View style={styles.coachRow}>
-                  <Image
-                    source={{ uri: product.coach.avatar_url || undefined }}
-                    style={styles.avatar}
-                    contentFit="cover"
-                  />
-                  <View>
-                    <Text style={[styles.coachName, { color: colors.text }]}>
-                      {product.coach.full_name || product.coach.username || 'Coach'}
+              <Text
+                style={[styles.filterText, selectedFilter === filter && styles.filterTextActive]}
+              >
+                {filter === 'all' ? 'All' : filter.replace('_', ' ').toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.list}>
+          {loading ? (
+            <Text style={{ color: colors.text }}>Loading products...</Text>
+          ) : filtered.length === 0 ? (
+            <Text style={{ color: colors.textMuted }}>No products available.</Text>
+          ) : (
+            filtered.map((product) => (
+              <TouchableOpacity
+                key={product.id}
+                style={[styles.card, { borderColor: colors.border }]}
+                onPress={() => handleProductPress(product)}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={{ maxWidth: '70%' }}>
+                    <Text style={[styles.productTitle, { color: colors.text }]} numberOfLines={1}>
+                      {product.title}
                     </Text>
-                    <Text style={[styles.coachHandle, { color: colors.textMuted }]}>
-                      {product.coach.username ? `@${product.coach.username}` : 'Premium creator'}
+                    <Text style={[styles.productType, { color: colors.textMuted }]}>
+                      {product.type.replace('_', ' ')}
                     </Text>
                   </View>
+                  <Text style={[styles.price, { color: colors.primary }]}>
+                    ${(product.price_cents / 100).toFixed(2)}
+                  </Text>
                 </View>
-              ) : (
-                <Text
-                  style={[
-                    styles.platformBadge,
-                    {
-                      color: colors.text,
-                      backgroundColor: colors.surfaceAlt,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  {product.type === 'addon' ? 'Platform add-on' : 'Platform product'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          ))
-        )}
-      </View>
+                {ownedProducts.has(product.id) ? (
+                  <Text style={[styles.statusPill, styles.statusApproved]}>Owned</Text>
+                ) : paymentStatusByProduct[product.id] ? (
+                  <Text
+                    style={[
+                      styles.statusPill,
+                      paymentStatusByProduct[product.id].status === 'pending'
+                        ? styles.statusPending
+                        : paymentStatusByProduct[product.id].status === 'approved'
+                          ? styles.statusApproved
+                          : styles.statusRejected,
+                    ]}
+                  >
+                    {paymentStatusByProduct[product.id].status === 'pending'
+                      ? 'Awaiting approval'
+                      : paymentStatusByProduct[product.id].status === 'approved'
+                        ? 'Owned'
+                        : 'Rejected'}
+                  </Text>
+                ) : null}
+                {product.description ? (
+                  <Text style={[styles.description, { color: colors.textMuted }]} numberOfLines={3}>
+                    {product.description}
+                  </Text>
+                ) : null}
+                {product.coach ? (
+                  <View style={styles.coachRow}>
+                    <Image
+                      source={{ uri: product.coach.avatar_url || undefined }}
+                      style={styles.avatar}
+                      contentFit="cover"
+                    />
+                    <View>
+                      <Text style={[styles.coachName, { color: colors.text }]}>
+                        {product.coach.full_name || product.coach.username || 'Coach'}
+                      </Text>
+                      <Text style={[styles.coachHandle, { color: colors.textMuted }]}>
+                        {product.coach.username ? `@${product.coach.username}` : 'Premium creator'}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text
+                    style={[
+                      styles.platformBadge,
+                      {
+                        color: colors.text,
+                        backgroundColor: colors.surfaceAlt,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    {product.type === 'addon' ? 'Platform add-on' : 'Platform product'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
 
-      <PaymentModal
-        visible={!!selectedProduct}
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-        onSubmit={handleSubmitPayment}
-        instapayHandle={instapayHandle}
-        disabled={
-          selectedProduct
-            ? paymentStatusByProduct[selectedProduct.id]?.status === 'pending' ||
-              ownedProducts.has(selectedProduct.id)
-            : false
-        }
-      />
-    </ScrollView>
+        <PaymentModal
+          visible={!!selectedProduct}
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onSubmit={handleSubmitPayment}
+          instapayHandle={instapayHandle}
+          disabled={
+            selectedProduct
+              ? paymentStatusByProduct[selectedProduct.id]?.status === 'pending' ||
+                ownedProducts.has(selectedProduct.id)
+              : false
+          }
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
