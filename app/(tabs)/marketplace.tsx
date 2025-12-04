@@ -98,7 +98,11 @@ export default function MarketplaceScreen() {
     setSelectedProduct(product);
   };
 
-  const handleSubmitPayment = async (receiptUrl: string | null, amountCents: number, notes?: string) => {
+  const handleSubmitPayment = async (
+    receiptUrl: string | null,
+    amountCents: number,
+    notes?: string
+  ) => {
     if (!user || !selectedProduct) return;
     try {
       const platformFee = Math.ceil(amountCents * 0.1);
@@ -139,18 +143,10 @@ export default function MarketplaceScreen() {
         {(['all', 'template', 'path_pack', 'addon'] as ProductFilter[]).map((filter) => (
           <TouchableOpacity
             key={filter}
-            style={[
-              styles.filterChip,
-              selectedFilter === filter && styles.filterChipActive,
-            ]}
+            style={[styles.filterChip, selectedFilter === filter && styles.filterChipActive]}
             onPress={() => setSelectedFilter(filter)}
           >
-            <Text
-              style={[
-                styles.filterText,
-                selectedFilter === filter && styles.filterTextActive,
-              ]}
-            >
+            <Text style={[styles.filterText, selectedFilter === filter && styles.filterTextActive]}>
               {filter === 'all' ? 'All' : filter.replace('_', ' ').toUpperCase()}
             </Text>
           </TouchableOpacity>
@@ -225,7 +221,11 @@ export default function MarketplaceScreen() {
                 <Text
                   style={[
                     styles.platformBadge,
-                    { color: colors.text, backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.surfaceAlt,
+                      borderColor: colors.border,
+                    },
                   ]}
                 >
                   {product.type === 'addon' ? 'Platform add-on' : 'Platform product'}

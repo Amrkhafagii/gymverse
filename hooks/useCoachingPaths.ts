@@ -45,8 +45,7 @@ export function useCoachingPaths(userId?: string | null) {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ pathId, status }: UpdateStatusInput) =>
-      updateCoachingPathStatus(pathId, status),
+    mutationFn: ({ pathId, status }: UpdateStatusInput) => updateCoachingPathStatus(pathId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pathsKey });
     },

@@ -109,7 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const hasEntitlement = (featureKeyOrProductId: string) =>
-    entitlements.some((e) => e.product_id === featureKeyOrProductId || e.products?.feature_key === featureKeyOrProductId);
+    entitlements.some(
+      (e) =>
+        e.product_id === featureKeyOrProductId || e.products?.feature_key === featureKeyOrProductId
+    );
 
   const signIn = async (email: string, password: string) => {
     const { error } = await authSignIn(email, password);

@@ -96,7 +96,10 @@ export default function ExerciseProgressScreen() {
             </View>
             <View style={styles.metaItem}>
               <Text
-                style={[styles.metaText, { color: getTypeColor(exercise.exercise_type || 'cardio') }]}
+                style={[
+                  styles.metaText,
+                  { color: getTypeColor(exercise.exercise_type || 'cardio') },
+                ]}
               >
                 {exercise.exercise_type || 'cardio'}
               </Text>

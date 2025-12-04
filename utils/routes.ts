@@ -5,7 +5,11 @@ export const routes = {
     pathname: '/(tabs)/workout-detail',
     params: { workoutId: workoutId.toString() },
   }),
-  workoutSession: (workoutId: number | string, workoutName?: string, coachingSessionId?: string) => ({
+  workoutSession: (
+    workoutId: number | string,
+    workoutName?: string,
+    coachingSessionId?: string
+  ) => ({
     pathname: '/(tabs)/workout-session',
     params: { workoutId: workoutId.toString(), workoutName, coachingSessionId },
   }),

@@ -85,47 +85,47 @@ export default function AdminPaymentsScreen() {
         .slice()
         .sort((a, b) => (a.status === 'pending' && b.status !== 'pending' ? -1 : 1))
         .map((p) => (
-        <View key={p.id} style={[styles.card, { borderColor: colors.border }]}>
-          <Text style={[styles.amount, { color: colors.primary }]}>
-            ${(p.amount_client_paid_cents / 100).toFixed(2)} • {p.status}
-          </Text>
-          <Text style={{ color: colors.textMuted }}>{p.products?.title || 'Product'}</Text>
-          {p.user ? (
-            <Text style={{ color: colors.textMuted }}>
-              Buyer: {p.user.full_name || p.user.username || p.user_id}
+          <View key={p.id} style={[styles.card, { borderColor: colors.border }]}>
+            <Text style={[styles.amount, { color: colors.primary }]}>
+              ${(p.amount_client_paid_cents / 100).toFixed(2)} • {p.status}
             </Text>
-          ) : null}
-          {p.receipt_url ? (
-            <TouchableOpacity onPress={() => openReceipt(p.receipt_url)}>
-              <Text style={{ color: colors.info }}>View receipt</Text>
-            </TouchableOpacity>
-          ) : (
-            <Text style={{ color: colors.textMuted }}>No receipt uploaded</Text>
-          )}
-          {p.status === 'pending' && (
-            <View style={styles.row}>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                placeholder="Reason (optional)"
-                placeholderTextColor={colors.textMuted}
-                value={rejectionNotes[p.id] || ''}
-                onChangeText={(text) =>
-                  setRejectionNotes((prev) => ({
-                    ...prev,
-                    [p.id]: text,
-                  }))
-                }
-              />
-              <TouchableOpacity style={styles.btn} onPress={() => handleApprove(p.id)}>
-                <Text style={styles.btnText}>Approve</Text>
+            <Text style={{ color: colors.textMuted }}>{p.products?.title || 'Product'}</Text>
+            {p.user ? (
+              <Text style={{ color: colors.textMuted }}>
+                Buyer: {p.user.full_name || p.user.username || p.user_id}
+              </Text>
+            ) : null}
+            {p.receipt_url ? (
+              <TouchableOpacity onPress={() => openReceipt(p.receipt_url)}>
+                <Text style={{ color: colors.info }}>View receipt</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.btn} onPress={() => handleReject(p.id)}>
-                <Text style={styles.btnText}>Reject</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      ))}
+            ) : (
+              <Text style={{ color: colors.textMuted }}>No receipt uploaded</Text>
+            )}
+            {p.status === 'pending' && (
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+                  placeholder="Reason (optional)"
+                  placeholderTextColor={colors.textMuted}
+                  value={rejectionNotes[p.id] || ''}
+                  onChangeText={(text) =>
+                    setRejectionNotes((prev) => ({
+                      ...prev,
+                      [p.id]: text,
+                    }))
+                  }
+                />
+                <TouchableOpacity style={styles.btn} onPress={() => handleApprove(p.id)}>
+                  <Text style={styles.btnText}>Approve</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.btn} onPress={() => handleReject(p.id)}>
+                  <Text style={styles.btnText}>Reject</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        ))}
     </ScrollView>
   );
 }

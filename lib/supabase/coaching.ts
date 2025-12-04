@@ -66,7 +66,11 @@ export const recalculateCoachingPath = async (pathId: string) => {
 
 type CoachingPayload = Database['public']['Tables']['coaching_events']['Insert']['payload'];
 
-export const logCoachingEvent = async (pathId: string, type: CoachingEvent['type'], payload?: CoachingPayload) => {
+export const logCoachingEvent = async (
+  pathId: string,
+  type: CoachingEvent['type'],
+  payload?: CoachingPayload
+) => {
   const { error } = await supabase
     .from('coaching_events')
     .insert({ path_id: pathId, type, payload: payload ?? null });
@@ -145,9 +149,7 @@ export const getCoachingSessions = async (
   return (data as (CoachingSession & { block?: CoachingBlock | null })[]) ?? [];
 };
 
-export const getLatestCoachingEvent = async (
-  pathId: string
-): Promise<CoachingEvent | null> => {
+export const getLatestCoachingEvent = async (pathId: string): Promise<CoachingEvent | null> => {
   const { data, error } = await supabase
     .from('coaching_events')
     .select('*')

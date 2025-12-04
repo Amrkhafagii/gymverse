@@ -115,7 +115,10 @@ export default function WorkoutTemplatesSection({
                   <Text style={styles.metaText}>{workout.estimated_duration_minutes} min</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <Target size={14} color={getDifficultyColor(workout.difficulty_level || 'beginner')} />
+                  <Target
+                    size={14}
+                    color={getDifficultyColor(workout.difficulty_level || 'beginner')}
+                  />
                   <Text
                     style={[
                       styles.metaText,

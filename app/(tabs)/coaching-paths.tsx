@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  RefreshControl,
+  Alert,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -60,7 +68,11 @@ export default function CoachingPathsScreen() {
       return;
     }
     router.push(
-      routes.workoutSession(upcomingSession.template_workout_id, 'Coaching Session', upcomingSession.id)
+      routes.workoutSession(
+        upcomingSession.template_workout_id,
+        'Coaching Session',
+        upcomingSession.id
+      )
     );
   };
 
@@ -83,7 +95,9 @@ export default function CoachingPathsScreen() {
   if (!user) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>Sign in to view coaching paths.</Text>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>
+          Sign in to view coaching paths.
+        </Text>
       </View>
     );
   }
@@ -91,7 +105,9 @@ export default function CoachingPathsScreen() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      refreshControl={<RefreshControl refreshing={refreshing || loading} onRefresh={handleRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing || loading} onRefresh={handleRefresh} />
+      }
     >
       <LinearGradient colors={[colors.surface, colors.surfaceAlt]} style={styles.header}>
         <Text style={styles.title}>Coaching</Text>
@@ -109,7 +125,9 @@ export default function CoachingPathsScreen() {
         </TouchableOpacity>
 
         {activePath ? (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
             <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Active Path</Text>
             <Text style={[styles.cardTitle, { color: colors.text }]}>{activePath.goal_type}</Text>
             <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
@@ -118,15 +136,23 @@ export default function CoachingPathsScreen() {
 
             <View style={styles.metricsRow}>
               <View style={styles.metric}>
-                <Text style={[styles.metricValue, { color: colors.text }]}>{adherence.percent}%</Text>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Adherence (est)</Text>
-                <Text style={[styles.metricSmall, { color: colors.textMuted }]}>{adherence.summary}</Text>
+                <Text style={[styles.metricValue, { color: colors.text }]}>
+                  {adherence.percent}%
+                </Text>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>
+                  Adherence (est)
+                </Text>
+                <Text style={[styles.metricSmall, { color: colors.textMuted }]}>
+                  {adherence.summary}
+                </Text>
               </View>
               <View style={styles.metric}>
                 <Text style={[styles.metricValue, { color: colors.text }]}>
                   {sessions.length || '—'}
                 </Text>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Sessions planned</Text>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>
+                  Sessions planned
+                </Text>
               </View>
             </View>
 
@@ -136,7 +162,11 @@ export default function CoachingPathsScreen() {
                   {activePath.status === 'active' ? 'Pause' : 'Resume'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.action} onPress={handleRecalc} disabled={recalcLoading}>
+              <TouchableOpacity
+                style={styles.action}
+                onPress={handleRecalc}
+                disabled={recalcLoading}
+              >
                 <Text style={[styles.actionText, { color: colors.text }]}>
                   {recalcLoading ? 'Updating...' : 'Recalc'}
                 </Text>
@@ -144,7 +174,9 @@ export default function CoachingPathsScreen() {
             </View>
           </View>
         ) : (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
             <Text style={[styles.cardTitle, { color: colors.text }]}>No active path</Text>
             <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
               Create a goal to generate your first plan.
@@ -153,7 +185,9 @@ export default function CoachingPathsScreen() {
         )}
 
         {upcomingSession ? (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
             <View style={styles.rowBetween}>
               <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Upcoming Session</Text>
               <Text style={[styles.pill, { backgroundColor: colors.primary, color: '#000' }]}>
@@ -171,7 +205,9 @@ export default function CoachingPathsScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
             <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Upcoming Session</Text>
             <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
               No session ready yet. Refresh or create a path.
@@ -180,7 +216,9 @@ export default function CoachingPathsScreen() {
         )}
 
         {sortedSessions.length > 0 ? (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
             <Text style={[styles.cardLabel, { color: colors.textMuted }]}>All Sessions</Text>
             {sortedSessions.map((session) => (
               <View key={session.id} style={[styles.sessionRow, { borderColor: colors.border }]}>

@@ -97,7 +97,7 @@ export default function WorkoutDetailScreen() {
               ({
                 ...ex,
                 exercise_id: ex.exercise_id as number,
-              } as WorkoutExercise)
+              }) as WorkoutExercise
           ) ?? [];
       setExercises(cleaned);
     } catch (err: any) {

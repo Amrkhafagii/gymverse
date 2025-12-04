@@ -53,7 +53,7 @@ export default function CoachProductsScreen() {
         console.error(error);
         Alert.alert('Error', 'Failed to load products');
       } else {
-        setProducts(((data as unknown as Product[]) || []));
+        setProducts((data as unknown as Product[]) || []);
       }
       setLoading(false);
     };
@@ -61,7 +61,14 @@ export default function CoachProductsScreen() {
   }, [user]);
 
   const resetForm = () => {
-    setForm({ title: '', description: '', type: 'template', price: '0', is_active: true, id: undefined });
+    setForm({
+      title: '',
+      description: '',
+      type: 'template',
+      price: '0',
+      is_active: true,
+      id: undefined,
+    });
   };
 
   const handleEdit = (p: Product) => {
@@ -109,15 +116,21 @@ export default function CoachProductsScreen() {
       if (error) {
         Alert.alert('Error', 'Failed to update product');
       } else if (data) {
-        setProducts((prev) => prev.map((p) => (p.id === form.id ? (data as unknown as Product) : p)));
+        setProducts((prev) =>
+          prev.map((p) => (p.id === form.id ? (data as unknown as Product) : p))
+        );
         resetForm();
       }
     } else {
-      const { data, error } = await supabase.from('products' as any).insert(payload as any).select().single();
+      const { data, error } = await supabase
+        .from('products' as any)
+        .insert(payload as any)
+        .select()
+        .single();
       if (error) {
         Alert.alert('Error', 'Failed to create product');
       } else if (data) {
-        setProducts((prev) => [(data as unknown as Product), ...prev]);
+        setProducts((prev) => [data as unknown as Product, ...prev]);
         resetForm();
       }
     }
@@ -169,7 +182,9 @@ export default function CoachProductsScreen() {
               ]}
               onPress={() => setForm((f) => ({ ...f, type: t }))}
             >
-              <Text style={{ color: form.type === t ? '#000' : colors.text }}>{t.replace('_', ' ')}</Text>
+              <Text style={{ color: form.type === t ? '#000' : colors.text }}>
+                {t.replace('_', ' ')}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -183,7 +198,10 @@ export default function CoachProductsScreen() {
         />
         <View style={styles.switchRow}>
           <Text style={{ color: colors.text }}>Active</Text>
-          <Switch value={form.is_active} onValueChange={(val) => setForm((f) => ({ ...f, is_active: val }))} />
+          <Switch
+            value={form.is_active}
+            onValueChange={(val) => setForm((f) => ({ ...f, is_active: val }))}
+          />
         </View>
         <View style={styles.row}>
           <TouchableOpacity
@@ -191,7 +209,9 @@ export default function CoachProductsScreen() {
             onPress={handleSave}
             disabled={saving}
           >
-            <Text style={styles.buttonText}>{saving ? 'Saving...' : form.id ? 'Update' : 'Create'}</Text>
+            <Text style={styles.buttonText}>
+              {saving ? 'Saving...' : form.id ? 'Update' : 'Create'}
+            </Text>
           </TouchableOpacity>
           {form.id ? (
             <TouchableOpacity
@@ -211,11 +231,19 @@ export default function CoachProductsScreen() {
         <Text style={{ color: colors.textMuted }}>No products yet. Create one above.</Text>
       ) : (
         products.map((p) => (
-          <TouchableOpacity key={p.id} style={[styles.card, { borderColor: colors.border }]} onPress={() => handleEdit(p)}>
+          <TouchableOpacity
+            key={p.id}
+            style={[styles.card, { borderColor: colors.border }]}
+            onPress={() => handleEdit(p)}
+          >
             <Text style={[styles.productTitle, { color: colors.text }]}>{p.title}</Text>
-            <Text style={{ color: colors.textMuted, marginBottom: 4 }}>{p.type.replace('_', ' ')}</Text>
+            <Text style={{ color: colors.textMuted, marginBottom: 4 }}>
+              {p.type.replace('_', ' ')}
+            </Text>
             <Text style={{ color: colors.primary }}>${(p.price_cents / 100).toFixed(2)}</Text>
-            <Text style={{ color: colors.textMuted }}>Status: {p.is_active ? 'Active' : 'Inactive'}</Text>
+            <Text style={{ color: colors.textMuted }}>
+              Status: {p.is_active ? 'Active' : 'Inactive'}
+            </Text>
           </TouchableOpacity>
         ))
       )}
@@ -226,7 +254,13 @@ export default function CoachProductsScreen() {
 const styles = StyleSheet.create({
   title: { fontSize: 22, fontFamily: 'Inter-Bold', marginBottom: 8 },
   sectionTitle: { fontSize: 18, fontFamily: 'Inter-Bold', marginBottom: 8 },
-  card: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12, backgroundColor: '#0f0f0f' },
+  card: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    backgroundColor: '#0f0f0f',
+  },
   input: {
     borderWidth: 1,
     borderRadius: 8,
@@ -243,7 +277,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 6 },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 6,
+  },
   button: {
     paddingHorizontal: 16,
     paddingVertical: 12,

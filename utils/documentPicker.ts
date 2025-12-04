@@ -3,9 +3,10 @@ type DocumentPickerResult = {
   assets?: { uri: string; name?: string | null; size?: number | null; mimeType?: string | null }[];
 };
 
-export async function getDocumentAsync(
-  options?: { type?: string | string[]; copyToCacheDirectory?: boolean }
-): Promise<DocumentPickerResult> {
+export async function getDocumentAsync(options?: {
+  type?: string | string[];
+  copyToCacheDirectory?: boolean;
+}): Promise<DocumentPickerResult> {
   try {
     // Dynamically import to avoid bundler errors when the module is unavailable
     const mod = await import('expo-document-picker');

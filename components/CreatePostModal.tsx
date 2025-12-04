@@ -233,13 +233,12 @@ export default function CreatePostModal({
 
           {coachingGoal ? (
             <TouchableOpacity
-              style={[
-                styles.tagRow,
-                tagPath ? styles.tagRowActive : styles.tagRowInactive,
-              ]}
+              style={[styles.tagRow, tagPath ? styles.tagRowActive : styles.tagRowInactive]}
               onPress={() => setTagPath((prev) => !prev)}
             >
-              <Text style={[styles.tagText, tagPath ? styles.tagTextActive : styles.tagTextInactive]}>
+              <Text
+                style={[styles.tagText, tagPath ? styles.tagTextActive : styles.tagTextInactive]}
+              >
                 Tag my coaching path: {coachingGoal}
               </Text>
             </TouchableOpacity>

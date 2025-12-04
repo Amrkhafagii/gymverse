@@ -81,8 +81,15 @@ export const getProducts = async (): Promise<Product[]> => {
 };
 
 export const createPendingPayment = async (payload: PaymentInsert) => {
-  const { data, error } = await supabase.from('payments' as any).insert(payload as any).select().single();
-  return { data: (data as unknown as Payment) || null, error: handleSupabaseError(error, 'create_pending_payment') };
+  const { data, error } = await supabase
+    .from('payments' as any)
+    .insert(payload as any)
+    .select()
+    .single();
+  return {
+    data: (data as unknown as Payment) || null,
+    error: handleSupabaseError(error, 'create_pending_payment'),
+  };
 };
 
 export const getUserPayments = async (userId: string): Promise<Payment[]> => {
@@ -114,13 +121,11 @@ export const approvePayment = async (paymentId: string, approverId: string) => {
   const payment = (data as unknown as Payment | null) || null;
 
   if (payment?.product_id && payment.user_id) {
-    await supabase
-      .from('entitlements' as any)
-      .insert({
-        user_id: payment.user_id,
-        product_id: payment.product_id,
-        source_payment_id: paymentId,
-      });
+    await supabase.from('entitlements' as any).insert({
+      user_id: payment.user_id,
+      product_id: payment.product_id,
+      source_payment_id: paymentId,
+    });
   }
 
   return { data: payment, error: null };

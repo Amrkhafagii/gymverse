@@ -9,7 +9,9 @@ export function useCoachNotes(sessionId?: string | null) {
   }>({
     queryKey: queryKeys.coaching.notes(sessionId ?? null),
     queryFn: () =>
-      sessionId ? getCoachNotesForSession(sessionId) : Promise.resolve({ notes: null, pathId: null }),
+      sessionId
+        ? getCoachNotesForSession(sessionId)
+        : Promise.resolve({ notes: null, pathId: null }),
     enabled: Boolean(sessionId),
     staleTime: 15 * 1000,
   });

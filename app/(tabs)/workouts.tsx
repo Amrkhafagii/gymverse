@@ -368,29 +368,38 @@ export default function WorkoutsScreen() {
 
             {activePath && nextCoachingSession ? (
               <TouchableOpacity
-                style={[styles.nextUpCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                style={[
+                  styles.nextUpCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
                 onPress={() =>
                   nextCoachingSession.template_workout_id
                     ? router.push(
                         routes.workoutSession(
                           nextCoachingSession.template_workout_id,
-                          workoutTemplates.find((w) => w.id === nextCoachingSession.template_workout_id)?.name ||
-                            'Coaching Session',
+                          workoutTemplates.find(
+                            (w) => w.id === nextCoachingSession.template_workout_id
+                          )?.name || 'Coaching Session',
                           nextCoachingSession.id
                         )
                       )
-                    : Alert.alert('No linked workout', 'This coaching session is missing a template.')
+                    : Alert.alert(
+                        'No linked workout',
+                        'This coaching session is missing a template.'
+                      )
                 }
               >
                 <View style={styles.nextUpHeader}>
                   <Text style={[styles.nextUpLabel, { color: colors.textMuted }]}>Next up</Text>
-                  <Text style={[styles.pillSmall, { backgroundColor: colors.primary, color: '#000' }]}>
+                  <Text
+                    style={[styles.pillSmall, { backgroundColor: colors.primary, color: '#000' }]}
+                  >
                     Coaching
                   </Text>
                 </View>
                 <Text style={[styles.nextUpTitle, { color: colors.text }]}>
-                  {workoutTemplates.find((w) => w.id === nextCoachingSession.template_workout_id)?.name ||
-                    'Session'}
+                  {workoutTemplates.find((w) => w.id === nextCoachingSession.template_workout_id)
+                    ?.name || 'Session'}
                 </Text>
                 <Text style={[styles.nextUpMeta, { color: colors.textMuted }]}>
                   Planned {nextCoachingSession.planned_duration ?? 45} min • Session{' '}
@@ -431,7 +440,10 @@ export default function WorkoutsScreen() {
                 </TouchableOpacity>
                 {activePath ? (
                   <TouchableOpacity
-                    style={[styles.filterChip, selectedFilter === 'coaching' && styles.filterChipActive]}
+                    style={[
+                      styles.filterChip,
+                      selectedFilter === 'coaching' && styles.filterChipActive,
+                    ]}
                     onPress={() => setSelectedFilter('coaching')}
                   >
                     <Text

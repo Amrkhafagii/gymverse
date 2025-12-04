@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, TextInput, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  Modal,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, UploadCloud } from 'lucide-react-native';
 import { useTheme } from '@/theme/ThemeProvider';

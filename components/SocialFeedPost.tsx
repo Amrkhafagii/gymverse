@@ -112,7 +112,9 @@ export default function SocialFeedPostComponent({
           <Text style={styles.userHandle}>@{post.profile.username}</Text>
         </View>
         <View style={styles.postMeta}>
-          <Text style={styles.timestamp}>{formatTimeAgo(post.created_at || new Date().toISOString())}</Text>
+          <Text style={styles.timestamp}>
+            {formatTimeAgo(post.created_at || new Date().toISOString())}
+          </Text>
           {post.user_id === currentUserId && (
             <TouchableOpacity style={styles.moreButton} onPress={handleMorePress}>
               <MoreHorizontal size={20} color="#999" />

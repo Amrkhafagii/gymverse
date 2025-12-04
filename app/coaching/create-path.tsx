@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from 'react-native';
 import { router } from 'expo-router';
 import { useCoachingPaths } from '@/hooks/useCoachingPaths';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,7 +35,10 @@ export default function CreateCoachingPathScreen() {
     if (goalType === '5k' && !hasEntitlement('goal_pack_5k')) {
       const pending = await getPendingPaymentForFeatureKey(user.id, 'goal_pack_5k');
       if (pending) {
-        Alert.alert('Awaiting approval', 'Your 5K pack payment is pending. Please wait for approval.');
+        Alert.alert(
+          'Awaiting approval',
+          'Your 5K pack payment is pending. Please wait for approval.'
+        );
       } else {
         Alert.alert('Add-on required', 'Unlock the 5K goal pack to start this path.', [
           { text: 'Cancel', style: 'cancel' },

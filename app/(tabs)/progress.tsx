@@ -232,7 +232,9 @@ export default function ProgressScreen() {
         <View style={styles.coachingCard}>
           <View style={styles.coachingHeader}>
             <Text style={[styles.coachingLabel, { color: colors.textMuted }]}>Path</Text>
-            <Text style={[styles.coachingGoal, { color: colors.text }]}>{activePath.goal_type}</Text>
+            <Text style={[styles.coachingGoal, { color: colors.text }]}>
+              {activePath.goal_type}
+            </Text>
           </View>
           <View style={styles.coachingMeta}>
             <Text style={[styles.coachingText, { color: colors.textMuted }]}>

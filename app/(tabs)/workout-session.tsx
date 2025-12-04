@@ -95,8 +95,12 @@ export default function WorkoutSessionScreen() {
     user?.id || null
   );
   const { checkForNewRecords, newRecords, clearNewRecords } = usePersonalRecords(user?.id || null);
-  const { notes: coachNotes, pathId, loading: coachNotesLoading, refresh: refreshCoachNotes } =
-    useCoachNotes(coachingSessionId ?? null);
+  const {
+    notes: coachNotes,
+    pathId,
+    loading: coachNotesLoading,
+    refresh: refreshCoachNotes,
+  } = useCoachNotes(coachingSessionId ?? null);
   const { recalc: recalcPath, loading: recalcLoading } = usePathRecalc(user?.id || null);
 
   // Workout data
@@ -255,7 +259,7 @@ export default function WorkoutSessionScreen() {
               ({
                 ...ex,
                 exercise_id: ex.exercise_id as number,
-              } as WorkoutExercise)
+              }) as WorkoutExercise
           ) ?? [];
       setExercises(cleaned);
 
@@ -553,7 +557,7 @@ export default function WorkoutSessionScreen() {
     const remainingAchievements = newAchievements.slice(1);
     if (remainingAchievements.length > 0) {
       setTimeout(() => {
-      setCurrentAchievement(remainingAchievements[0] ?? null);
+        setCurrentAchievement(remainingAchievements[0] ?? null);
         setShowAchievementModal(true);
       }, 500);
     } else {
@@ -575,7 +579,7 @@ export default function WorkoutSessionScreen() {
     const remainingRecords = newRecords.slice(1);
     if (remainingRecords.length > 0) {
       setTimeout(() => {
-      setCurrentRecord(remainingRecords[0] ?? null);
+        setCurrentRecord(remainingRecords[0] ?? null);
         setShowRecordModal(true);
       }, 500);
     } else {
@@ -1236,16 +1240,10 @@ function CoachNotesCard({
         <View>
           <Text style={[styles.coachLabel, { color: colors.textMuted }]}>Coach Notes</Text>
           <Text style={[styles.coachCue, { color: colors.text }]}>
-            {loading
-              ? 'Updating...'
-              : empty
-                ? 'No notes yet for this session.'
-                : notes?.cue}
+            {loading ? 'Updating...' : empty ? 'No notes yet for this session.' : notes?.cue}
           </Text>
           {notes?.goal ? (
-            <Text style={[styles.coachGoal, { color: colors.textMuted }]}>
-              Goal: {notes.goal}
-            </Text>
+            <Text style={[styles.coachGoal, { color: colors.textMuted }]}>Goal: {notes.goal}</Text>
           ) : null}
         </View>
         <View style={styles.coachActions}>
@@ -1254,11 +1252,7 @@ function CoachNotesCard({
               {loading ? 'Refreshing' : 'Refresh'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.coachAction}
-            onPress={onRecalc}
-            disabled={recalcLoading}
-          >
+          <TouchableOpacity style={styles.coachAction} onPress={onRecalc} disabled={recalcLoading}>
             <Text style={[styles.coachActionText, { color: colors.info }]}>
               {recalcLoading ? 'Updating' : 'Recalc'}
             </Text>
