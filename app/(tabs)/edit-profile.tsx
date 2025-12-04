@@ -80,6 +80,7 @@ export default function EditProfileScreen() {
 
   const {
     control,
+    handleSubmit,
     watch,
     reset,
     formState: { errors, isDirty },

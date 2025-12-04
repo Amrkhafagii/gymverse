@@ -31,6 +31,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useAchievements } from '@/hooks/useAchievements';
 import { usePersonalRecords } from '@/hooks/usePersonalRecords';
+import { useCoachNotes } from '@/hooks/useCoachNotes';
+import { usePathRecalc } from '@/hooks/usePathRecalc';
 import AchievementModal from '@/components/AchievementModal';
 import PersonalRecordModal from '@/components/PersonalRecordModal';
 import {
@@ -39,8 +41,11 @@ import {
   completeWorkoutSession,
   Exercise,
   Workout,
+  type Achievement,
+  type WorkoutSessionInsert,
 } from '@/lib/supabase';
 import { useTheme } from '@/theme/ThemeProvider';
+import { type PersonalRecordData } from '@/lib/personalRecords';
 
 interface WorkoutExercise {
   id: number;
@@ -76,10 +81,12 @@ interface SetValidationErrors {
 }
 
 export default function WorkoutSessionScreen() {
-  const { workoutId, workoutName } = useLocalSearchParams<{
+  const { workoutId, workoutName, coachingSessionId } = useLocalSearchParams<{
     workoutId: string;
     workoutName: string;
+    coachingSessionId?: string;
   }>();
+  const workoutIdNum = Number(workoutId);
   const { user } = useAuth();
   const { colors } = useTheme();
   const borderColor = colors.border || '#333';
@@ -88,6 +95,9 @@ export default function WorkoutSessionScreen() {
     user?.id || null
   );
   const { checkForNewRecords, newRecords, clearNewRecords } = usePersonalRecords(user?.id || null);
+  const { notes: coachNotes, pathId, loading: coachNotesLoading, refresh: refreshCoachNotes } =
+    useCoachNotes(coachingSessionId ?? null);
+  const { recalc: recalcPath, loading: recalcLoading } = usePathRecalc(user?.id || null);
 
   // Workout data
   const [workout, setWorkout] = useState<Workout | null>(null);
@@ -112,8 +122,8 @@ export default function WorkoutSessionScreen() {
   const [showAchievementModal, setShowAchievementModal] = useState(false);
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
-  const [currentAchievement, setCurrentAchievement] = useState(null);
-  const [currentRecord, setCurrentRecord] = useState(null);
+  const [currentAchievement, setCurrentAchievement] = useState<Achievement | null>(null);
+  const [currentRecord, setCurrentRecord] = useState<PersonalRecordData | null>(null);
   const [sessionStats, setSessionStats] = useState<SessionStats>({
     totalSets: 0,
     completedSets: 0,
@@ -127,18 +137,20 @@ export default function WorkoutSessionScreen() {
 
   // Timer effect for session duration
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (isSessionActive && sessionStartTime) {
       interval = setInterval(() => {
         setElapsedTime(Math.floor((Date.now() - sessionStartTime.getTime()) / 1000));
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isSessionActive, sessionStartTime]);
 
   // Rest timer effect
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (isResting && restTimer > 0) {
       interval = setInterval(() => {
         setRestTimer((prev) => {
@@ -159,13 +171,15 @@ export default function WorkoutSessionScreen() {
         });
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isResting, restTimer]);
 
   // Achievement modal effect
   useEffect(() => {
     if (newAchievements.length > 0) {
-      setCurrentAchievement(newAchievements[0]);
+      setCurrentAchievement(newAchievements[0] ?? null);
       setShowAchievementModal(true);
     }
   }, [newAchievements]);
@@ -173,7 +187,7 @@ export default function WorkoutSessionScreen() {
   // Personal record modal effect
   useEffect(() => {
     if (newRecords.length > 0) {
-      setCurrentRecord(newRecords[0]);
+      setCurrentRecord(newRecords[0] ?? null);
       setShowRecordModal(true);
     }
   }, [newRecords]);
@@ -207,10 +221,14 @@ export default function WorkoutSessionScreen() {
 
     try {
       // Load workout details
+      if (!Number.isFinite(workoutIdNum)) {
+        throw new Error('Invalid workout id');
+      }
+
       const { data: workoutData, error: workoutError } = await supabase
         .from('workouts')
         .select('*')
-        .eq('id', workoutId)
+        .eq('id', workoutIdNum)
         .single();
 
       if (workoutError) throw workoutError;
@@ -225,15 +243,25 @@ export default function WorkoutSessionScreen() {
           exercise:exercises(*)
         `
         )
-        .eq('workout_id', workoutId)
+        .eq('workout_id', workoutIdNum)
         .order('order_index');
 
       if (exercisesError) throw exercisesError;
-      setExercises(exercisesData);
+      const cleaned =
+        (exercisesData || [])
+          .filter((ex) => ex.exercise_id !== null)
+          .map(
+            (ex) =>
+              ({
+                ...ex,
+                exercise_id: ex.exercise_id as number,
+              } as WorkoutExercise)
+          ) ?? [];
+      setExercises(cleaned);
 
       // Initialize sets for first exercise
-      if (exercisesData.length > 0) {
-        initializeSetsForExercise(exercisesData[0]);
+      if (cleaned.length > 0) {
+        initializeSetsForExercise(cleaned[0]);
       }
     } catch (error) {
       console.error('Error loading workout data:', error);
@@ -280,19 +308,26 @@ export default function WorkoutSessionScreen() {
 
   const startWorkoutSession = async () => {
     if (!user || !workout) return;
+    if (!Number.isFinite(workoutIdNum)) {
+      Alert.alert('Error', 'Invalid workout');
+      return;
+    }
 
     try {
       const startTime = new Date();
-      const { data, error } = await createWorkoutSession({
+      const payload: WorkoutSessionInsert & { coaching_session_id?: string | null } = {
         user_id: user.id,
-        workout_id: parseInt(workoutId),
+        workout_id: workoutIdNum,
         name: workoutName || workout.name,
         started_at: startTime.toISOString(),
-      });
+        coaching_session_id: coachingSessionId ?? null,
+      };
+
+      const { data, error } = await createWorkoutSession(payload as WorkoutSessionInsert);
 
       if (error) throw error;
 
-      setSessionId(data.id);
+      setSessionId(data?.id ?? null);
       setSessionStartTime(startTime);
       setIsSessionActive(true);
 
@@ -326,7 +361,7 @@ export default function WorkoutSessionScreen() {
         .from('session_exercises')
         .insert({
           session_id: sessionId,
-          exercise_id: exercises[currentExerciseIndex].exercise_id,
+          exercise_id: exercises[currentExerciseIndex]?.exercise_id ?? 0,
           order_index: currentExerciseIndex,
         })
         .select()
@@ -372,7 +407,7 @@ export default function WorkoutSessionScreen() {
         ...updatedSets[setIndex],
         reps,
         weight_kg: weight,
-        duration_seconds: duration,
+        duration_seconds: duration ?? null,
         rpe,
         completed: true,
       };
@@ -518,7 +553,7 @@ export default function WorkoutSessionScreen() {
     const remainingAchievements = newAchievements.slice(1);
     if (remainingAchievements.length > 0) {
       setTimeout(() => {
-        setCurrentAchievement(remainingAchievements[0]);
+      setCurrentAchievement(remainingAchievements[0] ?? null);
         setShowAchievementModal(true);
       }, 500);
     } else {
@@ -540,7 +575,7 @@ export default function WorkoutSessionScreen() {
     const remainingRecords = newRecords.slice(1);
     if (remainingRecords.length > 0) {
       setTimeout(() => {
-        setCurrentRecord(remainingRecords[0]);
+      setCurrentRecord(remainingRecords[0] ?? null);
         setShowRecordModal(true);
       }, 500);
     } else {
@@ -554,10 +589,31 @@ export default function WorkoutSessionScreen() {
     }
   };
 
+  const handleManualRecalc = async () => {
+    if (!pathId) {
+      Alert.alert('Coaching path not found', 'This session is not linked to a coaching path.');
+      return;
+    }
+    try {
+      await recalcPath(pathId);
+      await refreshCoachNotes();
+      Alert.alert('Coach updated', 'Your plan was recalculated.');
+    } catch (err) {
+      console.error('Error recalculating path', err);
+      Alert.alert('Error', 'Could not recalculate coaching path.');
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getAdjustmentBadge = () => {
+    if (!coachingSessionId) return null;
+    if (coachNotes?.last_event) return 'Adjusted';
+    return 'Baseline';
   };
 
   const getProgressPercentage = () => {
@@ -655,6 +711,17 @@ export default function WorkoutSessionScreen() {
             ))}
           </View>
 
+          {coachingSessionId ? (
+            <CoachNotesCard
+              notes={coachNotes}
+              loading={coachNotesLoading}
+              onRefresh={refreshCoachNotes}
+              onRecalc={handleManualRecalc}
+              recalcLoading={recalcLoading}
+              colors={colors}
+            />
+          ) : null}
+
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <TouchableOpacity style={styles.startButton} onPress={startWorkoutSession}>
               <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.startButtonGradient}>
@@ -707,6 +774,42 @@ export default function WorkoutSessionScreen() {
           </Text>
         </View>
       </LinearGradient>
+
+      {coachingSessionId ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <View
+            style={[
+              styles.planRow,
+              { backgroundColor: colors.surface, borderColor: colors.border ?? '#2e2e2e' },
+            ]}
+          >
+            <View>
+              <Text style={[styles.planLabel, { color: colors.textMuted }]}>Planned</Text>
+              <Text style={[styles.planValue, { color: colors.text }]}>
+                {workout?.estimated_duration_minutes ?? 45} min
+              </Text>
+            </View>
+            <View>
+              <Text style={[styles.planLabel, { color: colors.textMuted }]}>Actual</Text>
+              <Text style={[styles.planValue, { color: colors.text }]}>
+                {Math.floor(elapsedTime / 60)} min
+              </Text>
+            </View>
+            <View>
+              <Text style={[styles.planLabel, { color: colors.textMuted }]}>Adjustment</Text>
+              <Text style={[styles.planBadge, { color: colors.info }]}>{getAdjustmentBadge()}</Text>
+            </View>
+          </View>
+          <CoachNotesCard
+            notes={coachNotes}
+            loading={coachNotesLoading}
+            onRefresh={refreshCoachNotes}
+            onRecalc={handleManualRecalc}
+            recalcLoading={recalcLoading}
+            colors={colors}
+          />
+        </View>
+      ) : null}
 
       <ScrollView style={styles.content}>
         {/* Session Stats */}
@@ -1100,6 +1203,73 @@ function SetLogger({ set, setIndex, exercise, onLogSet }: SetLoggerProps) {
           <Text style={styles.logSetButtonText}>Complete Set</Text>
         </TouchableOpacity>
       )}
+    </View>
+  );
+}
+
+type CoachNotesCardProps = {
+  notes: { cue: string; goal: string; last_event: Record<string, unknown> | null } | null;
+  loading: boolean;
+  onRefresh: () => void;
+  onRecalc: () => void;
+  recalcLoading: boolean;
+  colors: any;
+};
+
+function CoachNotesCard({
+  notes,
+  loading,
+  onRefresh,
+  onRecalc,
+  recalcLoading,
+  colors,
+}: CoachNotesCardProps) {
+  const empty = !loading && !notes;
+  return (
+    <View
+      style={[
+        styles.coachCard,
+        { backgroundColor: colors.surface, borderColor: colors.border ?? '#2e2e2e' },
+      ]}
+    >
+      <View style={styles.coachHeader}>
+        <View>
+          <Text style={[styles.coachLabel, { color: colors.textMuted }]}>Coach Notes</Text>
+          <Text style={[styles.coachCue, { color: colors.text }]}>
+            {loading
+              ? 'Updating...'
+              : empty
+                ? 'No notes yet for this session.'
+                : notes?.cue}
+          </Text>
+          {notes?.goal ? (
+            <Text style={[styles.coachGoal, { color: colors.textMuted }]}>
+              Goal: {notes.goal}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.coachActions}>
+          <TouchableOpacity style={styles.coachAction} onPress={onRefresh} disabled={loading}>
+            <Text style={[styles.coachActionText, { color: colors.primary }]}>
+              {loading ? 'Refreshing' : 'Refresh'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.coachAction}
+            onPress={onRecalc}
+            disabled={recalcLoading}
+          >
+            <Text style={[styles.coachActionText, { color: colors.info }]}>
+              {recalcLoading ? 'Updating' : 'Recalc'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      {notes?.last_event ? (
+        <Text style={[styles.coachFootnote, { color: colors.textMuted }]}>
+          Last adjustment: {JSON.stringify(notes.last_event)}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -1698,5 +1868,75 @@ const styles = StyleSheet.create({
     color: '#27AE60',
     fontFamily: 'Inter-Bold',
     marginTop: 16,
+  },
+  coachCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  coachHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  coachLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  coachCue: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    marginTop: 4,
+  },
+  coachGoal: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    marginTop: 4,
+  },
+  coachActions: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+  },
+  coachAction: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginTop: 4,
+  },
+  coachActionText: {
+    fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+  },
+  coachFootnote: {
+    marginTop: 8,
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+  },
+  planRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  planLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    textTransform: 'uppercase',
+  },
+  planValue: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    marginTop: 4,
+  },
+  planBadge: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    marginTop: 4,
   },
 });

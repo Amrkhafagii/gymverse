@@ -31,6 +31,8 @@ export default function SocialFeedPostComponent({
   onShare,
   onDelete,
 }: SocialFeedPostProps) {
+  const onPath = Boolean(post.coaching_path_id);
+
   const handleMorePress = () => {
     if (post.user_id === currentUserId && onDelete) {
       Alert.alert('Post Options', 'What would you like to do?', [
@@ -105,11 +107,12 @@ export default function SocialFeedPostComponent({
               {getPostTypeIcon()}
               <Text style={styles.postTypeText}>{getPostTypeLabel()}</Text>
             </View>
+            {onPath ? <Text style={styles.pathPill}>On Path</Text> : null}
           </View>
           <Text style={styles.userHandle}>@{post.profile.username}</Text>
         </View>
         <View style={styles.postMeta}>
-          <Text style={styles.timestamp}>{formatTimeAgo(post.created_at)}</Text>
+          <Text style={styles.timestamp}>{formatTimeAgo(post.created_at || new Date().toISOString())}</Text>
           {post.user_id === currentUserId && (
             <TouchableOpacity style={styles.moreButton} onPress={handleMorePress}>
               <MoreHorizontal size={20} color="#999" />
@@ -294,6 +297,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     lineHeight: 24,
     marginBottom: 12,
+  },
+  pathPill: {
+    marginLeft: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: '#27AE6020',
+    color: '#27AE60',
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 12,
   },
   workoutCard: {
     backgroundColor: '#0a0a0a',

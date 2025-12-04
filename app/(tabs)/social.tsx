@@ -19,6 +19,7 @@ import {
   Heart,
   MessageCircle,
   Filter,
+  Target,
 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocialFeed } from '@/hooks/useSocialFeed';
@@ -30,6 +31,7 @@ import SocialStatsCard from '@/components/SocialStatsCard';
 import { ScreenState } from '@/components/ScreenState';
 import { useTheme } from '@/theme/ThemeProvider';
 import { supabase } from '@/lib/supabase';
+import { useCoachingPaths } from '@/hooks/useCoachingPaths';
 
 export default function SocialScreen() {
   const { user } = useAuth();
@@ -44,6 +46,7 @@ export default function SocialScreen() {
     createProgressPost,
     deletePost,
   } = useSocialFeed(user?.id);
+  const { activePath } = useCoachingPaths(user?.id);
   const { colors } = useTheme();
 
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -59,6 +62,7 @@ export default function SocialScreen() {
       points: number;
       workouts: number;
       streak?: number | null;
+      rank: number;
     }[]
   >([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
@@ -86,6 +90,7 @@ export default function SocialScreen() {
     { id: 'workout', name: 'Workouts', icon: Trophy },
     { id: 'achievement', name: 'Achievements', icon: Trophy },
     { id: 'progress', name: 'Progress', icon: TrendingUp },
+    { id: 'coaching', name: 'Coaching', icon: Target },
   ];
 
   const fetchLeaderboard = useCallback(async () => {
@@ -140,7 +145,9 @@ export default function SocialScreen() {
         byUser.set(userId, existing);
       });
 
-      const leaderboardData = Array.from(byUser.values()).sort((a, b) => b.points - a.points);
+      const leaderboardData = Array.from(byUser.values())
+        .sort((a, b) => b.points - a.points)
+        .map((entry, index) => ({ ...entry, rank: index + 1 }));
       setLeaderboard(leaderboardData.slice(0, 10));
     } catch (err) {
       console.error('Error loading leaderboard', err);
@@ -254,12 +261,14 @@ export default function SocialScreen() {
 
   const handleCreatePost = async (
     content: string,
-    type: 'general' | 'workout' | 'achievement' | 'progress'
+    type: 'general' | 'workout' | 'achievement' | 'progress',
+    workoutSessionId?: number,
+    coachingPathId?: string
   ) => {
     try {
       switch (type) {
         case 'workout':
-          await createWorkoutPost(content);
+          await createWorkoutPost(content, workoutSessionId, coachingPathId ?? null);
           break;
         case 'achievement':
           await createAchievementPost(content, 1);
@@ -279,9 +288,11 @@ export default function SocialScreen() {
 
   const filteredPosts = useMemo(() => {
     const source = metricPosts ?? posts;
-    return selectedFilter === 'all'
-      ? source
-      : source.filter((post) => post.post_type === selectedFilter);
+    if (selectedFilter === 'all') return source;
+    if (selectedFilter === 'coaching') {
+      return source.filter((post) => post.coaching_path_id);
+    }
+    return source.filter((post) => post.post_type === selectedFilter);
   }, [posts, selectedFilter, metricPosts]);
 
   const renderPost = ({ item }: ListRenderItemInfo<(typeof posts)[number]>) => (
@@ -460,11 +471,10 @@ export default function SocialScreen() {
       <CreatePostModal
         visible={showCreatePost}
         onClose={() => setShowCreatePost(false)}
-        onCreatePost={handleCreatePost}
-        onCreateAchievementPost={(content, achievementId) =>
-          createAchievementPost(content, achievementId)
+        onCreatePost={(content, type) =>
+          handleCreatePost(content, type, undefined, activePath?.id ?? undefined)
         }
-        onCreateProgressPost={(content, mediaUrls) => createProgressPost(content, mediaUrls)}
+        coachingGoal={activePath?.goal_type}
       />
 
       <PostCommentsModal

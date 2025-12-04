@@ -163,7 +163,8 @@ export const getPostComments = async (postId: number): Promise<PostComment[]> =>
 export const createWorkoutPost = async (
   userId: string,
   content: string,
-  workoutSessionId?: number
+  workoutSessionId?: number,
+  coachingPathId?: string | null
 ): Promise<SocialPost | null> => {
   try {
     const postData = {
@@ -171,6 +172,7 @@ export const createWorkoutPost = async (
       content,
       post_type: 'workout' as const,
       workout_session_id: workoutSessionId,
+      coaching_path_id: coachingPathId ?? null,
       is_public: true,
     };
 
@@ -188,7 +190,8 @@ export const createWorkoutPost = async (
 export const createAchievementPost = async (
   userId: string,
   content: string,
-  achievementId: number
+  achievementId: number,
+  coachingPathId?: string | null
 ): Promise<SocialPost | null> => {
   try {
     const postData = {
@@ -196,6 +199,7 @@ export const createAchievementPost = async (
       content,
       post_type: 'achievement' as const,
       achievement_id: achievementId,
+      coaching_path_id: coachingPathId ?? null,
       is_public: true,
     };
 
@@ -213,7 +217,8 @@ export const createAchievementPost = async (
 export const createProgressPost = async (
   userId: string,
   content: string,
-  mediaUrls?: string[]
+  mediaUrls?: string[],
+  coachingPathId?: string | null
 ): Promise<SocialPost | null> => {
   try {
     const postData = {
@@ -221,6 +226,7 @@ export const createProgressPost = async (
       content,
       post_type: 'progress' as const,
       media_urls: mediaUrls,
+      coaching_path_id: coachingPathId ?? null,
       is_public: true,
     };
 

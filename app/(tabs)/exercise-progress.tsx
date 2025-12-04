@@ -86,14 +86,19 @@ export default function ExerciseProgressScreen() {
           <View style={styles.exerciseMeta}>
             <View style={styles.metaItem}>
               <Text
-                style={[styles.metaText, { color: getDifficultyColor(exercise.difficulty_level) }]}
+                style={[
+                  styles.metaText,
+                  { color: getDifficultyColor(exercise.difficulty_level || 'beginner') },
+                ]}
               >
-                {exercise.difficulty_level}
+                {exercise.difficulty_level || 'beginner'}
               </Text>
             </View>
             <View style={styles.metaItem}>
-              <Text style={[styles.metaText, { color: getTypeColor(exercise.exercise_type) }]}>
-                {exercise.exercise_type}
+              <Text
+                style={[styles.metaText, { color: getTypeColor(exercise.exercise_type || 'cardio') }]}
+              >
+                {exercise.exercise_type || 'cardio'}
               </Text>
             </View>
           </View>

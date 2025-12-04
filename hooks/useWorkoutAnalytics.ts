@@ -58,17 +58,26 @@ const calculateWorkoutStats = (
   weekStart: Date,
   monthStart: Date
 ): WorkoutStats => {
-  const totalWorkouts = sessions.length;
-  const totalDuration = sessions.reduce((sum, session) => sum + (session.duration_minutes || 0), 0);
-  const totalCalories = sessions.reduce((sum, session) => sum + (session.calories_burned || 0), 0);
+  const validSessions = sessions.filter((session) => !!session.started_at);
+  const totalWorkouts = validSessions.length;
+  const totalDuration = validSessions.reduce(
+    (sum, session) => sum + (session.duration_minutes || 0),
+    0
+  );
+  const totalCalories = validSessions.reduce(
+    (sum, session) => sum + (session.calories_burned || 0),
+    0
+  );
 
-  const workoutsThisWeek = sessions.filter(
-    (session) => new Date(session.started_at) >= weekStart
-  ).length;
+  const workoutsThisWeek = validSessions.filter((session) => {
+    const started = session.started_at ? new Date(session.started_at) : null;
+    return started ? started >= weekStart : false;
+  }).length;
 
-  const workoutsThisMonth = sessions.filter(
-    (session) => new Date(session.started_at) >= monthStart
-  ).length;
+  const workoutsThisMonth = validSessions.filter((session) => {
+    const started = session.started_at ? new Date(session.started_at) : null;
+    return started ? started >= monthStart : false;
+  }).length;
 
   const durations = sessions.map((s) => s.duration_minutes || 0).filter((d) => d > 0);
   const longestSession = durations.length > 0 ? Math.max(...durations) : 0;
@@ -92,6 +101,7 @@ const calculateWeeklyProgress = (sessions: WorkoutSession[]): number[] => {
   const now = new Date();
 
   sessions.forEach((session) => {
+    if (!session.started_at) return;
     const sessionDate = new Date(session.started_at);
     const daysDiff = Math.floor((now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -109,6 +119,7 @@ const calculateMonthlyProgress = (sessions: WorkoutSession[]): number[] => {
   const now = new Date();
 
   sessions.forEach((session) => {
+    if (!session.started_at) return;
     const sessionDate = new Date(session.started_at);
     const daysDiff = Math.floor((now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
 

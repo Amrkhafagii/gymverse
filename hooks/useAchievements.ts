@@ -75,7 +75,7 @@ export function useAchievements(userId: string | null) {
   };
 
   const getTotalPoints = () => {
-    return userAchievements.reduce((total, ua) => total + ua.achievement.points, 0);
+    return userAchievements.reduce((total, ua) => total + (ua.achievement?.points ?? 0), 0);
   };
 
   const getUnlockedCount = () => {
@@ -109,7 +109,11 @@ export function useAchievements(userId: string | null) {
 
   const getRecentAchievements = (limit: number = 5) => {
     return userAchievements
-      .sort((a, b) => new Date(b.unlocked_at).getTime() - new Date(a.unlocked_at).getTime())
+      .filter((ua) => ua.unlocked_at)
+      .sort(
+        (a, b) =>
+          new Date(b.unlocked_at as string).getTime() - new Date(a.unlocked_at as string).getTime()
+      )
       .slice(0, limit);
   };
 

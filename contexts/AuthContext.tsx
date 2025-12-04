@@ -8,6 +8,8 @@ import {
   signIn as authSignIn,
   signUp as authSignUp,
   signOut as authSignOut,
+  getUserEntitlements,
+  type Entitlement,
 } from '@/lib/supabase';
 import { queryKeys } from '@/lib/queryKeys';
 
@@ -15,6 +17,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  entitlements: Entitlement[];
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (
@@ -25,6 +28,7 @@ interface AuthContextType {
   ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  hasEntitlement: (featureKeyOrProductId: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
   const profileRef = useRef<Profile | null>(null);
 
   useEffect(() => {
@@ -45,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadProfile(session.user.id);
+        loadEntitlements(session.user.id);
       } else {
         setLoading(false);
       }
@@ -62,8 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           queryClient.setQueryData(queryKeys.auth.profile(session.user.id), profileRef.current);
         }
         await loadProfile(session.user.id);
+        await loadEntitlements(session.user.id);
       } else {
         setProfile(null);
+        setEntitlements([]);
         queryClient.removeQueries({ queryKey: queryKeys.auth.profile() });
         setLoading(false);
       }
@@ -85,11 +93,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loadEntitlements = async (userId: string) => {
+    try {
+      const data = await getUserEntitlements(userId);
+      setEntitlements(data);
+    } catch (error) {
+      console.error('Error loading entitlements:', error);
+    }
+  };
+
   const refreshProfile = async () => {
     if (user) {
       await loadProfile(user.id);
     }
   };
+
+  const hasEntitlement = (featureKeyOrProductId: string) =>
+    entitlements.some((e) => e.product_id === featureKeyOrProductId || e.products?.feature_key === featureKeyOrProductId);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await authSignIn(email, password);
@@ -113,11 +133,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     profile,
+    entitlements,
     loading,
     signIn,
     signUp,
     signOut,
     refreshProfile,
+    hasEntitlement,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

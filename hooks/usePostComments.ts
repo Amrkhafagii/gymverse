@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PostComment, getPostComments, addPostComment } from '@/lib/socialFeed';
 
-export function usePostComments(postId: number, userId?: string) {
+export function usePostComments(postId?: number, userId?: string) {
   const [comments, setComments] = useState<PostComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -11,6 +11,7 @@ export function usePostComments(postId: number, userId?: string) {
   const loadComments = async () => {
     try {
       setError(null);
+      if (!postId) return;
       const postComments = await getPostComments(postId);
       setComments(postComments);
     } catch (err) {
@@ -24,6 +25,8 @@ export function usePostComments(postId: number, userId?: string) {
   // Set up realtime subscription for comments
   useEffect(() => {
     loadComments();
+
+    if (!postId) return;
 
     const subscription = supabase
       .channel(`post_comments_${postId}`)
@@ -78,7 +81,7 @@ export function usePostComments(postId: number, userId?: string) {
 
   // Add a comment
   const addComment = async (content: string) => {
-    if (!userId) return null;
+    if (!userId || !postId) return null;
 
     try {
       const comment = await addPostComment(postId, userId, content);

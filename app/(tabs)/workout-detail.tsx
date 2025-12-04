@@ -22,6 +22,7 @@ interface WorkoutExercise {
 export default function WorkoutDetailScreen() {
   const params = useLocalSearchParams();
   const workoutId = params?.workoutId as string;
+  const workoutIdNum = Number(workoutId);
   const { colors } = useTheme();
   const borderColor = colors.border || '#333';
   const cardBg = colors.surface || '#1a1a1a';
@@ -52,10 +53,14 @@ export default function WorkoutDetailScreen() {
       setError(null);
 
       // Load workout details
+      if (!Number.isFinite(workoutIdNum)) {
+        throw new Error('Invalid workout id');
+      }
+
       const { data: workoutData, error: workoutError } = await supabase
         .from('workouts')
         .select('*')
-        .eq('id', workoutId)
+        .eq('id', workoutIdNum)
         .single();
 
       if (workoutError) {
@@ -77,14 +82,24 @@ export default function WorkoutDetailScreen() {
           exercise:exercises(*)
         `
         )
-        .eq('workout_id', workoutId)
+        .eq('workout_id', workoutIdNum)
         .order('order_index');
 
       if (exercisesError) {
         throw new Error(exercisesError.message);
       }
 
-      setExercises(exercisesData || []);
+      const cleaned =
+        (exercisesData || [])
+          .filter((ex) => ex.exercise_id !== null)
+          .map(
+            (ex) =>
+              ({
+                ...ex,
+                exercise_id: ex.exercise_id as number,
+              } as WorkoutExercise)
+          ) ?? [];
+      setExercises(cleaned);
     } catch (err: any) {
       console.error('Error loading workout details:', err);
       setError(err.message || 'Failed to load workout details');
@@ -96,7 +111,7 @@ export default function WorkoutDetailScreen() {
   const startWorkout = () => {
     if (!workout) return;
 
-    router.push(routes.workoutSession(workoutId, workout.name || 'Workout'));
+    router.push(routes.workoutSession(workoutIdNum, workout.name || 'Workout'));
   };
 
   const getDifficultyColor = (difficulty: string) => {

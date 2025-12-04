@@ -30,5 +30,40 @@ export {
   type WorkoutStreak,
   type ExerciseSet,
 } from './analytics';
+export {
+  createCoachingPath,
+  getCoachNotesForSession,
+  getCoachingPaths,
+  getCoachingSessions,
+  getLatestCoachingEvent,
+  getCoachingAdherence,
+  recalculateCoachingPath,
+  updateCoachingPathStatus,
+  logCoachingEvent,
+  type CoachNotes,
+  type CoachingBlock,
+  type CoachingEvent,
+  type CoachingPath,
+  type CoachingPathStatus,
+  type CoachingSession,
+  type CreateCoachingPathInput,
+} from './coaching';
+export {
+  getProducts,
+  createPendingPayment,
+  getUserPayments,
+  approvePayment,
+  type Product,
+  type PaymentInsert,
+  type Payment,
+  uploadReceipt,
+  getReceiptSignedUrl,
+  getCoachPayments,
+  getAdminPayments,
+  rejectPayment,
+  getUserEntitlements,
+  type Entitlement,
+  getPendingPaymentForFeatureKey,
+} from './payments';
 
 export type Achievement = Database['public']['Tables']['achievements']['Row'];

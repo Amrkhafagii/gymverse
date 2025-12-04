@@ -505,9 +505,11 @@ export const getPersonalRecordStats = async (userId: string) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const recentRecords = records.filter(
-      (record) => new Date(record.achieved_at) >= thirtyDaysAgo
-    ).length;
+    const recentRecords = records.filter((record) => {
+      if (!record.achieved_at) return false;
+      const achieved = new Date(record.achieved_at);
+      return achieved >= thirtyDaysAgo;
+    }).length;
 
     return {
       totalRecords,

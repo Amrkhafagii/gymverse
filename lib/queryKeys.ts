@@ -19,4 +19,8 @@ export const queryKeys = {
     session: ['auth', 'session'] as const,
     profile: (userId?: string | null) => ['profile', userId ?? 'anon'] as const,
   },
+  coaching: {
+    paths: (userId?: string | null) => ['coaching', 'paths', userId ?? 'anon'] as const,
+    notes: (sessionId?: string | null) => ['coaching', 'notes', sessionId ?? 'none'] as const,
+  },
 };

@@ -33,7 +33,7 @@ export function QueryProvider({ children }: Props) {
         onlineManager.setOnline(true);
       }
 
-      const subscription = Network.addNetworkStateChangeListener((state) => {
+      const subscription = Network.addNetworkStateListener((state) => {
         onlineManager.setOnline(Boolean(state.isConnected));
       });
 

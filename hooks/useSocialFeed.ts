@@ -86,7 +86,7 @@ export function useSocialFeed(userId?: string) {
         async (payload) => {
           console.log('Like change detected:', payload);
 
-          const postId = payload.new?.post_id || payload.old?.post_id;
+          const postId = (payload.new as any)?.post_id || (payload.old as any)?.post_id;
           if (!postId) return;
 
           // Update the likes count for the affected post
@@ -127,7 +127,7 @@ export function useSocialFeed(userId?: string) {
         async (payload) => {
           console.log('Comment change detected:', payload);
 
-          const postId = payload.new?.post_id || payload.old?.post_id;
+          const postId = (payload.new as any)?.post_id || (payload.old as any)?.post_id;
           if (!postId) return;
 
           // Update the comments count for the affected post
@@ -218,11 +218,15 @@ export function useSocialFeed(userId?: string) {
   };
 
   // Create a new workout post
-  const handleCreateWorkoutPost = async (content: string, workoutSessionId?: number) => {
+  const handleCreateWorkoutPost = async (
+    content: string,
+    workoutSessionId?: number,
+    coachingPathId?: string | null
+  ) => {
     if (!userId) return null;
 
     try {
-      const post = await createWorkoutPost(userId, content, workoutSessionId);
+      const post = await createWorkoutPost(userId, content, workoutSessionId, coachingPathId);
       if (post) {
         // The realtime subscription will handle adding it to the feed
         return post;

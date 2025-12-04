@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -20,6 +21,8 @@ import WorkoutTemplatesSection from '@/components/WorkoutTemplatesSection';
 import { ScreenState } from '@/components/ScreenState';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useWorkoutsData } from '@/hooks/useWorkoutsData';
+import { useCoachingPaths } from '@/hooks/useCoachingPaths';
+import { getCoachingSessions, type CoachingSession } from '@/lib/supabase';
 import { routes } from '@/utils/routes';
 
 interface WorkoutCategory {
@@ -36,6 +39,21 @@ export default function WorkoutsScreen() {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const { templates: workoutTemplates, userWorkouts, loading, refetch } = useWorkoutsData(user?.id);
+  const {
+    activePath,
+    loading: coachingLoading,
+    refresh: refreshCoaching,
+  } = useCoachingPaths(user?.id);
+  const [workoutCategories, setWorkoutCategories] = useState<WorkoutCategory[]>([]);
+  const [coachingSessions, setCoachingSessions] = useState<CoachingSession[]>([]);
+  const coachingTemplateIds = useMemo(
+    () => new Set(coachingSessions.map((session) => session.template_workout_id).filter(Boolean)),
+    [coachingSessions]
+  );
+  const nextCoachingSession = useMemo(() => {
+    if (coachingSessions.length === 0) return null;
+    return [...coachingSessions].sort((a, b) => a.session_index - b.session_index)[0];
+  }, [coachingSessions]);
   const [filteredTemplates, setFilteredTemplates] = useState<Workout[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
@@ -43,8 +61,6 @@ export default function WorkoutsScreen() {
   const [selectedEquipment, setSelectedEquipment] = useState<string>('all');
   const [selectedDuration, setSelectedDuration] = useState<string>('all');
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
-
-  const [workoutCategories, setWorkoutCategories] = useState<WorkoutCategory[]>([]);
 
   const generateWorkoutCategories = useCallback((templates: Workout[]) => {
     const categoryMap = new Map<string, WorkoutCategory>();
@@ -60,7 +76,7 @@ export default function WorkoutsScreen() {
           duration: '0 min',
           color: getCategoryColor(type),
           type: type,
-          difficulty: template.difficulty_level,
+          difficulty: (template.difficulty_level as WorkoutCategory['difficulty']) || 'beginner',
         });
       }
 
@@ -114,7 +130,9 @@ export default function WorkoutsScreen() {
       );
     }
 
-    if (selectedFilter !== 'all') {
+    if (selectedFilter === 'coaching') {
+      filtered = filtered.filter((workout) => coachingTemplateIds.has(workout.id));
+    } else if (selectedFilter !== 'all') {
       filtered = filtered.filter((workout) => (workout.workout_type || '') === selectedFilter);
     }
 
@@ -147,6 +165,7 @@ export default function WorkoutsScreen() {
     selectedDifficulty,
     selectedEquipment,
     selectedDuration,
+    coachingTemplateIds,
   ]);
 
   useEffect(() => {
@@ -155,6 +174,17 @@ export default function WorkoutsScreen() {
   useEffect(() => {
     generateWorkoutCategories(workoutTemplates);
   }, [generateWorkoutCategories, workoutTemplates]);
+  useEffect(() => {
+    const loadCoachingSessions = async () => {
+      if (!activePath) {
+        setCoachingSessions([]);
+        return;
+      }
+      const sessions = await getCoachingSessions(activePath.id);
+      setCoachingSessions(sessions);
+    };
+    loadCoachingSessions();
+  }, [activePath]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -309,6 +339,66 @@ export default function WorkoutsScreen() {
               </View>
             </View>
 
+            {user ? (
+              <View style={[styles.coachingCard, { backgroundColor: colors.surface }]}>
+                <View style={styles.coachingHeader}>
+                  <Text style={[styles.coachingTitle, { color: colors.text }]}>Coaching Path</Text>
+                  <TouchableOpacity onPress={() => refreshCoaching()} disabled={coachingLoading}>
+                    <Text style={[styles.coachingAction, { color: colors.primary }]}>
+                      {coachingLoading ? 'Refreshing' : 'Refresh'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {activePath ? (
+                  <>
+                    <Text style={[styles.coachingGoal, { color: colors.text }]}>
+                      Goal: {activePath.goal_type}
+                    </Text>
+                    <Text style={[styles.coachingMeta, { color: colors.textMuted }]}>
+                      Week {activePath.current_week} of {activePath.weeks} • {activePath.status}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={[styles.coachingMeta, { color: colors.textMuted }]}>
+                    No active coaching path yet.
+                  </Text>
+                )}
+              </View>
+            ) : null}
+
+            {activePath && nextCoachingSession ? (
+              <TouchableOpacity
+                style={[styles.nextUpCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={() =>
+                  nextCoachingSession.template_workout_id
+                    ? router.push(
+                        routes.workoutSession(
+                          nextCoachingSession.template_workout_id,
+                          workoutTemplates.find((w) => w.id === nextCoachingSession.template_workout_id)?.name ||
+                            'Coaching Session',
+                          nextCoachingSession.id
+                        )
+                      )
+                    : Alert.alert('No linked workout', 'This coaching session is missing a template.')
+                }
+              >
+                <View style={styles.nextUpHeader}>
+                  <Text style={[styles.nextUpLabel, { color: colors.textMuted }]}>Next up</Text>
+                  <Text style={[styles.pillSmall, { backgroundColor: colors.primary, color: '#000' }]}>
+                    Coaching
+                  </Text>
+                </View>
+                <Text style={[styles.nextUpTitle, { color: colors.text }]}>
+                  {workoutTemplates.find((w) => w.id === nextCoachingSession.template_workout_id)?.name ||
+                    'Session'}
+                </Text>
+                <Text style={[styles.nextUpMeta, { color: colors.textMuted }]}>
+                  Planned {nextCoachingSession.planned_duration ?? 45} min • Session{' '}
+                  {nextCoachingSession.session_index}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
             {workoutCategories.length > 0 ? (
               <WorkoutQuickStartSection
                 workoutCategories={workoutCategories}
@@ -339,6 +429,21 @@ export default function WorkoutsScreen() {
                     All
                   </Text>
                 </TouchableOpacity>
+                {activePath ? (
+                  <TouchableOpacity
+                    style={[styles.filterChip, selectedFilter === 'coaching' && styles.filterChipActive]}
+                    onPress={() => setSelectedFilter('coaching')}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        selectedFilter === 'coaching' && styles.filterChipTextActive,
+                      ]}
+                    >
+                      Coaching
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
                 {workoutCategories.map((category) => (
                   <TouchableOpacity
                     key={category.type}
@@ -406,24 +511,27 @@ export default function WorkoutsScreen() {
                           </Text>
                         </View>
                         <View style={styles.statItem}>
-                          <Target size={16} color={getDifficultyColor(workout.difficulty_level)} />
+                          <Target
+                            size={16}
+                            color={getDifficultyColor(workout.difficulty_level || 'beginner')}
+                          />
                           <Text
                             style={[
                               styles.statText,
-                              { color: getDifficultyColor(workout.difficulty_level) },
+                              { color: getDifficultyColor(workout.difficulty_level || 'beginner') },
                             ]}
                           >
-                            {workout.difficulty_level}
+                            {workout.difficulty_level || 'beginner'}
                           </Text>
                         </View>
                         <View style={styles.statItem}>
                           <Text
                             style={[
                               styles.workoutTypeText,
-                              { color: getWorkoutTypeColor(workout.workout_type) },
+                              { color: getWorkoutTypeColor(workout.workout_type || 'strength') },
                             ]}
                           >
-                            {workout.workout_type}
+                            {workout.workout_type || 'strength'}
                           </Text>
                         </View>
                       </View>
@@ -693,6 +801,69 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: '#fff',
+  },
+  coachingCard: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+    marginBottom: 16,
+  },
+  coachingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  coachingTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+  },
+  coachingAction: {
+    fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+  },
+  coachingGoal: {
+    fontSize: 15,
+    fontFamily: 'Inter-SemiBold',
+  },
+  coachingMeta: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
+    marginTop: 4,
+  },
+  nextUpCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  nextUpHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  nextUpLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    textTransform: 'uppercase',
+  },
+  nextUpTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+  },
+  nextUpMeta: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    marginTop: 4,
+  },
+  pillSmall: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   emptyCategories: {
     paddingHorizontal: 20,

@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Dumbbell, TrendingUp, Users, User, Trophy } from 'lucide-react-native';
+import { Chrome as Home, Dumbbell, TrendingUp, Users, User, Trophy, Target, ShoppingBag } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -43,6 +43,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="coaching-paths"
+        options={{
+          title: 'Coaching',
+          tabBarIcon: ({ size, color }) => <Target size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="achievements"
         options={{
           title: 'Achievements',
@@ -54,6 +61,13 @@ export default function TabLayout() {
         options={{
           title: 'Social',
           tabBarIcon: ({ size, color }) => <Users size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="marketplace"
+        options={{
+          title: 'Marketplace',
+          tabBarIcon: ({ size, color }) => <ShoppingBag size={size} color={color} />,
         }}
       />
       <Tabs.Screen

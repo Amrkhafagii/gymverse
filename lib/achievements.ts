@@ -2,11 +2,11 @@ import { supabase, Achievement, WorkoutSession, PersonalRecord } from './supabas
 
 export interface UserAchievement {
   id: number;
-  user_id: string;
-  achievement_id: number;
-  unlocked_at: string;
+  user_id: string | null;
+  achievement_id: number | null;
+  unlocked_at: string | null;
   progress?: any;
-  achievement: Achievement;
+  achievement: Achievement | null;
 }
 
 export interface AchievementProgress {
@@ -468,14 +468,16 @@ export const getUserAchievementProgress = async (
           const weekAgo = new Date();
           weekAgo.setDate(weekAgo.getDate() - 7);
           currentValue =
-            workoutSessions?.filter((ws) => new Date(ws.started_at) >= weekAgo).length || 0;
+            workoutSessions?.filter((ws) => ws.started_at && new Date(ws.started_at) >= weekAgo)
+              .length || 0;
           break;
         case 'monthly_workouts':
           // Calculate current month's workouts
           const monthAgo = new Date();
           monthAgo.setDate(monthAgo.getDate() - 30);
           currentValue =
-            workoutSessions?.filter((ws) => new Date(ws.started_at) >= monthAgo).length || 0;
+            workoutSessions?.filter((ws) => ws.started_at && new Date(ws.started_at) >= monthAgo)
+              .length || 0;
           break;
         case 'cardio_workouts':
           // This would require joining with workouts table to check workout_type
@@ -519,7 +521,13 @@ export const getUserAchievements = async (userId: string): Promise<UserAchieveme
       .order('unlocked_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []).map((row) => ({
+      ...row,
+      user_id: row.user_id ?? null,
+      achievement: row.achievement ?? null,
+      unlocked_at: row.unlocked_at ?? null,
+      achievement_id: row.achievement_id ?? null,
+    }));
   } catch (error) {
     console.error('Error fetching user achievements:', error);
     return [];

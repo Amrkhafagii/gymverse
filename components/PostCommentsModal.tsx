@@ -16,7 +16,7 @@ import { usePostComments } from '@/hooks/usePostComments';
 
 interface PostCommentsModalProps {
   visible: boolean;
-  postId: number;
+  postId: number | null;
   userId?: string;
   onClose: () => void;
 }
@@ -27,12 +27,12 @@ export default function PostCommentsModal({
   userId,
   onClose,
 }: PostCommentsModalProps) {
-  const { comments, loading, addComment } = usePostComments(postId, userId);
+  const { comments, loading, addComment } = usePostComments(postId ?? undefined, userId);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmitComment = async () => {
-    if (!newComment.trim() || !userId || submitting) return;
+    if (!newComment.trim() || !userId || submitting || postId == null) return;
 
     setSubmitting(true);
     try {

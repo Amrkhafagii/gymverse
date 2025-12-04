@@ -58,7 +58,7 @@ export default function AchievementModal({ visible, achievement, onClose }: Achi
   };
 
   const IconComponent = getIconComponent(achievement.icon || 'trophy');
-  const categoryColor = getCategoryColor(achievement.category);
+  const categoryColor = getCategoryColor(achievement.category || 'workout');
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

@@ -6,11 +6,11 @@ import { Trophy, Zap, Target, Crown } from 'lucide-react-native';
 interface LeaderboardUser {
   id: string;
   name: string;
-  username: string;
+  username?: string | null;
   points: number;
   rank: number;
-  avatar: string;
-  streak: number;
+  avatar?: string | null;
+  streak?: number | null;
   workouts: number;
 }
 
@@ -69,7 +69,7 @@ export default function SocialLeaderboard({ leaderboard, currentUserId }: Social
             </View>
 
             <Image
-              source={{ uri: user.avatar }}
+              source={{ uri: user.avatar || undefined }}
               style={styles.avatar}
               contentFit="cover"
               cachePolicy="memory-disk"

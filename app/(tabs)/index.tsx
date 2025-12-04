@@ -47,7 +47,7 @@ export default function HomeScreen() {
     }
 
     return workoutSessions.slice(0, 3).map((session, index) => {
-      const sessionDate = new Date(session.started_at);
+      const sessionDate = session.started_at ? new Date(session.started_at) : new Date();
       const now = new Date();
       const diffInDays = Math.floor(
         (now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24)

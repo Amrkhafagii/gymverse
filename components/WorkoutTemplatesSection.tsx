@@ -90,7 +90,7 @@ export default function WorkoutTemplatesSection({
             onPress={() => onWorkoutPress(workout)}
           >
             <Image
-              source={{ uri: getWorkoutImage(workout.workout_type) }}
+              source={{ uri: getWorkoutImage(workout.workout_type || 'strength') }}
               style={styles.workoutImage}
               contentFit="cover"
               cachePolicy="memory-disk"
@@ -115,24 +115,24 @@ export default function WorkoutTemplatesSection({
                   <Text style={styles.metaText}>{workout.estimated_duration_minutes} min</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <Target size={14} color={getDifficultyColor(workout.difficulty_level)} />
+                  <Target size={14} color={getDifficultyColor(workout.difficulty_level || 'beginner')} />
                   <Text
                     style={[
                       styles.metaText,
-                      { color: getDifficultyColor(workout.difficulty_level) },
+                      { color: getDifficultyColor(workout.difficulty_level || 'beginner') },
                     ]}
                   >
-                    {workout.difficulty_level}
+                    {workout.difficulty_level || 'beginner'}
                   </Text>
                 </View>
                 <View style={styles.metaItem}>
                   <Text
                     style={[
                       styles.workoutTypeText,
-                      { color: getWorkoutTypeColor(workout.workout_type) },
+                      { color: getWorkoutTypeColor(workout.workout_type || 'strength') },
                     ]}
                   >
-                    {workout.workout_type.toUpperCase()}
+                    {(workout.workout_type || 'strength').toUpperCase()}
                   </Text>
                 </View>
               </View>

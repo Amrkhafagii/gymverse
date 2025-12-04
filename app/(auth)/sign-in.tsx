@@ -90,7 +90,7 @@ export default function SignInScreen() {
                   <View style={{ flex: 1 }}>
                     <InputField
                       placeholder="Email"
-                      value={value}
+                      value={value ?? ''}
                       onChangeText={onChange}
                       onBlur={onBlur}
                       keyboardType="email-address"
@@ -111,7 +111,7 @@ export default function SignInScreen() {
                   <View style={{ flex: 1 }}>
                     <InputField
                       placeholder="Password"
-                      value={value}
+                      value={value ?? ''}
                       onChangeText={onChange}
                       onBlur={onBlur}
                       secureTextEntry={!showPassword}

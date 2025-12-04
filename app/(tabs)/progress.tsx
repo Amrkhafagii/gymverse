@@ -1,9 +1,11 @@
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { useEffect, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TrendingUp, Dumbbell, Zap, Target, Clock } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkoutAnalytics } from '@/hooks/useWorkoutAnalytics';
 import { usePersonalRecords } from '@/hooks/usePersonalRecords';
+import { useCoachingPaths } from '@/hooks/useCoachingPaths';
 import ProgressStatsCard from '@/components/ProgressStatsCard';
 import ProgressChart from '@/components/ProgressChart';
 import StreakDisplay from '@/components/StreakDisplay';
@@ -11,6 +13,7 @@ import PersonalRecordsSection from '@/components/PersonalRecordsSection';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ScreenState } from '@/components/ScreenState';
 import { colors as tokens } from '@/theme/tokens';
+import { getLatestCoachingEvent, getCoachingAdherence } from '@/lib/supabase';
 
 export default function ProgressScreen() {
   const { user } = useAuth();
@@ -32,6 +35,39 @@ export default function ProgressScreen() {
     loading: recordsLoading,
     refreshRecords,
   } = usePersonalRecords(user?.id || null);
+  const { activePath } = useCoachingPaths(user?.id);
+  const [pathSessions, setPathSessions] = useState<{ completed: number; planned: number }>({
+    completed: 0,
+    planned: 0,
+  });
+  const [lastAdjustment, setLastAdjustment] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadCoachingData = async () => {
+      if (!activePath) {
+        setPathSessions({ completed: 0, planned: 0 });
+        setLastAdjustment(null);
+        return;
+      }
+      const latestEvent = await getLatestCoachingEvent(activePath.id);
+      const adherence = await getCoachingAdherence(activePath.id);
+
+      setPathSessions({
+        planned: adherence.planned,
+        completed: adherence.completed,
+      });
+
+      if (latestEvent) {
+        setLastAdjustment(
+          `${latestEvent.type} • ${new Date(latestEvent.created_at).toLocaleDateString()}`
+        );
+      } else {
+        setLastAdjustment('No adjustments yet');
+      }
+    };
+
+    loadCoachingData();
+  }, [activePath]);
 
   const handleRefresh = async () => {
     await Promise.all([refreshAnalytics(), refreshRecords()]);
@@ -191,6 +227,29 @@ export default function ProgressScreen() {
         </View>
       )}
 
+      {/* Coaching Path Snapshot */}
+      {activePath && (
+        <View style={styles.coachingCard}>
+          <View style={styles.coachingHeader}>
+            <Text style={[styles.coachingLabel, { color: colors.textMuted }]}>Path</Text>
+            <Text style={[styles.coachingGoal, { color: colors.text }]}>{activePath.goal_type}</Text>
+          </View>
+          <View style={styles.coachingMeta}>
+            <Text style={[styles.coachingText, { color: colors.textMuted }]}>
+              Week {activePath.current_week} of {activePath.weeks} • {activePath.status}
+            </Text>
+            <Text style={[styles.coachingText, { color: colors.text }]}>
+              Adherence (est): {pathSessions.completed}/{pathSessions.planned} sessions
+            </Text>
+            {lastAdjustment ? (
+              <Text style={[styles.coachingText, { color: colors.textMuted }]}>
+                Last adjustment: {lastAdjustment}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      )}
+
       {/* Personal Records Section */}
       <PersonalRecordsSection
         personalRecords={personalRecords}
@@ -291,6 +350,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginHorizontal: -4,
+  },
+  coachingCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+    backgroundColor: '#111',
+  },
+  coachingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  coachingLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    textTransform: 'uppercase',
+  },
+  coachingGoal: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+  },
+  coachingMeta: {
+    gap: 4,
+  },
+  coachingText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
   },
   chartContainer: {
     paddingHorizontal: 20,

@@ -18,13 +18,9 @@ export function useNetworkStatus() {
 
     fetchStatus();
 
-    const listen = async () => {
-      subscription = Network.addNetworkStateChangeListener((state) => {
-        setIsOnline(Boolean(state.isConnected));
-      });
-    };
-
-    listen();
+    subscription = Network.addNetworkStateListener((state) => {
+      setIsOnline(Boolean(state.isConnected));
+    });
 
     return () => {
       if (subscription) {

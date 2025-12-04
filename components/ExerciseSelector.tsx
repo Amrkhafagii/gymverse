@@ -46,16 +46,6 @@ export default function ExerciseSelector({
 
   const exerciseTypes = ['all', 'strength', 'cardio', 'flexibility', 'balance'];
 
-  useEffect(() => {
-    if (visible) {
-      loadExercises();
-    }
-  }, [visible]);
-
-  useEffect(() => {
-    filterExercises();
-  }, [filterExercises]);
-
   const loadExercises = async () => {
     try {
       setLoading(true);
@@ -97,6 +87,16 @@ export default function ExerciseSelector({
 
     setFilteredExercises(filtered);
   }, [excludeExerciseIds, exercises, searchQuery, selectedMuscleGroup, selectedType]);
+
+  useEffect(() => {
+    if (visible) {
+      loadExercises();
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    filterExercises();
+  }, [filterExercises]);
 
   const handleSelectExercise = (exercise: Exercise) => {
     onSelectExercise(exercise);
@@ -241,7 +241,7 @@ export default function ExerciseSelector({
                         <Text
                           style={[
                             styles.metaText,
-                            { color: getDifficultyColor(exercise.difficulty_level) },
+                            { color: getDifficultyColor(exercise.difficulty_level || 'beginner') },
                           ]}
                         >
                           {exercise.difficulty_level}
@@ -249,9 +249,12 @@ export default function ExerciseSelector({
                       </View>
                       <View style={styles.metaItem}>
                         <Text
-                          style={[styles.metaText, { color: getTypeColor(exercise.exercise_type) }]}
+                          style={[
+                            styles.metaText,
+                            { color: getTypeColor(exercise.exercise_type || 'strength') },
+                          ]}
                         >
-                          {exercise.exercise_type}
+                          {exercise.exercise_type || 'strength'}
                         </Text>
                       </View>
                     </View>

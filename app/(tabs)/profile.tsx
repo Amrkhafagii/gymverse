@@ -8,6 +8,8 @@ import {
   Calendar,
   Calculator,
   MoonStar,
+  ShieldCheck,
+  ShoppingBag,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -24,7 +26,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { routes } from '@/utils/routes';
 
 export default function ProfileScreen() {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
   const [showTDEECalculator, setShowTDEECalculator] = useState(false);
   const { mode, toggle } = useTheme();
 
@@ -84,6 +86,33 @@ export default function ProfileScreen() {
       color: '#FF6B35',
     },
   ];
+
+  if (user?.app_metadata?.role === 'admin') {
+    preferences.unshift({
+      label: 'Admin payments',
+      value: 'Approve receipts',
+      action: () => router.push(routes.adminPayments as any),
+      icon: ShieldCheck,
+      color: '#FF6B35',
+    });
+  }
+
+  if (user?.user_metadata?.is_coach || user?.app_metadata?.is_coach) {
+    preferences.unshift({
+      label: 'Your sales',
+      value: 'View receipts',
+      action: () => router.push(routes.coachPayments as any),
+      icon: ShoppingBag,
+      color: '#27AE60',
+    });
+    preferences.unshift({
+      label: 'My products',
+      value: 'Manage items',
+      action: () => router.push(routes.coachProducts as any),
+      icon: Target,
+      color: '#F39C12',
+    });
+  }
 
   const handleSettingsPress = () => {
     console.log('Settings pressed');

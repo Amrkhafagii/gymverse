@@ -30,14 +30,21 @@ interface CreatePostModalProps {
     content: string,
     type: 'general' | 'workout' | 'achievement' | 'progress'
   ) => Promise<void>;
+  coachingGoal?: string | null;
 }
 
-export default function CreatePostModal({ visible, onClose, onCreatePost }: CreatePostModalProps) {
+export default function CreatePostModal({
+  visible,
+  onClose,
+  onCreatePost,
+  coachingGoal,
+}: CreatePostModalProps) {
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState<'general' | 'workout' | 'achievement' | 'progress'>(
     'general'
   );
   const [submitting, setSubmitting] = useState(false);
+  const [tagPath, setTagPath] = useState(false);
 
   const postTypes = [
     {
@@ -88,11 +95,15 @@ export default function CreatePostModal({ visible, onClose, onCreatePost }: Crea
       return;
     }
 
+    const contentWithTag =
+      tagPath && coachingGoal ? `${content.trim()}\n#OnPath: ${coachingGoal}` : content.trim();
+
     setSubmitting(true);
     try {
-      await onCreatePost(content.trim(), postType);
+      await onCreatePost(contentWithTag, postType);
       setContent('');
       setPostType('general');
+      setTagPath(false);
       onClose();
     } catch (error) {
       console.error('Error creating post:', error);
@@ -219,6 +230,20 @@ export default function CreatePostModal({ visible, onClose, onCreatePost }: Crea
               </View>
             </View>
           </View>
+
+          {coachingGoal ? (
+            <TouchableOpacity
+              style={[
+                styles.tagRow,
+                tagPath ? styles.tagRowActive : styles.tagRowInactive,
+              ]}
+              onPress={() => setTagPath((prev) => !prev)}
+            >
+              <Text style={[styles.tagText, tagPath ? styles.tagTextActive : styles.tagTextInactive]}>
+                Tag my coaching path: {coachingGoal}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           {/* Post Type Tips */}
           {postType === 'workout' && (
@@ -348,6 +373,30 @@ const styles = StyleSheet.create({
   postTypeButtonActive: {
     borderColor: '#FF6B35',
     backgroundColor: '#FF6B3510',
+  },
+  tagRow: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  tagRowActive: {
+    borderColor: '#27AE60',
+    backgroundColor: '#27AE6020',
+  },
+  tagRowInactive: {
+    borderColor: '#333',
+    backgroundColor: '#1a1a1a',
+  },
+  tagText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  tagTextActive: {
+    color: '#27AE60',
+  },
+  tagTextInactive: {
+    color: '#ccc',
   },
   postTypeIconContainer: {
     padding: 8,

@@ -68,7 +68,7 @@ export default function AchievementProgressCard({
   };
 
   const IconComponent = getIconComponent(achievement.icon || 'trophy');
-  const categoryColor = getCategoryColor(achievement.category);
+  const categoryColor = getCategoryColor(achievement.category || 'workout');
 
   const CardComponent = onPress ? TouchableOpacity : View;
 

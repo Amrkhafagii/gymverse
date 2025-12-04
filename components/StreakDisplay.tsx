@@ -37,26 +37,28 @@ export default function StreakDisplay({ streak, loading }: StreakDisplayProps) {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const currentStreak = streak.current_streak ?? 0;
+  const longestStreak = streak.longest_streak ?? 0;
+
   const getStreakMessage = () => {
-    if (streak.current_streak === 0) {
+    if (currentStreak === 0) {
       return 'Time to get back on track!';
-    } else if (streak.current_streak === 1) {
+    } else if (currentStreak === 1) {
       return 'Great start! Keep it going!';
-    } else if (streak.current_streak < 7) {
+    } else if (currentStreak < 7) {
       return 'Building momentum!';
-    } else if (streak.current_streak < 30) {
+    } else if (currentStreak < 30) {
       return "You're on fire! 🔥";
     } else {
       return 'Incredible dedication! 🏆';
     }
   };
 
-  const isPersonalBest =
-    streak.current_streak === streak.longest_streak && streak.current_streak > 0;
+  const isPersonalBest = currentStreak === longestStreak && currentStreak > 0;
 
   return (
     <LinearGradient
-      colors={streak.current_streak > 0 ? ['#FF6B35', '#FF8C42'] : ['#333', '#444']}
+      colors={currentStreak > 0 ? ['#FF6B35', '#FF8C42'] : ['#333', '#444']}
       style={styles.container}
     >
       <View style={styles.header}>
@@ -64,7 +66,7 @@ export default function StreakDisplay({ streak, loading }: StreakDisplayProps) {
           <Zap size={32} color="#fff" />
         </View>
         <View style={styles.streakInfo}>
-          <Text style={styles.streakNumber}>{streak.current_streak}</Text>
+          <Text style={styles.streakNumber}>{currentStreak}</Text>
           <Text style={styles.streakLabel}>Day Streak</Text>
         </View>
         {isPersonalBest && (
@@ -81,7 +83,7 @@ export default function StreakDisplay({ streak, loading }: StreakDisplayProps) {
         <View style={styles.statItem}>
           <Calendar size={16} color="#fff" />
           <Text style={styles.statLabel}>Longest</Text>
-          <Text style={styles.statValue}>{streak.longest_streak} days</Text>
+          <Text style={styles.statValue}>{longestStreak} days</Text>
         </View>
         <View style={styles.statItem}>
           <Calendar size={16} color="#fff" />
